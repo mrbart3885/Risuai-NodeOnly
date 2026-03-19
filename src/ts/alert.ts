@@ -27,6 +27,9 @@ export const alertStore = {
     }
 }
 
+// Shared acceptance cache for both global startup TOS and Realm download confirmation.
+const TOS_ACCEPTANCE_STORAGE_KEY = 'tos2'
+
 export function alertError(msg: string | Error) {
     console.error(msg)
     const db = getDatabase()
@@ -232,7 +235,7 @@ export async function alertCardExport(type:string = ''){
 
 export async function alertTOS(){
 
-    if(localStorage.getItem('tos2') === 'true'){
+    if(localStorage.getItem(TOS_ACCEPTANCE_STORAGE_KEY) === 'true'){
         return true
     }
 
@@ -244,7 +247,7 @@ export async function alertTOS(){
     await waitAlert()
 
     if(get(alertStoreImported).msg === 'yes'){
-        localStorage.setItem('tos2', 'true')
+        localStorage.setItem(TOS_ACCEPTANCE_STORAGE_KEY, 'true')
         return true
     }
 

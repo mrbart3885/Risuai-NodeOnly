@@ -1,6 +1,5 @@
 <script lang="ts">
     import { language } from "src/lang";
-    import { DBState } from 'src/ts/stores.svelte';
     import { alertConfirm} from "src/ts/alert";
     import { loadInternalBackup } from "src/ts/globalApi.svelte";
     import { LoadLocalBackup, SaveLocalBackup, SavePartialLocalBackup } from "src/ts/drive/backuplocal";
@@ -45,7 +44,6 @@
     }} className="mt-2">
     {language.loadInternalBackup}
 </Button>
-
 
 <Button onclick={exportAsDataset} className="mt-2">
     {language.exportAsDataset}

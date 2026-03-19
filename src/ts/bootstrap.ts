@@ -12,7 +12,7 @@ import { decodeRisuSave, encodeRisuSaveLegacy, encodeEntity } from "./storage/ri
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
 import { autoServerBackup } from "./kei/backup";
-import { language } from "src/lang";
+import { changeLanguage, language } from "src/lang";
 import { startObserveDom } from "./observer.svelte";
 import { updateGuisize } from "./gui/guisize";
 import { updateLorebooks } from "./characters";
@@ -38,6 +38,7 @@ export async function loadData() {
     const loaded = get(loadedStore)
     if (!loaded) {
         try {
+            let createdFreshDatabase = false
             {
                 await forageStorage.Init()
 
@@ -45,6 +46,7 @@ export async function loadData() {
                 let gotStorage: Uint8Array = await forageStorage.getItem('database/database.bin') as unknown as Uint8Array
                 LoadingStatusState.text = "Decoding Local Save File..."
                 if (checkNullish(gotStorage)) {
+                    createdFreshDatabase = true
                     gotStorage = encodeRisuSaveLegacy({})
                     await forageStorage.setItem('database/database.bin', gotStorage)
                 }
@@ -64,6 +66,7 @@ export async function loadData() {
                                 await decodeRisuSave(backupData)
                             )
                             backupLoaded = true
+                            break
                         } catch (error) { }
                     }
                     if (!backupLoaded) {
@@ -73,6 +76,24 @@ export async function loadData() {
 
                 if (getDatabase().didFirstSetup) {
                     characterURLImport()
+                }
+            }
+            if (createdFreshDatabase) {
+                const browserLangShort = navigator.language.split('-')[0]
+                const browserLanguageMap: Record<string, string> = {
+                    de: 'de',
+                    en: 'en',
+                    ko: 'ko',
+                    cn: 'cn',
+                    vi: 'vi',
+                    es: 'es',
+                    zh: 'zh-Hant'
+                }
+                const mappedLanguage = browserLanguageMap[browserLangShort]
+                if (mappedLanguage) {
+                    const db = getDatabase()
+                    db.language = mappedLanguage
+                    changeLanguage(mappedLanguage)
                 }
             }
             // ── Entity API initial migration (3-2) ─────────────────────────
@@ -96,6 +117,9 @@ export async function loadData() {
                     // Characters
                     for (const char of db.characters) {
                         saves.push(forageStorage.saveCharacter(char.chaId, encodeEntity(char)))
+                        for (const chat of char.chats ?? []) {
+                            saves.push(forageStorage.saveChat(char.chaId, chat.id, encodeEntity(chat)))
+                        }
                     }
                     // Presets
                     for (const preset of db.botPresets) {
@@ -143,6 +167,10 @@ export async function loadData() {
             updateHeightMode()
             updateErrorHandling()
             updateGuisize()
+            if (!db.didFirstSetup) {
+                // Node-only build skips the onboarding screen and lands on the main UI directly.
+                db.didFirstSetup = true
+            }
             if (db.botSettingAtStart) {
                 botMakerMode.set(true)
             }

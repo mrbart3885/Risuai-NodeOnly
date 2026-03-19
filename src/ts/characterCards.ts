@@ -1,13 +1,13 @@
 import { writable, type Writable } from "svelte/store"
-import { alertCardExport, alertConfirm, alertError, alertInput, alertMd, alertNormal, alertStore, alertTOS, alertWait } from "./alert"
-import { defaultSdDataFunc, type character, setDatabase, type customscript, type loreSettings, type loreBook, type triggerscript, importPreset, type groupChat, setCurrentCharacter, getCurrentCharacter, getDatabase, setDatabaseLite, appVer } from "./storage/database.svelte"
+import { alertCardExport, alertConfirm, alertError, alertInput, alertNormal, alertStore, alertTOS, alertWait } from "./alert"
+import { defaultSdDataFunc, type character, setDatabase, type customscript, type loreSettings, type loreBook, type triggerscript, importPreset, type groupChat, getDatabase, setDatabaseLite, appVer } from "./storage/database.svelte"
 import { checkNullish, decryptBuffer, isKnownUri, selectFileByDom, sleep } from "./util"
 import { language } from "src/lang"
 import { v4 as uuidv4, v4 } from 'uuid';
 import { characterFormatUpdate } from "./characters"
-import { AppendableBuffer, BlankWriter, checkCharOrder, downloadFile, forageStorage, loadAsset, LocalWriter, openURL, readImage, saveAsset, VirtualWriter } from "./globalApi.svelte"
+import { AppendableBuffer, BlankWriter, checkCharOrder, downloadFile, forageStorage, loadAsset, LocalWriter, readImage, saveAsset, VirtualWriter } from "./globalApi.svelte"
 import { compressImage, getImageType } from "./media"
-import { SettingsMenuIndex, ShowRealmFrameStore, selectedCharID, settingsOpen } from "./stores.svelte"
+import { SettingsMenuIndex, selectedCharID, settingsOpen } from "./stores.svelte"
 import { hasher } from "./parser/parser.svelte"
 import { type CharacterCardV3, type LorebookEntry } from '@risuai/ccardlib'
 import { reencodeImage } from "./process/files/inlays"
@@ -641,10 +641,7 @@ export async function exportChar(charaID:number):Promise<string> {
     else if(option.type === 'ccv2'){
         exportCharacterCard(char,'png', {spec: 'v2'})
     }
-    else if(option.type === 'realm'){
-        ShowRealmFrameStore.set("character")
-    }
-    else{
+    else if(option.type !== ''){
         return option.type
     }
     return ''
@@ -1603,78 +1600,6 @@ export function createBaseV3(char:character){
         }
     }
     return card
-}
-
-
-export async function shareRisuHub2(char:character, arg:{
-    nsfw: boolean,
-    tag:string
-    license: string
-    anon: boolean,
-    update: boolean
-}) {
-    try {
-        char = safeStructuredClone(char)
-        char.license = arg.license
-        let tagList = arg.tag.split(',')
-        
-        if(arg.nsfw){
-            tagList.push("nsfw")
-        }
-    
-        alertWait("Uploading...")
-        
-    
-        let tags = tagList.filter((v, i) => {
-            return (!!v) && (tagList.indexOf(v) === i)
-        })
-        char.tags = tags
-    
-    
-        const writer = new VirtualWriter()
-        await exportCharacterCard(char, 'png', {writer: writer})
-        const dat = Buffer.from(writer.buf.buffer).toString('base64') + '&' + 'rt.png'
-
-        openURL(`https://realm.risuai.net/hub/realm/upload#filedata=${encodeURIComponent(dat)}`)
-
-        let testMode = true
-        if(testMode){
-            return
-        }
-    
-        const fetchPromise = fetch(hubURL + '/hub/realm/upload', {
-            method: "POST",
-            body: writer.buf.buffer as any,
-            headers: {
-                "Content-Type": 'image/png',
-                "x-risu-api-version": "4",
-                "x-risu-token": getDatabase()?.account?.token,
-                'x-risu-username': arg.anon ? '' : (getDatabase()?.account?.id),
-                'x-risu-debug': 'true',
-                'x-risu-update-id': arg.update ? (char.realmId ?? 'null') : 'null'
-            }
-        })
-    
-    
-        const res = await fetchPromise
-    
-        if(res.status !== 200){
-            alertError(await res.text())
-        }
-        else{
-            const resJSON = await res.json()
-            alertMd(resJSON.message)
-            const currentChar = getCurrentCharacter()
-            if(currentChar.type === 'group'){
-                return
-            }
-            currentChar.realmId = resJSON.id
-            setCurrentCharacter(currentChar)
-        }   
-    } catch (error) {
-        alertError(error)
-    }
-
 }
 
 export type hubType = {

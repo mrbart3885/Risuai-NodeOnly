@@ -4,12 +4,12 @@
     import { saveImage as saveAsset, type character, type groupChat } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import { untrack } from 'svelte';
-    import { CharConfigSubMenu, MobileGUI, ShowRealmFrameStore, selectedCharID, hypaV3ModalOpen } from "../../ts/stores.svelte";
+    import { CharConfigSubMenu, MobileGUI, selectedCharID, hypaV3ModalOpen } from "../../ts/stores.svelte";
     import { PlusIcon, SmileIcon, TrashIcon, UserIcon, ActivityIcon, BookIcon, User, Braces, Volume2Icon, DownloadIcon, HardDriveUploadIcon, Share2Icon, ImageIcon, ImageOffIcon, ArrowUp, ArrowDown } from '@lucide/svelte'
     import Check from "../UI/GUI/CheckInput.svelte";
     import { addCharEmotion, addingEmotion, getCharImage, rmCharEmotion, selectCharImg, makeGroupImage, removeChar, changeCharImage } from "../../ts/characters";
     import LoreBook from "./LoreBook/LoreBookSetting.svelte";
-    import { alertTOS, showHypaV2Alert } from "../../ts/alert";
+    import { showHypaV2Alert } from "../../ts/alert";
     import BarIcon from "./BarIcon.svelte";
     import { findCharacterbyId, getAuthorNoteDefaultText, selectMultipleFile, selectSingleFile } from "../../ts/util";
     import Help from "../Others/Help.svelte";
@@ -711,22 +711,6 @@
         {/if}
     {/if}
 {:else if $CharConfigSubMenu === 6}
-
-    {#if DBState.db.characters[$selectedCharID].license !== 'CC BY-NC-SA 4.0'
-    && DBState.db.characters[$selectedCharID].license !== 'CC BY-SA 4.0'
-    }
-        <Button size="lg" onclick={async () => {
-            if(await alertTOS()){
-                $ShowRealmFrameStore = 'character'
-            }
-        }} className="mt-2">
-            {#if DBState.db.characters[$selectedCharID].realmId}
-                {language.updateRealm}
-            {:else}
-                {language.shareCloud}
-            {/if}
-        </Button>
-    {/if}
 
     {#if DBState.db.characters[$selectedCharID].license !== 'CC BY-NC-SA 4.0'
         && DBState.db.characters[$selectedCharID].license !== 'CC BY-SA 4.0'
