@@ -755,8 +755,9 @@ export async function getInlayMetas(ids: string[]): Promise<Record<string, Inlay
     return await getInlayMetasBatch(ids)
 }
 
-export async function getInlayInfo(id: string): Promise<InlayExplorerInfo | null> {
-    return await getInlayInfoStorage().getItem<InlayExplorerInfo>(id)
+export async function getInlayInfosBatch(ids: string[]): Promise<Record<string, InlayExplorerInfo>> {
+    if (!Array.isArray(ids) || ids.length === 0) return {}
+    return await getInlayInfoStorage().getItems<InlayExplorerInfo>(ids)
 }
 
 export async function getInlayListItem(id: string): Promise<InlayAsset | null> {

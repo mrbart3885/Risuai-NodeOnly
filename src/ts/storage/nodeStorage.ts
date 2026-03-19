@@ -8,7 +8,7 @@ export class NodeStorage{
 
     authChecked = false
     private cachedJwt: { token: string; expiresAt: number } | null = null
-    private sessionInitialized = false
+    private static sessionInitialized = false
     JSONStringlifyAndbase64Url(obj:any){
         return base64url(Buffer.from(JSON.stringify(obj), 'utf-8'))
     }
@@ -26,16 +26,18 @@ export class NodeStorage{
     // Called once after JWT auth is confirmed. Issues a session cookie so that
     // <img src="/api/asset/..."> can be served without JS-injected headers.
     private async initSession() {
-        if (this.sessionInitialized) return
-        this.sessionInitialized = true
+        if (NodeStorage.sessionInitialized) return
         try {
-            await fetch('/api/session', {
+            const res = await fetch('/api/session', {
                 method: 'POST',
                 headers: { 'risu-auth': await this.createAuth() },
             })
+            if (res.ok) {
+                NodeStorage.sessionInitialized = true
+            }
+            // Non-ok (400/401/500): will retry on next checkAuth() call.
         } catch {
-            // Non-fatal: JWT auth still works for all data API endpoints.
-            // Direct asset URLs will fall back to 401 on first load.
+            // Network error: will retry on next checkAuth() call.
         }
     }
 
@@ -256,11 +258,13 @@ export class NodeStorage{
                 }
 
                 await this.loginWithPassword(input)
+                await this.initSession()
                 return
             }
             else if(data.status === 'incorrect'){
                 const input = await digestPassword(await alertInput(language.inputNodePassword))
                 await this.loginWithPassword(input)
+                await this.initSession()
                 return
             }
             else{

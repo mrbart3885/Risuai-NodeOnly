@@ -331,8 +331,8 @@
           </div>
 
           <div class="mb-3">
-            {#if item.thumb?.data}
-              <img alt={item.name} class="w-full h-40 object-contain rounded bg-black/20" src={item.thumb.data} />
+            {#if item.hasThumb}
+              <img alt={item.name} class="w-full h-40 object-contain rounded bg-black/20" src={`/api/asset/${Buffer.from('inlay_thumb/' + item.id, 'utf-8').toString('hex')}`} loading="lazy" />
             {:else}
               <div class="w-full h-40 rounded bg-black/20 border border-darkborderc/50 flex items-center justify-center text-sm text-textcolor2">
                 {item.type === 'audio' ? language.playground.inlayAudioAsset : item.type === 'video' ? language.playground.inlayVideoAsset : item.type === 'signature' ? language.playground.inlaySignatureAsset : language.playground.inlayOriginalLoadNeeded}

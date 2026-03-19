@@ -794,7 +794,7 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, (req, res) => {
         const { binary, contentType } = resolveAssetPayload(key, data)
         res.set({
             'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=31536000, immutable',
+            'Cache-Control': 'public, max-age=0, must-revalidate',
             'ETag': etag,
         })
         res.send(binary)

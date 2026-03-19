@@ -11,7 +11,7 @@ import css, { type CssAtRuleAST } from '@adobe/css-tools'
 import { selectedCharID } from '../stores.svelte';
 import { calcString } from '../process/infunctions';
 import { findCharacterbyId, getPersonaPrompt, getUserIcon, getUserName, pickHashRand, replaceAsync} from '../util';
-
+import { getInlayInfosBatch } from '../process/files/inlays';
 import { getModuleAssets, getModuleLorebooks, getModules } from '../process/modules';
 import hljs from 'highlight.js/lib/core'
 import 'highlight.js/styles/atom-one-dark.min.css'
@@ -716,20 +716,38 @@ async function processInlayQueue() {
     if (isResolvingPlaceholders || resolveQueue.length === 0) return
     isResolvingPlaceholders = true
 
-    // Process all queued items immediately — no server fetch needed,
-    // just build direct /api/asset/ URLs. The browser handles caching
-    // via Cache-Control: immutable headers on the asset endpoint.
     while (resolveQueue.length > 0) {
         const batch = resolveQueue.splice(0, 20)
+
+        // Collect IDs that need type info (not yet in blobUrlCache)
+        const unknownIds = batch
+            .filter(({ id }) => !blobUrlCache.has(id))
+            .map(({ id }) => id)
+
+        // Single bulk-read for type info — avoids N+1
+        if (unknownIds.length > 0) {
+            try {
+                const infos = await getInlayInfosBatch(unknownIds)
+                for (const id of unknownIds) {
+                    const type = infos[id]?.type ?? 'image'
+                    blobUrlCache.set(id, { url: assetUrl(`inlay/${id}`), type })
+                }
+            } catch {
+                // Fallback: default all to 'image'
+                for (const id of unknownIds) {
+                    blobUrlCache.set(id, { url: assetUrl(`inlay/${id}`), type: 'image' })
+                }
+            }
+        }
+
         for (const { el, id } of batch) {
             try {
                 if (!el.parentNode) continue
 
-                const url = assetUrl(`inlay/${id}`)
-                // Default to 'image' — covers ~95% of inlays.
-                // /api/asset/ serves the correct MIME type regardless.
-                const type = blobUrlCache.get(id)?.type ?? 'image'
-                blobUrlCache.set(id, { url, type })
+                const cached = blobUrlCache.get(id)
+                const url = cached?.url ?? assetUrl(`inlay/${id}`)
+                const type = cached?.type ?? 'image'
+                if (!cached) blobUrlCache.set(id, { url, type })
 
                 switch (type) {
                     case 'image':
@@ -737,6 +755,31 @@ async function processInlayQueue() {
                         const img = document.createElement('img')
                         img.src = url
                         img.style.animation = 'risu-fade-in 0.3s ease-out'
+                        // Fallback for legacy inlays without inlay_info:
+                        // if <img> fails, probe Content-Type and swap to video/audio
+                        img.onerror = async () => {
+                            try {
+                                const head = await fetch(url, { method: 'HEAD' })
+                                const ct = head.headers.get('content-type') || ''
+                                if (ct.startsWith('video/')) {
+                                    blobUrlCache.set(id, { url, type: 'video' })
+                                    const video = document.createElement('video')
+                                    video.controls = true
+                                    const src = document.createElement('source')
+                                    src.src = url; src.type = ct
+                                    video.appendChild(src)
+                                    img.replaceWith(video)
+                                } else if (ct.startsWith('audio/')) {
+                                    blobUrlCache.set(id, { url, type: 'audio' })
+                                    const audio = document.createElement('audio')
+                                    audio.controls = true
+                                    const src = document.createElement('source')
+                                    src.src = url; src.type = ct
+                                    audio.appendChild(src)
+                                    img.replaceWith(audio)
+                                }
+                            } catch { /* give up */ }
+                        }
                         el.replaceWith(img)
                         break
                     case 'video': {
@@ -875,7 +918,9 @@ const trimCache = new Map<string, string>()
 const TRIM_CACHE_MAX = 200
 
 export function trimMarkdown(data:string){
-    let cached = trimCache.get(data)
+    // Include hideAllImages in cache key — DOMPurify hook rewrites <img> based on this flag
+    const cacheKey = (DBState.db?.hideAllImages ? '1|' : '0|') + data
+    let cached = trimCache.get(cacheKey)
     if (cached !== undefined) return cached
     cached = decodeStyle(DOMPurify.sanitize(data, {
         ADD_TAGS: ["iframe", "style", "risu-style", "x-em", 'annotation', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'mfrac', 'msqrt'],
@@ -886,7 +931,7 @@ export function trimMarkdown(data:string){
         const firstKey = trimCache.keys().next().value
         if (firstKey !== undefined) trimCache.delete(firstKey)
     }
-    trimCache.set(data, cached)
+    trimCache.set(cacheKey, cached)
     return cached
 }
 
