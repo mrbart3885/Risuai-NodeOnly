@@ -595,7 +595,10 @@ export async function getInlayAsset(id: string) {
     } else {
         data = img.data as string
     }
-    await getInlayInfoStorage().setItem(id, buildInlayExplorerInfo(toCoreInlayAsset(img)))
+    const existingInfo = await getInlayInfoStorage().getItem<InlayExplorerInfo>(id)
+    if (!existingInfo) {
+        await getInlayInfoStorage().setItem(id, buildInlayExplorerInfo(toCoreInlayAsset(img)))
+    }
     return { ...toCoreInlayAsset(img), data }
 }
 
@@ -609,7 +612,10 @@ export async function getInlayAssetBlob(id: string) {
         await setInlayAsset(id, { ...toCoreInlayAsset(img), data })
     } else {
         data = img.data
-        await getInlayInfoStorage().setItem(id, buildInlayExplorerInfo(toCoreInlayAsset(img)))
+        const existingInfo = await getInlayInfoStorage().getItem<InlayExplorerInfo>(id)
+        if (!existingInfo) {
+            await getInlayInfoStorage().setItem(id, buildInlayExplorerInfo(toCoreInlayAsset(img)))
+        }
     }
     return { ...toCoreInlayAsset(img), data }
 }
