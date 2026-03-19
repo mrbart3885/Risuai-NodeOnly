@@ -3,7 +3,8 @@
     import { DBState } from 'src/ts/stores.svelte'
     import { sleep } from "src/ts/util"
     import { alertError } from "../../ts/alert"
-    import { addMetadataToElement, getDistance, ParseMarkdown, postTranslationParse, trimMarkdown, type CbsConditions, type simpleCharacterArgument } from "../../ts/parser/parser.svelte"
+    import { tick } from 'svelte'
+    import { addMetadataToElement, getDistance, ParseMarkdown, postTranslationParse, resolveInlayPlaceholders, trimMarkdown, type CbsConditions, type simpleCharacterArgument } from "../../ts/parser/parser.svelte"
     import { getLLMCache, translateHTML } from "../../ts/translator/translator"
     import { getModuleAssets } from "src/ts/process/modules";
     import { getCurrentCharacter } from "src/ts/storage/database.svelte";
@@ -247,7 +248,11 @@
     $effect(() => {
         markParsingResult
         checkImg()
-        markParsingResult.then(checkImg)
+        markParsingResult.then(async () => {
+            checkImg()
+            await tick() // Wait for Svelte to re-render the {:then} block into DOM
+            if (bodyRoot) resolveInlayPlaceholders(bodyRoot)
+        })
     })
 </script>
 

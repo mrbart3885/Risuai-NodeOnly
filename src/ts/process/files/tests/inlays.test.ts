@@ -4,7 +4,9 @@ import type { InlayAsset } from '../inlays'
 import {
     getInlayAsset,
     getInlayAssetBlob,
+    getCharacterChatIndex,
     listInlayAssets,
+    listInlayExplorerItems,
     postInlayAsset,
     removeInlayAsset,
     setInlayAsset,
@@ -51,6 +53,16 @@ vi.mock('src/ts/storage/nodeStorage', () => {
             const ks = [...nodeStorageMap.keys()]
             return prefix ? ks.filter(k => k.startsWith(prefix)) : ks
         }
+        async getItems(keys: string[]) {
+            return keys
+                .filter((key) => nodeStorageMap.has(key))
+                .map((key) => ({ key, value: Buffer.from(nodeStorageMap.get(key)!) }))
+        }
+        async setItems(entries: {key: string, value: Uint8Array}[]) {
+            for (const entry of entries) {
+                nodeStorageMap.set(entry.key, entry.value)
+            }
+        }
         listItem = this.keys
     }
     return { NodeStorage: MockNodeStorage }
@@ -71,8 +83,14 @@ vi.mock('uuid', () => ({
     v4: vi.fn(() => 'test-uuid-1234'),
 }))
 
+const { getDatabaseMock } = vi.hoisted(() => ({
+    getDatabaseMock: vi.fn(),
+}))
+
 vi.mock(import('src/ts/storage/database.svelte'), () => ({
-    getDatabase: vi.fn(),
+    getDatabase: getDatabaseMock,
+    getCurrentCharacter: vi.fn(() => null),
+    getCurrentChat: vi.fn(() => null),
 }))
 
 vi.mock(
@@ -109,6 +127,7 @@ beforeEach(() => {
     vi.clearAllMocks()
     nodeStorageMap.clear()
     inlayMetaMap.clear()
+    getDatabaseMock.mockReturnValue({ characters: [] })
     __resetInlayStorageForTest()
 })
 
@@ -276,6 +295,111 @@ describe('listInlayAssets', () => {
             ['id-a', { name: 'a.png' }],
             ['id-b', { name: 'b.mp3' }],
         ])
+    })
+})
+
+describe('getCharacterChatIndex', () => {
+    test('returns lightweight character/chat index with valid ids only', () => {
+        getDatabaseMock.mockReturnValue({
+            characters: [
+                {
+                    chaId: 'char-1',
+                    chats: [
+                        { id: 'chat-1', name: 'First Chat' },
+                        { id: 'chat-2', name: '' },
+                        { name: 'Missing Id Chat' },
+                    ],
+                    name: 'Alice',
+                },
+                {
+                    chaId: 'char-2',
+                    chats: [{ id: 'chat-3', name: 'Third Chat' }],
+                    name: '',
+                },
+                {
+                    chats: [{ id: 'chat-4', name: 'Should Skip' }],
+                    name: 'No Id',
+                },
+            ],
+        })
+
+        expect(getCharacterChatIndex()).toEqual([
+            {
+                chaId: 'char-1',
+                chats: [
+                    { id: 'chat-1', name: 'First Chat' },
+                    { id: 'chat-2', name: 'chat-2' },
+                ],
+                name: 'Alice',
+            },
+            {
+                chaId: 'char-2',
+                chats: [{ id: 'chat-3', name: 'Third Chat' }],
+                name: 'char-2',
+            },
+        ])
+    })
+})
+
+describe('listInlayExplorerItems', () => {
+    test('returns lightweight explorer items without loading full asset body', async () => {
+        inlayMetaMap.set('img-1', {
+            charId: 'char-1',
+            chatId: 'chat-1',
+            createdAt: 10,
+            updatedAt: 20,
+        })
+
+        await setInlayAsset('img-1', {
+            data: new Blob(['img-data'], { type: 'image/png' }),
+            ext: 'png',
+            height: 128,
+            name: 'thumb-image.png',
+            type: 'image',
+            width: 256,
+        })
+        nodeStorageMap.set('inlay_thumb/img-1', new TextEncoder().encode(JSON.stringify({
+            data: 'data:image/png;base64,aW1n',
+            ext: 'png',
+            height: 128,
+            name: 'thumb-image.png',
+            type: 'image',
+            width: 256,
+        })))
+
+        const infoOnlyValue = new TextEncoder().encode(JSON.stringify({
+            ext: 'mp3',
+            name: 'audio-file.mp3',
+            type: 'audio',
+        }))
+        nodeStorageMap.set('inlay/audio-1', new TextEncoder().encode(JSON.stringify({
+            data: 'data:audio/mp3;base64,YQ==',
+            ext: 'mp3',
+            name: 'audio-file.mp3',
+            type: 'audio',
+        })))
+        nodeStorageMap.set('inlay_info/audio-1', infoOnlyValue)
+
+        const result = await listInlayExplorerItems()
+        const byId = Object.fromEntries(result.map((item) => [item.id, item]))
+
+        expect(byId['img-1']).toMatchObject({
+            ext: 'png',
+            hasMeta: true,
+            hasThumb: true,
+            name: 'thumb-image.png',
+            type: 'image',
+        })
+        expect(byId['img-1'].thumb?.data).toMatch(/^data:image\//)
+
+        expect(byId['audio-1']).toMatchObject({
+            ext: 'mp3',
+            hasMeta: false,
+            hasThumb: false,
+            name: 'audio-file.mp3',
+            type: 'audio',
+        })
+        expect(byId['audio-1'].thumb).toBeNull()
     })
 })
 

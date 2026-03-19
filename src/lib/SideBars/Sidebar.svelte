@@ -28,6 +28,7 @@
     FolderIcon,
     FolderOpenIcon,
     HomeIcon,
+    ImageIcon,
     WrenchIcon,
     User2Icon,
   } from "@lucide/svelte";
@@ -475,6 +476,14 @@
           PlaygroundStore.set(1)
         }}
       ><ShellIcon /></BarIcon>
+      <div class="mt-2"></div>
+      <BarIcon
+        onClick={() => {
+          reseter()
+          selectedCharID.set(-1)
+          PlaygroundStore.set(15)
+        }}
+      ><ImageIcon /></BarIcon>
       {#each additionalHamburgerMenu as menu}
         <div class="mt-2"></div>
         <BarIcon
@@ -792,6 +801,14 @@
           PlaygroundStore.set(1)
         }}
       ><ShellIcon /></BarIcon>
+      <div class="mt-2"></div>
+      <BarIcon
+        onClick={() => {
+          reseter()
+          selectedCharID.set(-1)
+          PlaygroundStore.set(15)
+        }}
+      ><ImageIcon /></BarIcon>
       {#each additionalHamburgerMenu as menu}
         <div class="mt-2"></div>
         <BarIcon

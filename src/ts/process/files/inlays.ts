@@ -41,6 +41,36 @@ export type InlayThumbnail = {
     width?: number
 }
 
+export type InlayExplorerInfo = {
+    ext: string
+    height?: number
+    name: string
+    type: InlayAsset['type']
+    width?: number
+}
+
+export type InlayExplorerItem = {
+    ext: string
+    hasMeta: boolean
+    hasThumb: boolean
+    height?: number
+    id: string
+    meta: InlayAssetMeta | null
+    name: string
+    thumb: InlayThumbnail | null
+    type: InlayAsset['type'] | 'unknown'
+    width?: number
+}
+
+export type CharacterChatIndexItem = {
+    chaId: string
+    chats: {
+        id: string
+        name: string
+    }[]
+    name: string
+}
+
 const inlayImageExts = [
     'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'
 ]
@@ -54,6 +84,7 @@ const inlayVideoExts = [
 ]
 
 const INLAY_PREFIX = 'inlay/'
+const INLAY_INFO_PREFIX = 'inlay_info/'
 const INLAY_THUMB_PREFIX = 'inlay_thumb/'
 
 // ── Memory LRU cache ──
@@ -103,6 +134,7 @@ export function __resetInlayStorageForTest(): void {
     inlayLRUCache.clear()
     totalLRUSize = 0
     _nodeInlayStorage = null
+    _nodeInlayInfoStorage = null
     _nodeInlayThumbStorage = null
 }
 
@@ -240,6 +272,77 @@ class NodeInlayThumbStorage {
             // ignore if not found
         }
     }
+
+    async getItems<T>(ids: string[]): Promise<Record<string, T>> {
+        const result: Record<string, T> = {}
+        if (!Array.isArray(ids) || ids.length === 0) return result
+        try {
+            const rows = await this.nodeStorage.getItems(ids.map((id) => this.serverKey(id)))
+            for (const row of rows) {
+                try {
+                    const id = row.key.replace(INLAY_THUMB_PREFIX, '')
+                    result[id] = JSON.parse(new TextDecoder().decode(row.value)) as T
+                } catch {
+                    // skip corrupt thumb entries
+                }
+            }
+        } catch {
+            // best-effort batch read
+        }
+        return result
+    }
+}
+
+// ── NodeInlayInfoStorage ──
+
+class NodeInlayInfoStorage {
+    private nodeStorage = new NodeStorage()
+
+    private serverKey(id: string): string {
+        return `${INLAY_INFO_PREFIX}${id}`
+    }
+
+    async setItem(id: string, info: InlayExplorerInfo): Promise<void> {
+        const bytes = new TextEncoder().encode(JSON.stringify(info))
+        await this.nodeStorage.setItem(this.serverKey(id), bytes)
+    }
+
+    async getItem<T>(id: string): Promise<T | null> {
+        try {
+            const buf = await this.nodeStorage.getItem(this.serverKey(id))
+            if (!buf || buf.length === 0) return null
+            return JSON.parse(new TextDecoder().decode(buf)) as T
+        } catch {
+            return null
+        }
+    }
+
+    async getItems<T>(ids: string[]): Promise<Record<string, T>> {
+        const result: Record<string, T> = {}
+        if (!Array.isArray(ids) || ids.length === 0) return result
+        try {
+            const rows = await this.nodeStorage.getItems(ids.map((id) => this.serverKey(id)))
+            for (const row of rows) {
+                try {
+                    const id = row.key.replace(INLAY_INFO_PREFIX, '')
+                    result[id] = JSON.parse(new TextDecoder().decode(row.value)) as T
+                } catch {
+                    // skip corrupt explorer info entries
+                }
+            }
+        } catch {
+            // best-effort batch read
+        }
+        return result
+    }
+
+    async removeItem(id: string): Promise<void> {
+        try {
+            await this.nodeStorage.removeItem(this.serverKey(id))
+        } catch {
+            // ignore if not found
+        }
+    }
 }
 
 function toCoreInlayAsset(asset: any): InlayAsset {
@@ -256,11 +359,17 @@ function toCoreInlayAsset(asset: any): InlayAsset {
 // ── Storage instance singletons ──
 
 let _nodeInlayStorage: NodeInlayStorage | null = null
+let _nodeInlayInfoStorage: NodeInlayInfoStorage | null = null
 let _nodeInlayThumbStorage: NodeInlayThumbStorage | null = null
 
 function getInlayStorage(): NodeInlayStorage {
     if (!_nodeInlayStorage) _nodeInlayStorage = new NodeInlayStorage()
     return _nodeInlayStorage
+}
+
+function getInlayInfoStorage(): NodeInlayInfoStorage {
+    if (!_nodeInlayInfoStorage) _nodeInlayInfoStorage = new NodeInlayInfoStorage()
+    return _nodeInlayInfoStorage
 }
 
 function getInlayThumbStorage(): NodeInlayThumbStorage {
@@ -345,6 +454,60 @@ async function buildInlayThumbnail(asset: InlayAsset): Promise<InlayThumbnail | 
     const data = await buildThumbnailDataUrl(asset)
     if (!data) return null
     return { data, ext: asset.ext, height: asset.height, name: asset.name, type: 'image', width: asset.width }
+}
+
+function buildInlayExplorerInfo(asset: InlayAsset): InlayExplorerInfo {
+    return {
+        ext: asset.ext,
+        height: asset.height,
+        name: asset.name,
+        type: asset.type,
+        width: asset.width,
+    }
+}
+
+function buildExplorerItem(
+    id: string,
+    info: InlayExplorerInfo | null,
+    thumb: InlayThumbnail | null,
+    meta: InlayAssetMeta | null
+): InlayExplorerItem {
+    const fallbackFromThumb: InlayExplorerInfo | null = thumb
+        ? {
+            ext: thumb.ext,
+            height: thumb.height,
+            name: thumb.name || id,
+            type: 'image',
+            width: thumb.width,
+        }
+        : null
+
+    const resolved = info ?? fallbackFromThumb
+
+    return {
+        ext: resolved?.ext ?? '',
+        hasMeta: meta !== null,
+        hasThumb: thumb !== null,
+        height: resolved?.height,
+        id,
+        meta,
+        name: resolved?.name ?? id,
+        thumb,
+        type: resolved?.type ?? 'unknown',
+        width: resolved?.width,
+    }
+}
+
+function getSafeChatName(name: unknown, fallbackId: string, index: number): string {
+    if (typeof name === 'string' && name.trim().length > 0) return name
+    if (fallbackId.trim().length > 0) return fallbackId
+    return `Chat ${index + 1}`
+}
+
+function getSafeCharacterName(name: unknown, fallbackId: string, index: number): string {
+    if (typeof name === 'string' && name.trim().length > 0) return name
+    if (fallbackId.trim().length > 0) return fallbackId
+    return `Character ${index + 1}`
 }
 
 // ── Public API ──
@@ -432,6 +595,10 @@ export async function getInlayAsset(id: string) {
     } else {
         data = img.data as string
     }
+    const existingInfo = await getInlayInfoStorage().getItem<InlayExplorerInfo>(id)
+    if (!existingInfo) {
+        await getInlayInfoStorage().setItem(id, buildInlayExplorerInfo(toCoreInlayAsset(img)))
+    }
     return { ...toCoreInlayAsset(img), data }
 }
 
@@ -445,6 +612,10 @@ export async function getInlayAssetBlob(id: string) {
         await setInlayAsset(id, { ...toCoreInlayAsset(img), data })
     } else {
         data = img.data
+        const existingInfo = await getInlayInfoStorage().getItem<InlayExplorerInfo>(id)
+        if (!existingInfo) {
+            await getInlayInfoStorage().setItem(id, buildInlayExplorerInfo(toCoreInlayAsset(img)))
+        }
     }
     return { ...toCoreInlayAsset(img), data }
 }
@@ -461,10 +632,60 @@ export async function listInlayKeys(): Promise<string[]> {
     return await getInlayStorage().keys()
 }
 
+export function getCharacterChatIndex(): CharacterChatIndexItem[] {
+    const db = getDatabase()
+    const characters = Array.isArray(db?.characters) ? db.characters : []
+    const result: CharacterChatIndexItem[] = []
+    for (let i = 0; i < characters.length; i++) {
+        const char = characters[i]
+        const chaId = typeof char?.chaId === 'string' ? char.chaId : ''
+        if (!chaId) continue
+        const chats = Array.isArray(char?.chats) ? char.chats : []
+        result.push({
+            chaId,
+            chats: chats
+                .map((chat, chatIndex) => {
+                    const id = typeof chat?.id === 'string' ? chat.id : ''
+                    if (!id) return null
+                    return {
+                        id,
+                        name: getSafeChatName(chat?.name, id, chatIndex),
+                    }
+                })
+                .filter((chat): chat is CharacterChatIndexItem['chats'][number] => chat !== null),
+            name: getSafeCharacterName(char?.name, chaId, i),
+        })
+    }
+    return result
+}
+
+/**
+ * Lightweight explorer list for Playground.
+ * Use `getInlayAssetBlob(id)` on demand when the user opens or downloads the original file.
+ */
+export async function listInlayExplorerItems(): Promise<InlayExplorerItem[]> {
+    const ids = await listInlayKeys()
+    if (ids.length === 0) return []
+
+    const [infos, thumbs, metas] = await Promise.all([
+        getInlayInfoStorage().getItems<InlayExplorerInfo>(ids),
+        getInlayThumbStorage().getItems<InlayThumbnail>(ids),
+        getInlayMetas(ids),
+    ])
+
+    return ids.map((id) => buildExplorerItem(
+        id,
+        infos[id] ?? null,
+        thumbs[id] ?? null,
+        metas[id] ?? null,
+    ))
+}
+
 export async function setInlayAsset(id: string, img: InlayAsset) {
     const existingMeta = await getInlayMeta(id)
     const nextMeta = buildInlayMeta(existingMeta)
     await getInlayStorage().setItem(id, toCoreInlayAsset(img))
+    await getInlayInfoStorage().setItem(id, buildInlayExplorerInfo(toCoreInlayAsset(img)))
     await setInlayMeta(id, nextMeta)
     const thumb = await buildInlayThumbnail(toCoreInlayAsset(img))
     if (thumb) {
@@ -476,6 +697,7 @@ export async function setInlayAsset(id: string, img: InlayAsset) {
 
 export async function removeInlayAsset(id: string) {
     await getInlayStorage().removeItem(id)
+    await getInlayInfoStorage().removeItem(id)
     await removeInlayMeta(id)
     await getInlayThumbStorage().removeItem(id)
 }
@@ -545,6 +767,45 @@ export async function getInlayListItem(id: string): Promise<InlayAsset | null> {
         }
     }
     return full
+}
+
+export type InlayScanResult = {
+    scannedAt: number
+    totalMessages: number
+    refCounts: Record<string, number>
+}
+
+const INLAY_REF_REGEX = /\{\{(?:inlay|inlayed|inlayeddata)::(.+?)\}\}/g
+
+/**
+ * Scan all chat messages in the database and count how many times each inlay ID is referenced.
+ * This is a synchronous read from the in-memory DB state — no async I/O needed.
+ */
+export function scanInlayReferences(): InlayScanResult {
+    const db = getDatabase()
+    const characters = Array.isArray(db?.characters) ? db.characters : []
+    const refCounts: Record<string, number> = {}
+    let totalMessages = 0
+
+    for (const char of characters) {
+        if (!Array.isArray(char?.chats)) continue
+        for (const chat of char.chats) {
+            if (!Array.isArray(chat?.message)) continue
+            for (const msg of chat.message) {
+                if (typeof msg?.data !== 'string') continue
+                totalMessages++
+                // Reset regex state and create fresh instance to avoid lastIndex issues
+                const regex = new RegExp(INLAY_REF_REGEX.source, 'g')
+                let m: RegExpExecArray | null
+                while ((m = regex.exec(msg.data)) !== null) {
+                    const id = m[1]
+                    refCounts[id] = (refCounts[id] ?? 0) + 1
+                }
+            }
+        }
+    }
+
+    return { scannedAt: Date.now(), totalMessages, refCounts }
 }
 
 export function supportsInlayImage() {

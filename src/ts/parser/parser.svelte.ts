@@ -661,9 +661,10 @@ function trimmer(str:string){
     return str.trim().replace(/[_ -.]/g, '')
 }
 
-const blobUrlCache = new Map<string, string>()
+const blobUrlCache = new Map<string, { url: string; type: string }>()
+const inlayImageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif']
 
-async function parseInlayAssets(data:string){
+export function parseInlayAssets(data:string){
     const inlayMatch = data.match(/{{(inlay|inlayed|inlayeddata)::(.+?)}}/g)
     if(inlayMatch){
         for(const inlay of inlayMatch){
@@ -672,13 +673,16 @@ async function parseInlayAssets(data:string){
             let prefix = inlayType !== 'inlay' ? `<div class="risu-inlay-image">` : ''
             let postfix = inlayType !== 'inlay' ? `</div>\n\n` : ''
 
-            const asset = await getInlayAssetBlob(id)
-            let url = blobUrlCache.get(id)
-            if(!url && asset?.data){
-                url = URL.createObjectURL(asset.data)
-                blobUrlCache.set(id, url)
-            } 
-            switch(asset?.type){
+            let cached = blobUrlCache.get(id)
+            if(!cached){
+                // If not in memory cache, inject placeholder
+                const placeholder = `${prefix}<div data-inlay-id="${id}" data-inlay-type="${inlayType}" class="risu-inlay-placeholder risu-loading-spinner" style="width: 100%; min-height: 100px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;"></div>${postfix}`
+                data = data.replace(inlay, placeholder)
+                continue
+            }
+
+            const url = cached.url
+            switch(cached.type){
                 case 'image':
                     // Hide inlay images when hideAllImages is enabled
                     if(DBState.db.hideAllImages){
@@ -694,10 +698,98 @@ async function parseInlayAssets(data:string){
                     data = data.replace(inlay, `${prefix}<audio controls><source src="${url}" type="audio/mpeg"></audio>${postfix}`)
                     break
             }
-            
         }
     }
     return data
+}
+
+// Global resolve queue for inlay placeholders
+const resolveQueue: { el: HTMLElement, id: string, type: string }[] = []
+let isResolvingPlaceholders = false
+
+async function processInlayQueue() {
+    if (isResolvingPlaceholders || resolveQueue.length === 0) return
+    isResolvingPlaceholders = true
+
+    // Process up to 3 simultaneously
+    while (resolveQueue.length > 0) {
+        const batch = resolveQueue.splice(0, 3)
+        await Promise.allSettled(batch.map(async ({ el, id }) => {
+            try {
+                // Check if element is still in the DOM
+                if (!el.parentNode) return
+
+                const asset = await getInlayAssetBlob(id)
+                if (asset?.data) {
+                    const url = URL.createObjectURL(asset.data)
+                    blobUrlCache.set(id, { url, type: asset.type })
+
+                    // Check again if element is still present after async work
+                    if (!el.parentNode) return
+
+                    switch (asset.type) {
+                        case 'image':
+                            if (DBState.db.hideAllImages) { el.remove(); break; }
+                            const img = document.createElement('img')
+                            img.src = url
+                            img.style.animation = 'risu-fade-in 0.3s ease-out'
+                            el.replaceWith(img)
+                            break
+                        case 'video': {
+                            const video = document.createElement('video')
+                            video.controls = true
+                            const source = document.createElement('source')
+                            source.src = url
+                            source.type = 'video/mp4'
+                            video.appendChild(source)
+                            el.replaceWith(video)
+                            break
+                        }
+                        case 'audio': {
+                            const audio = document.createElement('audio')
+                            audio.controls = true
+                            const source = document.createElement('source')
+                            source.src = url
+                            source.type = 'audio/mpeg'
+                            audio.appendChild(source)
+                            el.replaceWith(audio)
+                            break
+                        }
+                    }
+                } else {
+                    if (el.parentNode) el.textContent = ''
+                }
+            } catch (e) {
+                console.error(`[Inlay] Failed to load ${id}`, e)
+                if (el.parentNode) el.textContent = ''
+            }
+        }))
+    }
+
+    isResolvingPlaceholders = false
+}
+
+export function resolveInlayPlaceholders(root: HTMLElement) {
+    if (!root) return
+    const placeholders = Array.from(root.querySelectorAll('[data-inlay-id]')) as HTMLElement[]
+    if (placeholders.length === 0) return
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const el = entry.target as HTMLElement
+                const id = el.getAttribute('data-inlay-id')
+                const type = el.getAttribute('data-inlay-type')
+                if (id) {
+                    resolveQueue.push({ el, id, type: type || 'inlay' })
+                    observer.unobserve(el)
+                    processInlayQueue()
+                }
+            }
+        })
+    }, { rootMargin: '200px' }) // Start loading a bit before they scroll into view
+
+    placeholders.forEach(el => observer.observe(el))
 }
 
 export interface simpleCharacterArgument{
@@ -761,7 +853,7 @@ export async function ParseMarkdown(
         })
     }
 
-    data = await parseInlayAssets(data ?? '')
+    data = parseInlayAssets(data ?? '')
 
     data = parseThoughtsAndTools(data)
 
@@ -779,7 +871,7 @@ export async function ParseMarkdown(
 export function trimMarkdown(data:string){
     return decodeStyle(DOMPurify.sanitize(data, {
         ADD_TAGS: ["iframe", "style", "risu-style", "x-em", 'annotation', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'mfrac', 'msqrt'],
-        ADD_ATTR: ["allow", "allowfullscreen", "frameborder", "scrolling", "risu-ctrl" ,"risu-btn", 'risu-trigger', 'risu-mark', 'risu-id', 'x-hl-lang', 'x-hl-text'],
+        ADD_ATTR: ["allow", "allowfullscreen", "frameborder", "scrolling", "risu-ctrl" ,"risu-btn", 'risu-trigger', 'risu-mark', 'risu-id', 'x-hl-lang', 'x-hl-text', 'data-inlay-id', 'data-inlay-type'],
     }))
 }
 
