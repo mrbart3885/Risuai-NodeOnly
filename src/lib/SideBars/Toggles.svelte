@@ -5,7 +5,7 @@
     import { language } from "src/lang";
     import type { PromptItem } from "src/ts/process/prompt";
     import type { character, groupChat } from "src/ts/storage/database.svelte";
-    import { syncCurrentChatPromptOptionState } from "src/ts/storage/database.svelte";
+    import { syncCurrentChatPromptOptionState, applyBoundPreset, changeToPreset, getCurrentChat } from "src/ts/storage/database.svelte";
     import Accordion from '../UI/Accordion.svelte'
     import CheckInput from "../UI/GUI/CheckInput.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
@@ -79,6 +79,21 @@
             return acc
         }, [])
     })
+
+    let currentChat = $derived(DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage])
+    let presetNames = $derived(DBState.db.botPresets.map(p => p.name || 'Unnamed Preset'))
+    let boundPresetValue = $derived(currentChat?.boundPresetName || '')
+
+    function onBoundPresetChange(e: Event & { currentTarget: HTMLSelectElement }) {
+        const chat = getCurrentChat()
+        if (!chat) return
+        const name = e.currentTarget.value
+        chat.boundPresetName = name || undefined
+        if (name) {
+            applyBoundPreset(chat)
+        }
+        syncCurrentChatPromptOptionState()
+    }
 </script>
 
 {#snippet toggles(items: sidebarToggle[], reverse: boolean = false)}
@@ -132,6 +147,18 @@
         {/if}
     {/each}
 {/snippet}
+
+{#if currentChat}
+    <div class="w-full flex gap-2 mt-2 items-center text-sm">
+        <span class="text-textcolor2 shrink-0">Preset</span>
+        <SelectInput className="w-full min-w-0" size="sm" value={boundPresetValue} onchange={onBoundPresetChange}>
+            <OptionInput value="">None</OptionInput>
+            {#each presetNames as name, i}
+                <OptionInput value={name}>{name}</OptionInput>
+            {/each}
+        </SelectInput>
+    </div>
+{/if}
 
 {#if !noContainer && groupedToggles.length > 4}
     <div class="h-48 border-darkborderc p-2 border rounded-sm flex flex-col items-start mt-2 overflow-y-auto">

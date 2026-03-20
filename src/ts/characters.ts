@@ -1,5 +1,5 @@
 import { get, writable } from "svelte/store";
-import { saveImage, setDatabase, type character, type Chat, defaultSdDataFunc, type loreBook, getDatabase, getCharacterByIndex, setCharacterByIndex, syncCurrentChatPromptOptionState, applyCurrentChatPromptOptionState } from "./storage/database.svelte";
+import { saveImage, setDatabase, type character, type Chat, defaultSdDataFunc, type loreBook, getDatabase, getCharacterByIndex, setCharacterByIndex, syncCurrentChatPromptOptionState, applyCurrentChatPromptOptionState, applyBoundPreset, getCurrentChat } from "./storage/database.svelte";
 import { alertAddCharacter, alertConfirm, alertError, alertNormal, alertSelect, alertStore, alertWait } from "./alert";
 import { language } from "../lang";
 import { checkNullish, findCharacterbyId, getUserName, selectMultipleFile, selectSingleFile } from "./util";
@@ -897,5 +897,9 @@ export function changeChar(index: number, arg:{
       updateInteraction: true,
     });
     selectedCharID.set(index);
+    const chat = getCurrentChat()
+    if(chat){
+        applyBoundPreset(chat)
+    }
     applyCurrentChatPromptOptionState();
 }
