@@ -33,12 +33,15 @@ function getCurrentVersion() {
     }
 }
 
-function httpsGet(url) {
+const MAX_REDIRECTS = 10;
+
+function httpsGet(url, redirectCount = 0) {
     return new Promise((resolve, reject) => {
+        if (redirectCount > MAX_REDIRECTS) return reject(new Error('Too many redirects'));
         const get = url.startsWith('https') ? https.get : http.get;
         get(url, { headers: { 'User-Agent': 'RisuAI-Updater' } }, (res) => {
             if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                return httpsGet(res.headers.location).then(resolve, reject);
+                return httpsGet(res.headers.location, redirectCount + 1).then(resolve, reject);
             }
             if (res.statusCode !== 200) {
                 return reject(new Error(`HTTP ${res.statusCode}`));
@@ -51,15 +54,16 @@ function httpsGet(url) {
     });
 }
 
-function downloadToFile(url, dest) {
+function downloadToFile(url, dest, redirectCount = 0) {
     return new Promise((resolve, reject) => {
+        if (redirectCount > MAX_REDIRECTS) return reject(new Error('Too many redirects'));
         const file = fs.createWriteStream(dest);
         const get = url.startsWith('https') ? https.get : http.get;
         get(url, { headers: { 'User-Agent': 'RisuAI-Updater' } }, (res) => {
             if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
                 file.close();
                 fs.unlinkSync(dest);
-                return downloadToFile(res.headers.location, dest).then(resolve, reject);
+                return downloadToFile(res.headers.location, dest, redirectCount + 1).then(resolve, reject);
             }
             if (res.statusCode !== 200) {
                 file.close();
@@ -121,12 +125,12 @@ async function main() {
     await downloadToFile(asset.browser_download_url, downloadPath);
 
     log('Extracting...');
+    const extractedPath = path.join(tmpDir, 'extracted');
+    fs.mkdirSync(extractedPath, { recursive: true });
     if (asset.name.endsWith('.zip')) {
-        // Use PowerShell on Windows for zip extraction
-        execSync(`powershell -Command "Expand-Archive -Path '${downloadPath}' -DestinationPath '${tmpDir}/extracted' -Force"`, { stdio: 'inherit' });
+        execSync(`powershell -Command "Expand-Archive -Path '${downloadPath}' -DestinationPath '${extractedPath}' -Force"`, { stdio: 'inherit' });
     } else {
-        fs.mkdirSync(path.join(tmpDir, 'extracted'), { recursive: true });
-        execSync(`tar -xzf "${downloadPath}" -C "${tmpDir}/extracted"`, { stdio: 'inherit' });
+        execSync(`tar -xzf "${downloadPath}" -C "${extractedPath}"`, { stdio: 'inherit' });
     }
 
     const extractedDir = path.join(tmpDir, 'extracted');

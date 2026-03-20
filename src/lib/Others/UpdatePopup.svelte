@@ -4,9 +4,7 @@
     import { language } from "src/lang";
     import { X, ArrowUpCircle, AlertTriangle } from "@lucide/svelte";
 
-    let info: UpdateInfo | null = $state(null);
-
-    updatePopupStore.subscribe(v => { info = v; });
+    const info: UpdateInfo | null = $derived($updatePopupStore);
 
     function getTitle(severity: string): string {
         if (severity === 'required') return language.updatePopupTitleRequired
