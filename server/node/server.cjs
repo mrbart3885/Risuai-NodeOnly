@@ -70,6 +70,82 @@ const BACKUP_DISK_HEADROOM = 2;
 
 let importInProgress = false;
 
+// ── Update check ─────────────────────────────────────────────────────────────
+const UPDATE_CHECK_DISABLED = process.env.RISU_UPDATE_CHECK === 'false';
+const UPDATE_CHECK_REPO = process.env.RISU_UPDATE_REPO || '';
+const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
+
+const currentVersion = (() => {
+    try {
+        const pkg = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8'));
+        return pkg.version || '0.0.0';
+    } catch { return '0.0.0'; }
+})();
+
+let latestReleaseCache = null;
+
+function compareVersions(a, b) {
+    const pa = a.replace(/^v/, '').split('.').map(Number);
+    const pb = b.replace(/^v/, '').split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+        const diff = (pa[i] || 0) - (pb[i] || 0);
+        if (diff !== 0) return diff;
+    }
+    return 0;
+}
+
+function parseReleaseMeta(body) {
+    const meta = { updateType: 'optional', minVersion: null };
+    if (!body) return meta;
+    const typeMatch = body.match(/<!--\s*RISU_UPDATE:\s*(\w+)\s*-->/);
+    if (typeMatch) meta.updateType = typeMatch[1];
+    const minMatch = body.match(/<!--\s*RISU_MIN_VERSION:\s*([\d.]+)\s*-->/);
+    if (minMatch) meta.minVersion = minMatch[1];
+    return meta;
+}
+
+async function fetchLatestRelease() {
+    if (UPDATE_CHECK_DISABLED || !UPDATE_CHECK_REPO) return null;
+    try {
+        const url = `https://api.github.com/repos/${UPDATE_CHECK_REPO}/releases/latest`;
+        const res = await fetch(url, {
+            headers: {
+                'Accept': 'application/vnd.github+json',
+                'User-Agent': 'RisuAI-NodeOnly/' + currentVersion,
+            },
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const meta = parseReleaseMeta(data.body);
+        const latestVer = (data.tag_name || '').replace(/^v/, '');
+        const hasUpdate = compareVersions(latestVer, currentVersion) > 0;
+        let severity = 'none';
+        if (hasUpdate) {
+            severity = meta.updateType === 'required' ? 'required' : 'optional';
+            if (meta.minVersion && compareVersions(currentVersion, meta.minVersion) < 0) {
+                severity = 'outdated';
+            }
+        }
+        latestReleaseCache = {
+            currentVersion,
+            latestVersion: latestVer,
+            hasUpdate,
+            severity,
+            releaseUrl: data.html_url || '',
+            releaseName: data.name || '',
+            publishedAt: data.published_at || '',
+            checkedAt: Date.now(),
+        };
+        if (hasUpdate) {
+            console.log(`[Update] New version available: v${latestVer} (current: v${currentVersion}, ${severity})`);
+        }
+        return latestReleaseCache;
+    } catch (e) {
+        console.error('[Update] Failed to check for updates:', e.message);
+        return null;
+    }
+}
+
 // ── Session store for direct asset URL auth (F-0) ──────────────────────────
 // <img src="/api/asset/..."> cannot send custom headers, so we use a session
 // cookie issued after initial JWT auth. Single-user environment: Map is fine.
@@ -1350,6 +1426,20 @@ app.delete('/api/db/modules/:id', async (req, res, next) => {
     } catch(e){ next(e); }
 });
 
+// ── Update check endpoint ────────────────────────────────────────────────────
+app.get('/api/update-check', async (req, res) => {
+    if (UPDATE_CHECK_DISABLED || !UPDATE_CHECK_REPO) {
+        res.json({ currentVersion, hasUpdate: false, severity: 'none', disabled: true });
+        return;
+    }
+    if (latestReleaseCache) {
+        res.json(latestReleaseCache);
+    } else {
+        const result = await fetchLatestRelease();
+        res.json(result || { currentVersion, hasUpdate: false, severity: 'none' });
+    }
+});
+
 
 async function getHttpsOptions() {
 
@@ -1409,4 +1499,10 @@ async function startServer() {
         try { checkpointWal('RESTART'); }
         catch { /* non-fatal */ }
     }, 5 * 60 * 1000); // every 5 minutes
+
+    // Check for updates on startup and periodically
+    if (!UPDATE_CHECK_DISABLED && UPDATE_CHECK_REPO) {
+        fetchLatestRelease();
+        setInterval(fetchLatestRelease, UPDATE_CHECK_INTERVAL);
+    }
 })();
