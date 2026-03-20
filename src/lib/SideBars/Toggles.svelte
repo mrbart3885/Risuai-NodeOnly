@@ -5,7 +5,7 @@
     import { language } from "src/lang";
     import type { PromptItem } from "src/ts/process/prompt";
     import type { character, groupChat } from "src/ts/storage/database.svelte";
-    import { syncCurrentChatPromptOptionState, applyBoundPreset, changeToPreset, getCurrentChat } from "src/ts/storage/database.svelte";
+    import { syncCurrentChatPromptOptionState, applyBoundPreset, getCurrentChat } from "src/ts/storage/database.svelte";
     import Accordion from '../UI/Accordion.svelte'
     import CheckInput from "../UI/GUI/CheckInput.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";

@@ -887,7 +887,7 @@ export function applyBoundPreset(chat:Chat){
     const db = getDatabase()
     const presetIndex = db.botPresets.findIndex(p => p.name === chat.boundPresetName)
     if(presetIndex >= 0 && presetIndex !== db.botPresetsId){
-        changeToPreset(presetIndex)
+        changeToPreset(presetIndex, true, false)
     }
 }
 
@@ -2200,8 +2200,10 @@ export function copyPreset(id:number){
     setDatabase(db)
 }
 
-export function changeToPreset(id =0, savecurrent = true){
-    syncCurrentChatPromptOptionState()
+export function changeToPreset(id =0, savecurrent = true, syncToggle = true){
+    if(syncToggle){
+        syncCurrentChatPromptOptionState()
+    }
     if(savecurrent){
         saveCurrentPreset()
     }
