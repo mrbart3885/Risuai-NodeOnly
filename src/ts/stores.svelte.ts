@@ -161,7 +161,10 @@ $effect.root(() => {
 
         if (DBState?.db?.characters?.[selIdState.selId]) {
             if (DBState.db.hypaV3 && DBState.db.hypaV3Presets?.[DBState.db.hypaV3PresetId]?.settings?.alwaysToggleOn) {
-                DBState.db.characters[selIdState.selId].supaMemory = true;
+                const char = DBState.db.characters[selIdState.selId]
+                if (char?.chats?.[char.chatPage]) {
+                    char.chats[char.chatPage].supaMemory = true
+                }
             }
         }
     })

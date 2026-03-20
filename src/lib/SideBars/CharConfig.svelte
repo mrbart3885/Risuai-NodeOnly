@@ -1181,7 +1181,7 @@
             >
                 {language.hypaMemoryV3Modal}
             </Button>
-        {:else if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData.length > 4 || DBState.db.characters[$selectedCharID].supaMemory}
+        {:else if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData.length > 4 || (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemory ?? DBState.db.characters[$selectedCharID].supaMemory)}
             <span class="text-textcolor mt-4">{language.SuperMemory}</span>
             <TextAreaInput margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData}></TextAreaInput>
         {/if}
@@ -1194,7 +1194,7 @@
         </Button>
 
     {:else}
-        {#if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData.length > 4 || DBState.db.characters[$selectedCharID].supaMemory}
+        {#if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData.length > 4 || (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemory ?? DBState.db.characters[$selectedCharID].supaMemory)}
             <span class="text-textcolor mt-4">{language.SuperMemory}</span>
             <TextAreaInput margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData}></TextAreaInput>
         {/if}

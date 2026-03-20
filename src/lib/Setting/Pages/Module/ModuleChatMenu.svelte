@@ -8,6 +8,7 @@
     import { DBState, ReloadGUIPointer } from 'src/ts/stores.svelte';
     import { selectedCharID } from "src/ts/stores.svelte";
     import { SettingsMenuIndex, settingsOpen } from "src/ts/stores.svelte";
+    import { syncCurrentChatPromptOptionState } from "src/ts/storage/database.svelte";
 
     interface Props {
         close?: any;
@@ -96,6 +97,7 @@
                                     }
                                     DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].modules = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].modules
                                     $ReloadGUIPointer += 1
+                                    syncCurrentChatPromptOptionState()
                                 }}
                                 oncontextmenu={(e) => {
                                     e.preventDefault()
@@ -110,6 +112,7 @@
                                         DBState.db.characters[$selectedCharID].modules.push(rmodule.id)
                                     }
                                     $ReloadGUIPointer += 1
+                                    syncCurrentChatPromptOptionState()
                                 }}>
 
                                     <CircleCheckIcon size={18}/>

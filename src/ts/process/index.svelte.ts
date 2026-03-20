@@ -966,7 +966,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         currentTokens += await tokenizer.tokenizeChat(chat)
     }
     
-    if(nowChatroom.supaMemory && (DBState.db.supaModelType !== 'none' || DBState.db.hanuraiEnable || DBState.db.hypav2 || DBState.db.hypaV3)){
+    if((currentChat.supaMemory ?? nowChatroom.supaMemory) && (DBState.db.supaModelType !== 'none' || DBState.db.hanuraiEnable || DBState.db.hypav2 || DBState.db.hypaV3)){
         stageTimings.stage1Duration = Date.now() - stageTimings.stage1Start
         chatProcessStage.set(2)
         stageTimings.stage2Start = Date.now()

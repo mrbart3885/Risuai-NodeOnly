@@ -1,7 +1,7 @@
 import { changeFullscreen, checkNullish } from "./util"
 import { v4 as uuidv4 } from 'uuid';
 import { get } from "svelte/store";
-import { setDatabase, defaultSdDataFunc, getDatabase } from "./storage/database.svelte";
+import { setDatabase, defaultSdDataFunc, getDatabase, migratePromptOptionStates } from "./storage/database.svelte";
 import { checkRisuUpdate } from "./update";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState } from "./stores.svelte";
 import { loadPlugins } from "./plugins/plugins.svelte";
@@ -54,6 +54,7 @@ export async function loadData() {
                     const decoded = await decodeRisuSave(gotStorage)
                     console.log(decoded)
                     setDatabase(decoded)
+                    migratePromptOptionStates(decoded)
                 } catch (error) {
                     console.error(error)
                     const backups = await getDbBackups()
@@ -62,9 +63,9 @@ export async function loadData() {
                         try {
                             LoadingStatusState.text = `Reading Backup File ${backup}...`
                             const backupData: Uint8Array = await forageStorage.getItem(`database/dbbackup-${backup}.bin`) as unknown as Uint8Array
-                            setDatabase(
-                                await decodeRisuSave(backupData)
-                            )
+                            const backupDecoded = await decodeRisuSave(backupData)
+                            setDatabase(backupDecoded)
+                            migratePromptOptionStates(backupDecoded)
                             backupLoaded = true
                             break
                         } catch (error) { }

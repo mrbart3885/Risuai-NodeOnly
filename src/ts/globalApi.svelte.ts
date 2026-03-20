@@ -1,7 +1,7 @@
 import { changeFullscreen, checkNullish, sleep } from "./util"
 import { v4 as uuidv4, v4 } from 'uuid';
 import { get } from "svelte/store";
-import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter } from "./storage/database.svelte";
+import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, getCurrentCharacter, migratePromptOptionStates, syncCurrentChatPromptOptionState, applyCurrentChatPromptOptionState, applyBoundPreset } from "./storage/database.svelte";
 import { checkRisuUpdate } from "./update";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore } from "./stores.svelte";
 import { loadPlugins } from "./plugins/plugins.svelte";
@@ -1505,9 +1505,9 @@ export async function loadInternalBackup() {
 
     const data = await forageStorage.getItem(selectedBackup)
 
-    setDatabase(
-        await decodeRisuSave(Buffer.from(data) as unknown as Uint8Array)
-    )
+    const backupDecoded = await decodeRisuSave(Buffer.from(data) as unknown as Uint8Array)
+    setDatabase(backupDecoded)
+    migratePromptOptionStates(backupDecoded)
 
     alertNormal('Loaded backup')
 
@@ -1855,7 +1855,13 @@ export function changeChatTo(IdOrIndex: string | number) {
         return
     }
 
+    syncCurrentChatPromptOptionState()
     DBState.db.characters[selIdState.selId].chatPage = index
+    const newChat = DBState.db.characters[selIdState.selId].chats[index]
+    if(newChat){
+        applyBoundPreset(newChat)
+    }
+    applyCurrentChatPromptOptionState()
     ReloadGUIPointer.set(Math.random())
 }
 

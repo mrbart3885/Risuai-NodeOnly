@@ -5,6 +5,7 @@
     import { DownloadIcon, PencilIcon, HardDriveUploadIcon, MenuIcon, TrashIcon, SplitIcon, FolderPlusIcon, BookmarkCheckIcon } from "@lucide/svelte";
 
     import type { Chat, ChatFolder, character, groupChat } from "src/ts/storage/database.svelte";
+    import { initializeChatPromptOptionState } from "src/ts/storage/database.svelte";
     import { DBState, ReloadGUIPointer } from 'src/ts/stores.svelte';
     import { selectedCharID } from "src/ts/stores.svelte";
 
@@ -140,12 +141,13 @@
         const cha = chara
         const len = chara.chats.length
         let chats = chara.chats
-        chats.unshift({
+        const newChat = initializeChatPromptOptionState({
             message:[], note:'', name:`New Chat ${len + 1}`, localLore:[], fmIndex: -1, id: v4()
-        })
+        }, chara)
+        chats.unshift(newChat)
         if(cha.type === 'group'){
             cha.characters.map((c) => {
-                chats[len].message.push({
+                newChat.message.push({
                     saying: c,
                     role: 'char',
                     data: findCharacterbyId(c).firstMessage
@@ -244,12 +246,12 @@
                     <div></div>
                     {:else}
                     {#each chara.chats.filter(chat => chat.folderId == chara.chatFolders[i].id) as chat}
-                    <button data-risu-chat-idx={chara.chats.indexOf(chat)} onclick={() => {
+                    {@const chatIdx = chara.chats.indexOf(chat)}
+                    <button data-risu-chat-idx={chatIdx} onclick={() => {
                         if(!editMode){
-                            changeChatTo(chara.chats.indexOf(chat))
-                            $ReloadGUIPointer += 1
+                            changeChatTo(chatIdx)
                         }
-                    }} class="risu-chats flex items-center text-textcolor border-solid border-0 border-darkborderc p-2 cursor-pointer rounded-md"class:bg-selected={chara.chats.indexOf(chat) === chara.chatPage}>
+                    }} class="risu-chats flex items-center text-textcolor border-solid border-0 border-darkborderc p-2 cursor-pointer rounded-md"class:bg-selected={chatIdx === chara.chatPage}>
                         {#if editMode}
                             <TextInput bind:value={chat.name} className="grow min-w-0" padding={false}/>
                         {:else}
@@ -267,6 +269,7 @@
                                         const newChat = $state.snapshot(chara.chats[chara.chats.indexOf(chat)])
                                         newChat.name = createChatCopyName(newChat.name, 'Copy')
                                         newChat.id = v4()
+                                        initializeChatPromptOptionState(newChat, chara)
                                         chara.chats.unshift(newChat)
                                         changeChatTo(0)
                                         chara.chats = chara.chats
@@ -352,7 +355,6 @@
             <button data-risu-chat-idx={i} onclick={() => {
                 if(!editMode){
                     changeChatTo(i)
-                    $ReloadGUIPointer += 1
                 }
             }}
             class="flex items-center text-textcolor border-solid border-0 border-darkborderc p-2 cursor-pointer rounded-md"
@@ -374,6 +376,7 @@
                                 const newChat = $state.snapshot(chara.chats[i])
                                 newChat.name = createChatCopyName(newChat.name, 'Copy')
                                 newChat.id = v4()
+                                initializeChatPromptOptionState(newChat, chara)
                                 chara.chats.unshift(newChat)
                                 changeChatTo(0)
                                 chara.chats = chara.chats

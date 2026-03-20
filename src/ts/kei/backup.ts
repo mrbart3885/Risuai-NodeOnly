@@ -1,6 +1,6 @@
 import { alertNormal, alertSelect } from "../alert"
 import { keiServerURL } from "./kei"
-import { getDatabase, setDatabase } from "../storage/database.svelte"
+import { getDatabase, setDatabase, migratePromptOptionStates } from "../storage/database.svelte"
 import { requiresFullEncoderReload } from "../globalApi.svelte"
 
 export async function autoServerBackup(){
@@ -60,7 +60,9 @@ export async function autoServerBackup(){
                         })
                     })
                     if(res.status === 200){
-                        setDatabase(await res.json())
+                        const backupData = await res.json()
+                        setDatabase(backupData)
+                        migratePromptOptionStates(backupData)
                         requiresFullEncoderReload.state = true
                         alertNormal("Successfully restored!")
                     }

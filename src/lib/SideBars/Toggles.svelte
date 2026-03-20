@@ -1,16 +1,26 @@
 <script lang="ts">
     import { getModuleToggles } from "src/ts/process/modules";
-    import { DBState, MobileGUI } from "src/ts/stores.svelte";
+    import { DBState, MobileGUI, selectedCharID } from "src/ts/stores.svelte";
     import { parseToggleSyntax, type sidebarToggle, type sidebarToggleGroup } from "src/ts/util";
     import { language } from "src/lang";
     import type { PromptItem } from "src/ts/process/prompt";
     import type { character, groupChat } from "src/ts/storage/database.svelte";
+    import { syncCurrentChatPromptOptionState, applyBoundPreset, getCurrentChat } from "src/ts/storage/database.svelte";
     import Accordion from '../UI/Accordion.svelte'
     import CheckInput from "../UI/GUI/CheckInput.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
     import OptionInput from "../UI/GUI/OptionInput.svelte";
     import TextAreaInput from '../UI/GUI/TextAreaInput.svelte'
     import TextInput from "../UI/GUI/TextInput.svelte";
+
+    let syncTimer: ReturnType<typeof setTimeout> | null = null
+    function syncToggleState() {
+        if (syncTimer) clearTimeout(syncTimer)
+        syncTimer = setTimeout(() => {
+            syncCurrentChatPromptOptionState()
+            syncTimer = null
+        }, 300)
+    }
 
     interface Props {
         chara?: character|groupChat
@@ -69,6 +79,21 @@
             return acc
         }, [])
     })
+
+    let currentChat = $derived(DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage])
+    let presetNames = $derived(DBState.db.botPresets.map(p => p.name || 'Unnamed Preset'))
+    let boundPresetValue = $derived(currentChat?.boundPresetName || '')
+
+    function onBoundPresetChange(e: Event & { currentTarget: HTMLSelectElement }) {
+        const chat = getCurrentChat()
+        if (!chat) return
+        const name = e.currentTarget.value
+        chat.boundPresetName = name || undefined
+        if (name) {
+            applyBoundPreset(chat)
+        }
+        syncCurrentChatPromptOptionState()
+    }
 </script>
 
 {#snippet toggles(items: sidebarToggle[], reverse: boolean = false)}
@@ -82,7 +107,7 @@
         {:else if toggle.type === 'select'}
             <div class="w-full flex gap-2 mt-2 items-center" class:justify-end={$MobileGUI} >
                 <span>{toggle.value}</span>
-                <SelectInput className="w-32" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]}>
+                <SelectInput className="w-32" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} onchange={syncToggleState}>
                     {#each toggle.options as option, i}
                         <OptionInput value={i.toString()}>{option}</OptionInput>
                     {/each}
@@ -91,12 +116,12 @@
         {:else if toggle.type === 'text'}
             <div class="w-full flex gap-2 mt-2 items-center" class:justify-end={$MobileGUI}>
                 <span>{toggle.value}</span>
-                <TextInput className="w-32" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} />
+                <TextInput className="w-32" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} onchange={syncToggleState} />
             </div>
         {:else if toggle.type === 'textarea'}
             <div class="w-full flex gap-2 mt-2 items-start" class:justify-end={$MobileGUI}>
                 <span class="mt-1.5">{toggle.value}</span>
-                <TextAreaInput className="w-32" height='20' bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} />
+                <TextAreaInput className="w-32" height='20' bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} onchange={syncToggleState} />
             </div>
         {:else if toggle.type === 'caption'}
             <div class="w-full mt-1 text-xs text-textcolor2">
@@ -116,11 +141,24 @@
             <div class="w-full flex mt-2 items-center" class:justify-end={$MobileGUI}>
                 <CheckInput check={DBState.db.globalChatVariables[`toggle_${toggle.key}`] === '1'} reverse={reverse} name={toggle.value} onChange={() => {
                     DBState.db.globalChatVariables[`toggle_${toggle.key}`] = DBState.db.globalChatVariables[`toggle_${toggle.key}`] === '1' ? '0' : '1'
+                    syncToggleState()
                 }} />
             </div>
         {/if}
     {/each}
 {/snippet}
+
+{#if currentChat}
+    <div class="w-full flex gap-2 mt-2 items-center text-sm">
+        <span class="text-textcolor2 shrink-0">Preset</span>
+        <SelectInput className="w-full min-w-0" size="sm" value={boundPresetValue} onchange={onBoundPresetChange}>
+            <OptionInput value="">None</OptionInput>
+            {#each presetNames as name, i}
+                <OptionInput value={name}>{name}</OptionInput>
+            {/each}
+        </SelectInput>
+    </div>
+{/if}
 
 {#if !noContainer && groupedToggles.length > 4}
     <div class="h-48 border-darkborderc p-2 border rounded-sm flex flex-col items-start mt-2 overflow-y-auto">
@@ -132,7 +170,15 @@
         {@render toggles(groupedToggles, true)}
         {#if DBState.db.supaModelType !== 'none' || DBState.db.hanuraiEnable || DBState.db.hypaV3}
             <div class="flex mt-2 items-center w-full" class:justify-end={$MobileGUI}>
-                <CheckInput bind:check={chara.supaMemory} reverse name={DBState.db.hypaV3 ? language.ToggleHypaMemory : DBState.db.hanuraiEnable ? language.hanuraiMemory : DBState.db.hypaMemory ? language.ToggleHypaMemory : language.ToggleSuperMemory}/>
+                <CheckInput
+                    check={DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage]?.supaMemory ?? chara.supaMemory ?? false}
+                    onChange={() => {
+                        const char = DBState.db.characters[$selectedCharID]
+                        const chat = char?.chats?.[char.chatPage]
+                        if (!chat) return
+                        chat.supaMemory = !(chat.supaMemory ?? char.supaMemory ?? false)
+                    }}
+                    reverse name={DBState.db.hypaV3 ? language.ToggleHypaMemory : DBState.db.hanuraiEnable ? language.hanuraiMemory : DBState.db.hypaMemory ? language.ToggleHypaMemory : language.ToggleSuperMemory}/>
             </div>
         {/if}
     </div>
@@ -145,7 +191,15 @@
     {@render toggles(groupedToggles)}
     {#if DBState.db.supaModelType !== 'none' || DBState.db.hanuraiEnable || DBState.db.hypaV3}
         <div class="flex mt-2 items-center">
-            <CheckInput bind:check={chara.supaMemory} name={DBState.db.hypaV3 ? language.ToggleHypaMemory : DBState.db.hanuraiEnable ? language.hanuraiMemory : DBState.db.hypaMemory ? language.ToggleHypaMemory : language.ToggleSuperMemory}/>
+            <CheckInput
+                check={DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage]?.supaMemory ?? chara.supaMemory ?? false}
+                onChange={() => {
+                    const char = DBState.db.characters[$selectedCharID]
+                    const chat = char?.chats?.[char.chatPage]
+                    if (!chat) return
+                    chat.supaMemory = !(chat.supaMemory ?? char.supaMemory ?? false)
+                }}
+                name={DBState.db.hypaV3 ? language.ToggleHypaMemory : DBState.db.hanuraiEnable ? language.hanuraiMemory : DBState.db.hypaMemory ? language.ToggleHypaMemory : language.ToggleSuperMemory}/>
         </div>
     {/if}
 {/if}
