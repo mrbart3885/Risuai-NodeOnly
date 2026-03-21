@@ -10,6 +10,7 @@ import { getModelInfo, LLMTokenizer, type LLMModel } from "./model/modellist";
 import { pluginV2 } from "./plugins/plugins.svelte";
 import type { GemmaTokenizer } from "@huggingface/transformers";
 import { LRUMap } from 'mnemonist';
+import { makeHashedStorageKey, readPersistentJson, writePersistentJson } from "./storage/persistentKv";
 
 const MAX_CACHE_SIZE = 1500;
 
@@ -447,12 +448,27 @@ export async function tokenizeNum(data:string) {
 }
 
 const strongBanCache = new Map<string, {[key:number]:number}>();
+const strongBanCachePrefix = 'cache/strong-ban/';
+
+async function getPersistedStrongBan(cacheKey: string) {
+    if (strongBanCache.has(cacheKey)) {
+        return strongBanCache.get(cacheKey)
+    }
+    const storageKey = await makeHashedStorageKey(strongBanCachePrefix, cacheKey)
+    const payload = await readPersistentJson<{ key: string, value: {[key:number]:number} }>(storageKey)
+    if (!payload || payload.key !== cacheKey) {
+        return null
+    }
+    strongBanCache.set(cacheKey, payload.value)
+    return payload.value
+}
 
 export async function strongBan(data:string, bias:{[key:number]:number}) {
 
     const cacheKey = 'strongBan_' + data
-    if(strongBanCache.has(cacheKey)){
-        return strongBanCache.get(cacheKey)
+    const cached = await getPersistedStrongBan(cacheKey)
+    if(cached){
+        return cached
     }
     const performace = performance.now()
     const length = Object.keys(bias).length
@@ -499,6 +515,11 @@ export async function strongBan(data:string, bias:{[key:number]:number}) {
         }
     }
     strongBanCache.set(cacheKey, bias)
+    const storageKey = await makeHashedStorageKey(strongBanCachePrefix, cacheKey)
+    await writePersistentJson(storageKey, {
+        key: cacheKey,
+        value: bias
+    })
     return bias
 }
 

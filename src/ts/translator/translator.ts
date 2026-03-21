@@ -7,6 +7,7 @@ import { requestChatData } from "../process/request/request"
 import { doingChat, type OpenAIChat } from "../process/index.svelte"
 import { applyMarkdownToNode, type simpleCharacterArgument } from "../parser/parser.svelte"
 import { selectedCharID } from "../stores.svelte"
+import { clearPersistentPrefix, listPersistentKeys, makeHashedStorageKey, readPersistentJson, writePersistentJson } from "../storage/persistentKv"
 import { getModuleRegexScripts } from "../process/modules"
 import { getNodetextToSentence, sleep } from "../util"
 import { processScriptFull } from "../process/scripts"
@@ -20,6 +21,25 @@ let cache={
 let bergamotTranslate: (text: string, from: string, to: string, html?: boolean) => Promise<string>|null = null
 
 const llmTranslateCache = new Map<string, string>()
+const llmTranslateCachePrefix = 'cache/llm-translate/'
+
+async function getPersistentLLMCache(text: string): Promise<string | null> {
+    const storageKey = await makeHashedStorageKey(llmTranslateCachePrefix, text)
+    const payload = await readPersistentJson<{ key: string, value: string }>(storageKey)
+    if (!payload || payload.key !== text) {
+        return null
+    }
+    llmTranslateCache.set(text, payload.value)
+    return payload.value
+}
+
+async function setPersistentLLMCache(text: string, value: string) {
+    const storageKey = await makeHashedStorageKey(llmTranslateCachePrefix, text)
+    await writePersistentJson(storageKey, {
+        key: text,
+        value
+    })
+}
 
 let waitTrans = 0
 
@@ -494,6 +514,10 @@ async function translateLLM(text:string, arg:{to:string, from:string, regenerate
         if(cacheMatch){
             return cacheMatch
         }
+        const persistedCacheMatch = await getPersistentLLMCache(text)
+        if (persistedCacheMatch !== null) {
+            return persistedCacheMatch
+        }
     }
     const styleDecodeRegex = /\<risu-style\>(.+?)\<\/risu-style\>/gms
     let styleDecodes:string[] = []
@@ -556,15 +580,17 @@ async function translateLLM(text:string, arg:{to:string, from:string, regenerate
         return styleDecodes[parseInt(p1)] ?? ''
     }).replace(/<\/style-data>/g, '')
     llmTranslateCache.set(text, result)
+    void setPersistentLLMCache(text, result)
     return result
 }
 
 export function clearLLMCache(): void {
     llmTranslateCache.clear()
+    void clearPersistentPrefix(llmTranslateCachePrefix)
 }
 
 export async function getLLMCache(text:string):Promise<string | null>{
-    return llmTranslateCache.get(text) ?? null
+    return llmTranslateCache.get(text) ?? await getPersistentLLMCache(text)
 }
 
 export async function searchLLMCache(partialKey:string):Promise<{key: string, value: string}[]>{
@@ -573,6 +599,18 @@ export async function searchLLMCache(partialKey:string):Promise<{key: string, va
         if(key.includes(partialKey)){
             results.push({key, value})
         }
+    }
+    const storageKeys = await listPersistentKeys(llmTranslateCachePrefix)
+    for (const storageKey of storageKeys) {
+        const payload = await readPersistentJson<{ key: string, value: string }>(storageKey)
+        if (!payload || !payload.key.includes(partialKey)) {
+            continue
+        }
+        if (results.some((entry) => entry.key === payload.key)) {
+            continue
+        }
+        llmTranslateCache.set(payload.key, payload.value)
+        results.push(payload)
     }
     return results
 }

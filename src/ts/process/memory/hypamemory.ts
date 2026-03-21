@@ -2,6 +2,7 @@ import { globalFetch } from "src/ts/globalApi.svelte";
 import { runEmbedding } from "../transformers";
 import { appendLastPath } from "src/ts/util";
 import { getDatabase } from "src/ts/storage/database.svelte";
+import { makeHashedStorageKey, readPersistentJson, writePersistentJson } from "src/ts/storage/persistentKv";
 
 export type HypaModel = 'custom'|'ada'|'openai3small'|'openai3large'|'MiniLM'|'MiniLMGPU'|'nomic'|'nomicGPU'|'bgeSmallEn'|'bgeSmallEnGPU'|'bgem3'|'bgem3GPU'|'multiMiniLM'|'multiMiniLMGPU'
 
@@ -35,6 +36,33 @@ export const localModels = {
 
 // Shared embedding vector cache across all HypaProcesser instances
 export const hypaVectorCache = new Map<string, memoryVector>();
+const hypaVectorCachePrefix = 'cache/hypa-vector/';
+
+export async function getPersistedHypaVector(cacheKey: string): Promise<memoryVector | undefined> {
+    if (hypaVectorCache.has(cacheKey)) {
+        return hypaVectorCache.get(cacheKey)
+    }
+    const storageKey = await makeHashedStorageKey(hypaVectorCachePrefix, cacheKey)
+    const payload = await readPersistentJson<{ key: string, value: memoryVector }>(storageKey)
+    if (!payload || payload.key !== cacheKey) {
+        return undefined
+    }
+    hypaVectorCache.set(cacheKey, payload.value)
+    return payload.value
+}
+
+export async function setPersistedHypaVector(cacheKey: string, value: memoryVector) {
+    const normalizedValue: memoryVector = {
+        ...value,
+        embedding: Array.from(value.embedding)
+    }
+    hypaVectorCache.set(cacheKey, normalizedValue)
+    const storageKey = await makeHashedStorageKey(hypaVectorCachePrefix, cacheKey)
+    await writePersistentJson(storageKey, {
+        key: cacheKey,
+        value: normalizedValue
+    })
+}
 
 export class HypaProcesser{
     oaikey:string
@@ -132,12 +160,12 @@ export class HypaProcesser{
     }
 
     async testText(text:string){
-        const cached = hypaVectorCache.get(text)
+        const cached = await getPersistedHypaVector(text)
         if(cached){
             return cached.embedding
         }
         const vec = (await this.embedDocuments([text]))[0]
-        hypaVectorCache.set(text, { content: text, embedding: vec as number[] })
+        await setPersistedHypaVector(text, { content: text, embedding: vec as number[] })
         return vec
     }
     
@@ -146,7 +174,7 @@ export class HypaProcesser{
         const suffix = (this.model === 'custom' && db.hypaCustomSettings?.model?.trim()) ? `-${db.hypaCustomSettings.model.trim()}` : ""
 
         for(let i=0;i<texts.length;i++){
-            const itm = hypaVectorCache.get(texts[i] + '|' + this.model + suffix)
+            const itm = await getPersistedHypaVector(texts[i] + '|' + this.model + suffix)
             if(itm){
                 itm.alreadySaved = true
                 this.vectors.push(itm)
@@ -175,7 +203,7 @@ export class HypaProcesser{
         for(let i=0;i<memoryVectors.length;i++){
             const vec = memoryVectors[i]
             if(!vec.alreadySaved){
-                hypaVectorCache.set(texts[i] + '|' + this.model + suffix, vec)
+                await setPersistedHypaVector(texts[i] + '|' + this.model + suffix, vec)
             }
         }
 

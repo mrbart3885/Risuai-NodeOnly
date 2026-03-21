@@ -1,4 +1,4 @@
-import { type HypaModel, localModels, hypaVectorCache } from "./hypamemory";
+import { type HypaModel, localModels, getPersistedHypaVector, setPersistedHypaVector } from "./hypamemory";
 import { TaskRateLimiter, TaskCanceledError } from "./taskRateLimiter";
 import { runEmbedding } from "../transformers";
 import { globalFetch } from "src/ts/globalApi.svelte";
@@ -119,7 +119,7 @@ export class HypaProcessorV2<TMetadata> {
       }
 
       try {
-        const cached = hypaVectorCache.get(this.getCacheKey(content)) as EmbeddingResult<TMetadata> | undefined;
+        const cached = await getPersistedHypaVector(this.getCacheKey(content)) as EmbeddingResult<TMetadata> | undefined;
 
         if (cached) {
           // Debug log for cache hit
@@ -184,7 +184,7 @@ export class HypaProcessorV2<TMetadata> {
           };
 
           // Save to DB
-          hypaVectorCache.set(this.getCacheKey(content), {
+          await setPersistedHypaVector(this.getCacheKey(content), {
             content,
             embedding,
           } as any);
@@ -238,7 +238,7 @@ export class HypaProcessorV2<TMetadata> {
           };
 
           // Save to DB
-          hypaVectorCache.set(this.getCacheKey(content), {
+          await setPersistedHypaVector(this.getCacheKey(content), {
             content,
             embedding,
           } as any);

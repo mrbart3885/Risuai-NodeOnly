@@ -1,4 +1,5 @@
 import { hasher } from '../parser/parser.svelte';
+import { makeHashedStorageKey, readPersistentJson, writePersistentJson } from '../storage/persistentKv';
 
 export interface CheckResult {
     isSafe: boolean;
@@ -53,6 +54,7 @@ export type PluginSafetyErrors = {
 // Increment this version if the safety rules change to invalidate the cache
 const checkerVersion = 3;
 const safetyCache = new Map<string, CheckResult>();
+const pluginSafetyCachePrefix = 'cache/plugin-safety/';
 
 export async function checkCodeSafety(code: string): Promise<CheckResult> {
     const errors: PluginSafetyErrors[] = [];
@@ -62,6 +64,12 @@ export async function checkCodeSafety(code: string): Promise<CheckResult> {
     const cachedResult = safetyCache.get(cacheKey);
     if (cachedResult && cachedResult.checkerVersion === checkerVersion) {
         return cachedResult;
+    }
+    const storageKey = await makeHashedStorageKey(pluginSafetyCachePrefix, cacheKey);
+    const persistedResult = await readPersistentJson<CheckResult>(storageKey);
+    if (persistedResult && persistedResult.checkerVersion === checkerVersion) {
+        safetyCache.set(cacheKey, persistedResult);
+        return persistedResult;
     }
 
     try {
@@ -151,6 +159,7 @@ export async function checkCodeSafety(code: string): Promise<CheckResult> {
 
     const result = { isSafe: errors.length === 0, errors, checkerVersion, modifiedCode: code };
     safetyCache.set(cacheKey, result);
+    await writePersistentJson(storageKey, result);
     return result;
 }
 

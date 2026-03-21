@@ -15,6 +15,7 @@ import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/plugi
 import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
 import { hasher } from "src/ts/parser/parser.svelte";
 import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, type LLMModel } from "src/ts/model/types";
+import { readPersistentJson, writePersistentJson } from "src/ts/storage/persistentKv";
 
 /*
     V3 API for RisuAI Plugins
@@ -512,6 +513,44 @@ const unloadV3Plugin = async (pluginName: string) => {
 const permissionGivenPlugins: Set<string> = new Set();
 const permissionDeniedPlugins: Set<string> = new Set();
 const permissionCache = new Map<string, boolean | number>();
+const pluginPermissionStateKey = 'cache/plugin-permissions/state.json';
+let pluginPermissionLoadPromise: Promise<void> | null = null;
+
+async function ensurePluginPermissionStateLoaded() {
+    if (!pluginPermissionLoadPromise) {
+        pluginPermissionLoadPromise = (async () => {
+            const payload = await readPersistentJson<{
+                given: string[]
+                denied: string[]
+                cache: [string, boolean | number][]
+            }>(pluginPermissionStateKey)
+            if (!payload) {
+                return
+            }
+            permissionGivenPlugins.clear()
+            permissionDeniedPlugins.clear()
+            permissionCache.clear()
+            for (const pluginName of payload.given ?? []) {
+                permissionGivenPlugins.add(pluginName)
+            }
+            for (const pluginName of payload.denied ?? []) {
+                permissionDeniedPlugins.add(pluginName)
+            }
+            for (const [key, value] of payload.cache ?? []) {
+                permissionCache.set(key, value)
+            }
+        })()
+    }
+    await pluginPermissionLoadPromise
+}
+
+async function persistPluginPermissionState() {
+    await writePersistentJson(pluginPermissionStateKey, {
+        given: [...permissionGivenPlugins],
+        denied: [...permissionDeniedPlugins],
+        cache: [...permissionCache.entries()]
+    })
+}
 
 type PluginV3ProviderOptions = PluginV2ProviderOptions & {
     model?: LLMModel
@@ -520,13 +559,7 @@ type PluginV3ProviderOptions = PluginV2ProviderOptions & {
 export const customV3ProviderMetaStore:LLMModel[] = []
 
 const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLogs'|'db'|'mainDom'|'replacer'|'provider', reconfirm: boolean|'periodically' = false) => {
-    if(permissionGivenPlugins.has(pluginName)){
-        return true;
-    }
-    if(permissionDeniedPlugins.has(pluginName)){
-        return false;
-    }
-
+    await ensurePluginPermissionStateLoaded()
     let pluginHash = ''
 
     let requiresReconfirm = false;
@@ -540,6 +573,13 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
     }
     else if(reconfirm === true){
         requiresReconfirm = true;
+    }
+
+    if (!requiresReconfirm && permissionGivenPlugins.has(pluginName)) {
+        return true;
+    }
+    if (!requiresReconfirm && permissionDeniedPlugins.has(pluginName)) {
+        return false;
     }
 
     pluginHash = await hasher(
@@ -567,13 +607,16 @@ const getPluginPermission = async (pluginName: string, permissionDesc: 'fetchLog
     const conf = await alertConfirm(alertTitle)
     if(conf && pluginHash){
         permissionGivenPlugins.add(pluginName);
+        permissionDeniedPlugins.delete(pluginName);
         permissionCache.set(pluginHash, true);
         if(reconfirm === 'periodically'){
             permissionCache.set(pluginName + '_' + permissionDesc + '_lastGrantTime', Date.now());
         }
+        await persistPluginPermissionState()
         return true;
     }
     permissionDeniedPlugins.add(pluginName);
+    await persistPluginPermissionState()
     return false;
 }
 

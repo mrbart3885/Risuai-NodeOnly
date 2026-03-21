@@ -12,8 +12,9 @@ export class AutoStorage{
     async getItem(key:string):Promise<Buffer> {
         return await this.realStorage.getItem(key)
     }
-    async keys():Promise<string[]>{
-        return await this.realStorage.keys()
+    async keys(prefix: string = ''):Promise<string[]>{
+        await this.Init()
+        return await this.realStorage.keys(prefix)
     }
     async removeItem(key:string){
         return await this.realStorage.removeItem(key)

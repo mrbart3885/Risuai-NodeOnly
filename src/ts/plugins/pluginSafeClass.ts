@@ -1,6 +1,8 @@
 import { toGetter } from "../globalApi.svelte";
+import { clearPersistentPrefix, decodeStorageKeyComponent, listPersistentKeys, makeEncodedStorageKey, readPersistentJson, removePersistentKey, writePersistentJson } from "../storage/persistentKv";
 
 const pluginStorage = new Map<string, unknown>();
+const pluginStoragePrefix = 'cache/plugin-storage/';
 
 export class SafeLocalStorage {
     getItem(key: string): string | null {
@@ -46,20 +48,31 @@ export class SafeLocalStorage {
 
 export class SafeLocalPluginStorage {
     async getItem<T>(key: string): Promise<T | null> {
-        return (pluginStorage.get(`safe_plugin_${key}`) as T) ?? null;
+        const cacheKey = `safe_plugin_${key}`;
+        if (pluginStorage.has(cacheKey)) {
+            return (pluginStorage.get(cacheKey) as T) ?? null;
+        }
+        const payload = await readPersistentJson<T>(makeEncodedStorageKey(pluginStoragePrefix, key));
+        if (payload !== null) {
+            pluginStorage.set(cacheKey, payload);
+        }
+        return payload;
     }
     async setItem<T>(key: string, value: T): Promise<void> {
-        pluginStorage.set(`safe_plugin_${key}`, value);
+        const cacheKey = `safe_plugin_${key}`;
+        pluginStorage.set(cacheKey, value);
+        await writePersistentJson(makeEncodedStorageKey(pluginStoragePrefix, key), value);
     }
     async removeItem(key: string): Promise<void> {
         pluginStorage.delete(`safe_plugin_${key}`);
+        await removePersistentKey(makeEncodedStorageKey(pluginStoragePrefix, key));
     }
     async keys(): Promise<string[]> {
         const keys: string[] = [];
-        for (const key of pluginStorage.keys()) {
-            if (key.startsWith('safe_plugin_')) {
-                keys.push(key.substring('safe_plugin_'.length));
-            }
+        const storageKeys = await listPersistentKeys(pluginStoragePrefix);
+        for (const key of storageKeys) {
+            const encodedKey = key.slice(pluginStoragePrefix.length, -'.json'.length);
+            keys.push(decodeStorageKeyComponent(encodedKey));
         }
         return keys;
     }
@@ -69,6 +82,7 @@ export class SafeLocalPluginStorage {
                 pluginStorage.delete(key);
             }
         }
+        await clearPersistentPrefix(pluginStoragePrefix);
     }
 }
 

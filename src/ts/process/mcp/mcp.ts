@@ -7,6 +7,7 @@ import { v4 } from "uuid";
 import type { MCPClientLike } from "./internalmcp";
 import { sleep } from "src/ts/util";
 import { registeredCustomPluginMCPs } from "./pluginmcp";
+import { makeEncodedStorageKey, readPersistentJson, writePersistentJson } from "src/ts/storage/persistentKv";
 
 export type MCPToolWithURL = MCPTool & {
     mcpURL: string;
@@ -253,10 +254,12 @@ export type toolCallData = {
 }
 
 const toolCallCache = new Map<string, toolCallData>();
+const toolCallCachePrefix = 'cache/mcp-tool-calls/';
 
 export async function encodeToolCall(call:toolCallData){
     call.call.id = call.call.id || v4();
     toolCallCache.set(call.call.id, call)
+    await writePersistentJson(makeEncodedStorageKey(toolCallCachePrefix, call.call.id), call)
     return `<tool_call>${call.call.id}\uf100${call.call.name}</tool_call>\n\n`;
 }
 
@@ -272,5 +275,13 @@ export async function decodeToolCall(text:string):Promise<toolCallData|undefined
     if(!callId) {
         return undefined;
     }
-    return toolCallCache.get(callId);
+    const cached = toolCallCache.get(callId);
+    if (cached) {
+        return cached;
+    }
+    const persisted = await readPersistentJson<toolCallData>(makeEncodedStorageKey(toolCallCachePrefix, callId));
+    if (persisted) {
+        toolCallCache.set(callId, persisted);
+    }
+    return persisted ?? undefined;
 }
