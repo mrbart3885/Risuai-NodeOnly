@@ -1040,31 +1040,33 @@ app.post('/api/write', async (req, res, next) => {
         return;
     }
     try {
-        const key = Buffer.from(filePath, 'hex').toString('utf-8');
+        await queueStorageOperation(async () => {
+            const key = Buffer.from(filePath, 'hex').toString('utf-8');
 
-        // ETag conflict detection for database.bin
-        if (key === 'database/database.bin') {
-            const ifMatch = req.headers['x-if-match'];
-            if (ifMatch && dbEtag && ifMatch !== dbEtag) {
-                res.status(409).send({
-                    error: 'ETag mismatch - concurrent modification detected',
-                    currentEtag: dbEtag
-                });
-                return;
+            // ETag conflict detection for database.bin
+            if (key === 'database/database.bin') {
+                const ifMatch = req.headers['x-if-match'];
+                if (ifMatch && dbEtag && ifMatch !== dbEtag) {
+                    res.status(409).send({
+                        error: 'ETag mismatch - concurrent modification detected',
+                        currentEtag: dbEtag
+                    });
+                    return;
+                }
             }
-        }
 
-        kvSet(key, fileContent);
+            kvSet(key, fileContent);
 
-        // Update ETag and invalidate cache after database.bin write
-        if (key === 'database/database.bin') {
-            invalidateDbCache();
-            dbEtag = computeBufferEtag(fileContent);
-        }
+            // Update ETag and invalidate cache after database.bin write
+            if (key === 'database/database.bin') {
+                invalidateDbCache();
+                dbEtag = computeBufferEtag(fileContent);
+            }
 
-        res.send({
-            success: true,
-            etag: key === 'database/database.bin' ? dbEtag : undefined
+            res.send({
+                success: true,
+                etag: key === 'database/database.bin' ? dbEtag : undefined
+            });
         });
     } catch (error) {
         next(error);
