@@ -12,10 +12,10 @@ const { execSync } = require('child_process');
 
 const REPO = 'mrbart3885/Risuai-NodeOnly';
 const ROOT = path.resolve(__dirname, '..');
-const SAVE_DIR = path.join(ROOT, 'save');
-const BIN_DIR = path.join(ROOT, 'bin');
 
 const isWin = process.platform === 'win32';
+const REQUIRED_ENTRIES = ['dist', 'server', 'package.json'];
+const REQUIRED_DIST_FILES = ['index.html'];
 
 function log(msg) { process.stdout.write(`[updater] ${msg}\n`); }
 function error(msg) { process.stderr.write(`[ERROR] ${msg}\n`); process.exit(1); }
@@ -92,6 +92,43 @@ function getPlatformSuffix() {
     return `linux-${arch}`;
 }
 
+function resolveExtractedRoot(extractedDir) {
+    const entries = fs.readdirSync(extractedDir, { withFileTypes: true });
+    if (entries.length === 1 && entries[0].isDirectory()) {
+        return path.join(extractedDir, entries[0].name);
+    }
+    return extractedDir;
+}
+
+function validateExtractedRoot(extractedRoot) {
+    for (const entry of REQUIRED_ENTRIES) {
+        if (!fs.existsSync(path.join(extractedRoot, entry))) {
+            throw new Error(`Downloaded package is missing required entry: ${entry}`);
+        }
+    }
+    for (const file of REQUIRED_DIST_FILES) {
+        if (!fs.existsSync(path.join(extractedRoot, 'dist', file))) {
+            throw new Error(`Downloaded package is missing dist/${file}`);
+        }
+    }
+}
+
+function restoreBackupIntoRoot(backupDir, overwrite = true) {
+    if (!fs.existsSync(backupDir)) return;
+    for (const entry of fs.readdirSync(backupDir)) {
+        const src = path.join(backupDir, entry);
+        const dest = path.join(ROOT, entry);
+        try {
+            if (overwrite && fs.existsSync(dest)) {
+                fs.rmSync(dest, { recursive: true, force: true });
+            }
+            if (!fs.existsSync(dest)) {
+                fs.renameSync(src, dest);
+            }
+        } catch { /* best effort */ }
+    }
+}
+
 async function main() {
     const current = getCurrentVersion();
     log(`Current version: ${current}`);
@@ -117,7 +154,14 @@ async function main() {
     }
 
     const tmpDir = path.join(ROOT, '.update-tmp');
-    if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
+    if (fs.existsSync(tmpDir)) {
+        const prevBackup = path.join(tmpDir, 'backup');
+        if (fs.existsSync(prevBackup)) {
+            log('Restoring files from previous interrupted update...');
+            restoreBackupIntoRoot(prevBackup, true);
+        }
+        fs.rmSync(tmpDir, { recursive: true });
+    }
     fs.mkdirSync(tmpDir, { recursive: true });
 
     const downloadPath = path.join(tmpDir, asset.name);
@@ -134,6 +178,8 @@ async function main() {
     }
 
     const extractedDir = path.join(tmpDir, 'extracted');
+    const extractedRoot = resolveExtractedRoot(extractedDir);
+    validateExtractedRoot(extractedRoot);
 
     // Phase 1: move old files to backup (safer than immediate delete)
     log('Replacing files...');
@@ -146,9 +192,12 @@ async function main() {
         try {
             fs.renameSync(path.join(ROOT, entry), path.join(backupDir, entry));
         } catch (e) {
-            log(`Warning: could not move ${entry} to backup, removing directly...`);
-            try { fs.rmSync(path.join(ROOT, entry), { recursive: true, force: true }); }
-            catch { /* best effort */ }
+            log(`Error backing up ${entry}: ${e.message}`);
+            log('Restoring files already moved to backup...');
+            restoreBackupIntoRoot(backupDir, true);
+            error(isWin
+                ? 'Update failed because some files are in use. Close the running RisuAI window/console first, then run update.bat again.'
+                : 'Update failed because some files are in use. Stop the running server first, then try again.');
         }
     }
 
@@ -156,9 +205,9 @@ async function main() {
     const moved = [];
     const skipMove = new Set(['save', 'bin', 'scripts']);
     try {
-        for (const entry of fs.readdirSync(extractedDir)) {
+        for (const entry of fs.readdirSync(extractedRoot)) {
             if (skipMove.has(entry)) continue;
-            const src = path.join(extractedDir, entry);
+            const src = path.join(extractedRoot, entry);
             const dest = path.join(ROOT, entry);
             if (fs.existsSync(dest)) {
                 fs.rmSync(dest, { recursive: true, force: true });
@@ -166,23 +215,26 @@ async function main() {
             fs.renameSync(src, dest);
             moved.push(entry);
         }
+        for (const entry of REQUIRED_ENTRIES) {
+            if (!moved.includes(entry) && !fs.existsSync(path.join(ROOT, entry))) {
+                throw new Error(`Required entry was not installed: ${entry}`);
+            }
+        }
+        for (const file of REQUIRED_DIST_FILES) {
+            if (!fs.existsSync(path.join(ROOT, 'dist', file))) {
+                throw new Error(`Required file was not installed: dist/${file}`);
+            }
+        }
     } catch (e) {
         // Restore from backup on failure
         log(`Error moving files: ${e.message}`);
         log('Restoring from backup...');
-        for (const entry of fs.readdirSync(backupDir)) {
-            const src = path.join(backupDir, entry);
-            const dest = path.join(ROOT, entry);
-            try {
-                if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
-                fs.renameSync(src, dest);
-            } catch { /* best effort */ }
-        }
+        restoreBackupIntoRoot(backupDir, true);
         error('Update failed, previous version restored. Please try again.');
     }
 
     // Phase 3: update scripts/ from new release
-    const newScripts = path.join(extractedDir, 'scripts');
+    const newScripts = path.join(extractedRoot, 'scripts');
     if (fs.existsSync(newScripts)) {
         if (!fs.existsSync(path.join(ROOT, 'scripts'))) {
             fs.mkdirSync(path.join(ROOT, 'scripts'));
