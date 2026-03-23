@@ -646,6 +646,7 @@ export function setDatabase(data:Database){
     // Because its likely they are power users who would benefit from the features
     data.enableRisuaiProTools ??= data.plugins.length > 0
     data.keepSessionAlive ??= 'off'
+    data.copilot ??= { githubTokens: [], keyRotate: 'sequential', machineId: '' }
     changeLanguage(data.language)
     setDatabaseLite(data)
 }
@@ -1372,6 +1373,11 @@ export interface Database{
     disableSeperateParameterChangeOnPresetChange?:boolean
     saveSignatures?:boolean
     keepSessionAlive: 'off' | 'pip' | 'sound'
+    copilot?: {
+        githubTokens: string[]
+        keyRotate: 'sequential' | 'on-error'
+        machineId: string
+    }
 }
 
 export interface SeparateParameters{

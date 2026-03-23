@@ -12,6 +12,7 @@ import {
 import { OpenAIModels } from './providers/openai'
 import { AnthropicModels } from './providers/anthropic'
 import { GoogleModels } from './providers/google'
+import { CopilotModels } from './providers/copilot'
 import { fetchNative } from "../globalApi.svelte"
 import { DBState } from "../stores.svelte"
 import { customProviderStore, pluginV2 } from "../plugins/plugins.svelte"
@@ -43,6 +44,7 @@ function makeDeepInfraModels(id:string[]):LLMModel[]{
 export const LLMModels: LLMModel[] = [
     ...OpenAIModels,
     ...AnthropicModels,
+    ...CopilotModels,
     // AWS Bedrock Claude models
     {
         name: "Claude 4.6 Opus v1",
@@ -655,6 +657,59 @@ export async function registerModelDynamic(){
         console.error('Error fetching Anthropic models', error)
     }
 
+    // Copilot
+    try {
+        const tokens = DBState.db.copilot?.githubTokens ?? []
+        if (tokens.length > 0) {
+            const { fetchCopilotModels } = await import('../process/request/copilot')
+            const { models } = await fetchCopilotModels(tokens[0])
+
+            for (const model of models) {
+                const dynamicId = `dynamic_copilot_${model.id}`
+                const exists = LLMModels.find(m => m.id === dynamicId || m.internalID === model.id)
+                if (exists) continue
+
+                const isAnthropic = model.vendor === 'Anthropic'
+                const isResponsesOnly = model.supportedEndpoints.length === 1 && model.supportedEndpoints[0] === '/responses'
+
+                const format = isAnthropic
+                    ? LLMFormat.Anthropic
+                    : isResponsesOnly
+                        ? LLMFormat.OpenAIResponseAPI
+                        : LLMFormat.OpenAICompatible
+
+                const flags: LLMFlags[] = [LLMFlags.hasStreaming]
+                if (model.supportsVision) flags.push(LLMFlags.hasImageInput)
+                if (isAnthropic) {
+                    flags.push(LLMFlags.hasFirstSystemPrompt)
+                    if (model.supportsThinking) {
+                        flags.push(LLMFlags.claudeThinking, LLMFlags.claudeAdaptiveThinking)
+                    }
+                } else {
+                    flags.push(LLMFlags.hasFullSystemPrompt)
+                }
+
+                const parameters: LLMParameter[] = isAnthropic
+                    ? [...ClaudeParameters, ...(model.supportsThinking ? ['thinking_tokens' as LLMParameter] : [])]
+                    : ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort', 'verbosity']
+
+                LLMModels.push({
+                    id: dynamicId,
+                    name: model.name,
+                    shortName: `GH Copilot ${model.name}`,
+                    fullName: `GitHub Copilot ${model.name}`,
+                    internalID: model.id,
+                    provider: LLMProvider.Copilot,
+                    format,
+                    flags,
+                    parameters,
+                    tokenizer: isAnthropic ? LLMTokenizer.Claude : LLMTokenizer.tiktokenO200Base,
+                })
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching Copilot models', error)
+    }
 
 }
 

@@ -41,6 +41,7 @@ export enum LLMProvider{
     AWS,
     DeepSeek,
     DeepInfra,
+    Copilot,
     Echo
 }
 
@@ -115,6 +116,7 @@ export const ProviderNames = new Map<LLMProvider, string>([
     [LLMProvider.AWS, 'AWS'],
     [LLMProvider.DeepSeek, 'DeepSeek'],
     [LLMProvider.DeepInfra, 'DeepInfra'],
+    [LLMProvider.Copilot, 'GitHub Copilot'],
     [LLMProvider.Echo, 'For Developer']
 ])
 
