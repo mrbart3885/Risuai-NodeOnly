@@ -1629,6 +1629,22 @@ export const languageEnglish = {
     keepSessionAlive: "Keep Session Alive",
     keepSessionAlivePip: "Via PIP",
     keepSessionAliveSound: "Via Sound",
+    togglePinToChat: "Bind toggles to chat",
+    togglePinLabel: "Bind",
+    togglePinSaved: "Toggles bound.",
+    toggleSaveAsPreset: "Save as toggle preset",
+    toggleLoadPreset: "Load toggle preset",
+    togglePinUpdate: "Save toggles",
+    togglePinUpdateLabel: "Save",
+
+    togglePinRemove: "Unbind toggles?",
+    togglePresetNamePrompt: "Enter toggle preset name",
+    togglePresetDelete: "── Delete ──",
+    togglePresetDeleteConfirm: (name: string) => `Delete toggle preset "${name}"?`,
+    togglePresetSelectTitle: "Toggle Presets",
+    togglePresetEmpty: "No toggle presets saved.",
+    togglePresetRename: "Rename toggle preset",
+    togglePresetApplied: (name: string) => `"${name}" preset applied.`,
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

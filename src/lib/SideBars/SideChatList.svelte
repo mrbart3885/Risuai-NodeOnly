@@ -5,7 +5,6 @@
     import { DownloadIcon, PencilIcon, HardDriveUploadIcon, MenuIcon, TrashIcon, SplitIcon, FolderPlusIcon, BookmarkCheckIcon } from "@lucide/svelte";
 
     import type { Chat, ChatFolder, character, groupChat } from "src/ts/storage/database.svelte";
-    import { initializeChatPromptOptionState } from "src/ts/storage/database.svelte";
     import { DBState, ReloadGUIPointer } from 'src/ts/stores.svelte';
     import { selectedCharID } from "src/ts/stores.svelte";
 
@@ -136,14 +135,14 @@
         })
     })
 </script>
-<div class="flex flex-col w-full h-[calc(100%-2rem)] max-h-[calc(100%-2rem)]">
+<div class="flex flex-col w-full">
     <Button className="relative bottom-2" onclick={() => {
         const cha = chara
         const len = chara.chats.length
         let chats = chara.chats
-        const newChat = initializeChatPromptOptionState({
-            message:[], note:'', name:`New Chat ${len + 1}`, localLore:[], fmIndex: -1, id: v4()
-        }, chara)
+        const newChat = {
+            message:[] as any[], note:'', name:`New Chat ${len + 1}`, localLore:[] as any[], fmIndex: -1, id: v4()
+        }
         chats.unshift(newChat)
         if(cha.type === 'group'){
             cha.characters.map((c) => {
@@ -163,7 +162,7 @@
     }}>{language.newChat}</Button>
 
     {#key sorted}
-    <div class="flex flex-col mt-2 overflow-y-auto grow" bind:this={listEle}>
+    <div class="flex flex-col mt-2 overflow-y-auto max-h-80" bind:this={listEle}>
         <!-- folder div -->
         <div class="flex flex-col" bind:this={folderEles}>
             <!-- chat folder -->
@@ -272,7 +271,6 @@
                                         const newChat = $state.snapshot(chara.chats[chara.chats.indexOf(chat)])
                                         newChat.name = createChatCopyName(newChat.name, 'Copy')
                                         newChat.id = v4()
-                                        initializeChatPromptOptionState(newChat, chara)
                                         chara.chats.unshift(newChat)
                                         changeChatTo(0)
                                         chara.chats = chara.chats
@@ -385,7 +383,6 @@
                                 const newChat = $state.snapshot(chara.chats[i])
                                 newChat.name = createChatCopyName(newChat.name, 'Copy')
                                 newChat.id = v4()
-                                initializeChatPromptOptionState(newChat, chara)
                                 chara.chats.unshift(newChat)
                                 changeChatTo(0)
                                 chara.chats = chara.chats
@@ -524,7 +521,7 @@
         </div>
 
         {#if DBState.db.characters[$selectedCharID]?.chaId !== '§playground'}            
-            <Toggles bind:chara={chara} />
+            <Toggles bind:chara={chara} noContainer />
         {/if}
     </div>
     {#if chara.type === 'group'}

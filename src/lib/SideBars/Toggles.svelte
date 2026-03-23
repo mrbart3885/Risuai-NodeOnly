@@ -5,7 +5,10 @@
     import { language } from "src/lang";
     import type { PromptItem } from "src/ts/process/prompt";
     import type { character, groupChat } from "src/ts/storage/database.svelte";
-    import { syncCurrentChatPromptOptionState, applyBoundPreset, getCurrentChat } from "src/ts/storage/database.svelte";
+    import { getCurrentChat, snapshotToggleValues, applyToggleValues, saveTogglesToChat, type TogglePreset } from "src/ts/storage/database.svelte";
+    import { alertInput, alertConfirm, alertNormal, alertTogglePresets } from "src/ts/alert";
+    import { tooltip } from "src/ts/gui/tooltip";
+    import { PinIcon, SaveIcon, BookmarkIcon, FolderOpenIcon } from "@lucide/svelte";
     import Accordion from '../UI/Accordion.svelte'
     import CheckInput from "../UI/GUI/CheckInput.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
@@ -13,21 +16,54 @@
     import TextAreaInput from '../UI/GUI/TextAreaInput.svelte'
     import TextInput from "../UI/GUI/TextInput.svelte";
 
-    let syncTimer: ReturnType<typeof setTimeout> | null = null
-    function syncToggleState() {
-        if (syncTimer) clearTimeout(syncTimer)
-        syncTimer = setTimeout(() => {
-            syncCurrentChatPromptOptionState()
-            syncTimer = null
-        }, 300)
-    }
-
     interface Props {
         chara?: character|groupChat
         noContainer?: boolean
     }
 
     let { chara = $bindable(), noContainer }: Props = $props();
+
+    let currentChat = $derived(DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage])
+    let isPinned = $derived(!!currentChat?.savedToggleValues)
+    let isDirty = $derived.by(() => {
+        const saved = currentChat?.savedToggleValues
+        if (!saved) return false
+        const current = snapshotToggleValues()
+        return JSON.stringify(saved) !== JSON.stringify(current)
+    })
+
+    async function pinToChat() {
+        const chat = getCurrentChat()
+        if (!chat) return
+        if (chat.savedToggleValues) {
+            const confirmed = await alertConfirm(language.togglePinRemove)
+            if (confirmed) {
+                chat.savedToggleValues = undefined
+            }
+        } else {
+            saveTogglesToChat()
+            alertNormal(language.togglePinSaved)
+        }
+    }
+
+    function updatePin() {
+        saveTogglesToChat()
+        alertNormal(language.togglePinSaved)
+    }
+
+    async function saveAsPreset() {
+        const name = await alertInput(language.togglePresetNamePrompt)
+        if (!name) return
+        DBState.db.togglePresets ??= []
+        DBState.db.togglePresets.push({
+            name,
+            values: snapshotToggleValues()
+        })
+    }
+
+    async function loadPreset() {
+        await alertTogglePresets()
+    }
 
     const jailbreakToggleToken = '{{jbtoggled}}'
     const usesJailbreakToggle = (value?: string) =>
@@ -80,20 +116,6 @@
         }, [])
     })
 
-    let currentChat = $derived(DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage])
-    let presetNames = $derived(DBState.db.botPresets.map(p => p.name || 'Unnamed Preset'))
-    let boundPresetValue = $derived(currentChat?.boundPresetName || '')
-
-    function onBoundPresetChange(e: Event & { currentTarget: HTMLSelectElement }) {
-        const chat = getCurrentChat()
-        if (!chat) return
-        const name = e.currentTarget.value
-        chat.boundPresetName = name || undefined
-        if (name) {
-            applyBoundPreset(chat)
-        }
-        syncCurrentChatPromptOptionState()
-    }
 </script>
 
 {#snippet toggles(items: sidebarToggle[], reverse: boolean = false)}
@@ -107,7 +129,7 @@
         {:else if toggle.type === 'select'}
             <div class="w-full flex gap-2 mt-2 items-center" class:justify-end={$MobileGUI} >
                 <span>{toggle.value}</span>
-                <SelectInput className="w-32" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} onchange={syncToggleState}>
+                <SelectInput className="w-32" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]}>
                     {#each toggle.options as option, i}
                         <OptionInput value={i.toString()}>{option}</OptionInput>
                     {/each}
@@ -116,12 +138,12 @@
         {:else if toggle.type === 'text'}
             <div class="w-full flex gap-2 mt-2 items-center" class:justify-end={$MobileGUI}>
                 <span>{toggle.value}</span>
-                <TextInput className="w-32" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} onchange={syncToggleState} />
+                <TextInput className="w-32" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} />
             </div>
         {:else if toggle.type === 'textarea'}
             <div class="w-full flex gap-2 mt-2 items-start" class:justify-end={$MobileGUI}>
                 <span class="mt-1.5">{toggle.value}</span>
-                <TextAreaInput className="w-32" height='20' bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} onchange={syncToggleState} />
+                <TextAreaInput className="w-32" height='20' bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} />
             </div>
         {:else if toggle.type === 'caption'}
             <div class="w-full mt-1 text-xs text-textcolor2">
@@ -141,24 +163,54 @@
             <div class="w-full flex mt-2 items-center" class:justify-end={$MobileGUI}>
                 <CheckInput check={DBState.db.globalChatVariables[`toggle_${toggle.key}`] === '1'} reverse={reverse} name={toggle.value} onChange={() => {
                     DBState.db.globalChatVariables[`toggle_${toggle.key}`] = DBState.db.globalChatVariables[`toggle_${toggle.key}`] === '1' ? '0' : '1'
-                    syncToggleState()
                 }} />
             </div>
         {/if}
     {/each}
 {/snippet}
 
-{#if currentChat}
-    <div class="w-full flex gap-2 mt-2 items-center text-sm">
-        <span class="text-textcolor2 shrink-0">Preset</span>
-        <SelectInput className="w-full min-w-0" size="sm" value={boundPresetValue} onchange={onBoundPresetChange}>
-            <OptionInput value="">None</OptionInput>
-            {#each presetNames as name, i}
-                <OptionInput value={name}>{name}</OptionInput>
-            {/each}
-        </SelectInput>
-    </div>
-{/if}
+<div class="flex gap-1 mt-3 items-stretch">
+    {#if isPinned}
+        <button class="flex items-center justify-center px-3 rounded-md border border-green-600 bg-green-700 text-white hover:bg-green-600 cursor-pointer transition-colors shadow-xs"
+            use:tooltip={language.togglePinRemove}
+            onclick={pinToChat}>
+            <PinIcon size={16} />
+        </button>
+        <button class="flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-4 rounded-md border text-md transition-colors shadow-xs"
+            class:bg-green-700={isDirty}
+            class:border-green-600={isDirty}
+            class:text-white={isDirty}
+            class:hover:bg-green-600={isDirty}
+            class:cursor-pointer={isDirty}
+            class:bg-darkbutton={!isDirty}
+            class:border-darkborderc={!isDirty}
+            class:text-textcolor2={!isDirty}
+            class:opacity-50={!isDirty}
+            class:cursor-default={!isDirty}
+            use:tooltip={language.togglePinUpdate}
+            onclick={isDirty ? updatePin : undefined}>
+            <SaveIcon size={16} class="shrink-0" />
+            <span class="truncate">{language.togglePinUpdateLabel}</span>
+        </button>
+    {:else}
+        <button class="flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-4 rounded-md border border-darkborderc bg-darkbutton hover:bg-selected text-textcolor2 text-md cursor-pointer transition-colors shadow-xs"
+            use:tooltip={language.togglePinToChat}
+            onclick={pinToChat}>
+            <PinIcon size={16} class="shrink-0" />
+            <span class="truncate">{language.togglePinLabel}</span>
+        </button>
+    {/if}
+    <button class="flex items-center justify-center px-3 rounded-md border border-darkborderc bg-darkbutton hover:bg-selected text-textcolor2 cursor-pointer transition-colors shadow-xs"
+        use:tooltip={language.toggleSaveAsPreset}
+        onclick={saveAsPreset}>
+        <BookmarkIcon size={16} />
+    </button>
+    <button class="flex items-center justify-center px-3 rounded-md border border-darkborderc bg-darkbutton hover:bg-selected text-textcolor2 cursor-pointer transition-colors shadow-xs"
+        use:tooltip={language.toggleLoadPreset}
+        onclick={loadPreset}>
+        <FolderOpenIcon size={16} />
+    </button>
+</div>
 
 {#if !noContainer && groupedToggles.length > 4}
     <div class="h-48 border-darkborderc p-2 border rounded-sm flex flex-col items-start mt-2 overflow-y-auto">

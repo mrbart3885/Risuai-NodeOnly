@@ -8,7 +8,8 @@ export interface alertData{
     type: 'error'|'normal'|'none'|'ask'|'wait'|'selectChar'
             |'input'|'toast'|'wait2'|'markdown'|'select'|'login'
             |'tos'|'cardexport'|'requestdata'|'addchar'|'hypaV2'|'selectModule'
-            |'chatOptions'|'pukmakkurit'|'branches'|'progress'|'pluginconfirm'|'requestlogs',
+            |'chatOptions'|'pukmakkurit'|'branches'|'progress'|'pluginconfirm'|'requestlogs'
+            |'togglePresets',
     msg: string,
     submsg?: string
     datalist?: [string, string][],
@@ -305,4 +306,13 @@ export function alertRequestLogs(){
         'type': 'requestlogs',
         'msg': ''
     })
+}
+
+export async function alertTogglePresets(){
+    alertStoreImported.set({
+        'type': 'togglePresets',
+        'msg': ''
+    })
+    await waitAlert()
+    return get(alertStoreImported).msg
 }
