@@ -113,6 +113,9 @@ await (async function() {
         if (obj instanceof ArrayBuffer ||
             obj instanceof MessagePort ||
             obj instanceof ImageBitmap ||
+            obj instanceof ReadableStream ||
+            obj instanceof WritableStream ||
+            obj instanceof TransformStream ||
             (typeof OffscreenCanvas !== 'undefined' && obj instanceof OffscreenCanvas)) {
             transferables.push(obj);
         }

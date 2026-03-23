@@ -10,7 +10,9 @@
     import { tokenizeAccurate, tokenizerList } from "src/ts/tokenizer";
     import ModelList from "src/lib/UI/ModelList.svelte";
     import DropList from "src/lib/SideBars/DropList.svelte";
-    import { PlusIcon, TrashIcon, HardDriveUploadIcon, DownloadIcon, UploadIcon } from "@lucide/svelte";
+    import { PlusIcon, TrashIcon, HardDriveUploadIcon, DownloadIcon, UploadIcon, CheckCircleIcon, XCircleIcon, LoaderIcon } from "@lucide/svelte";
+    import { validateCopilotToken, fetchCopilotUsage, type CopilotUsageInfo } from "src/ts/process/request/copilot";
+    import { registerModelDynamic, LLMModels } from "src/ts/model/modellist";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import NumberInput from "src/lib/UI/GUI/NumberInput.svelte";
     import SliderInput from "src/lib/UI/GUI/SliderInput.svelte";
@@ -74,6 +76,51 @@
     let modelInfo = $derived(getModelInfo(DBState.db.aiModel))
     let subModelInfo = $derived(getModelInfo(DBState.db.subModel))
     let openRouterSearchQuery = $state("")
+
+    let copilotTokenStatus: Map<number, 'idle'|'loading'|'valid'|'invalid'> = $state(new Map())
+    let copilotTokenErrors: Map<number, string> = $state(new Map())
+
+    async function verifyCopilotToken(index: number) {
+        const token = DBState.db.copilot?.githubTokens?.[index]
+        if (!token) return
+        copilotTokenStatus = new Map(copilotTokenStatus.set(index, 'loading'))
+        const result = await validateCopilotToken(token)
+        copilotTokenStatus = new Map(copilotTokenStatus.set(index, result.valid ? 'valid' : 'invalid'))
+        if (!result.valid) {
+            copilotTokenErrors = new Map(copilotTokenErrors.set(index, result.error ?? 'Unknown error'))
+        }
+    }
+
+    let copilotUsage: CopilotUsageInfo | null = $state(null)
+    let copilotUsageLoading = $state(false)
+    let copilotUsageError = $state('')
+
+    async function loadCopilotUsage() {
+        if (copilotUsageLoading) return
+        const token = DBState.db.copilot?.githubTokens?.[0]
+        if (!token) return
+        copilotUsageLoading = true
+        copilotUsageError = ''
+        const result = await fetchCopilotUsage(token)
+        copilotUsage = result.usage
+        copilotUsageError = result.error ?? ''
+        copilotUsageLoading = false
+    }
+
+    let copilotModelSyncStatus: 'idle'|'loading'|'done'|'error' = $state('idle')
+    let copilotModelSyncCount = $state(0)
+
+    async function syncCopilotModels() {
+        if (copilotModelSyncStatus === 'loading') return
+        copilotModelSyncStatus = 'loading'
+        try {
+            await registerModelDynamic()
+            copilotModelSyncCount = LLMModels.filter(m => m.provider === LLMProvider.Copilot).length
+            copilotModelSyncStatus = 'done'
+        } catch {
+            copilotModelSyncStatus = 'error'
+        }
+    }
 </script>
 <h2 class="mb-2 text-2xl font-bold mt-2">{language.chatBot}</h2>
 
@@ -148,6 +195,133 @@
             || modelInfo.provider === LLMProvider.AWS || subModelInfo.provider === LLMProvider.AWS }
         <span class="text-textcolor">Claude {language.apiKey}</span>
         <TextInput hideText={DBState.db.hideApiKey} marginBottom={true} size={"sm"} placeholder="..." bind:value={DBState.db.claudeAPIKey}/>
+    {/if}
+    {#if modelInfo.provider === LLMProvider.Copilot || subModelInfo.provider === LLMProvider.Copilot}
+        <Accordion name="GitHub Copilot" styled>
+            <span class="text-textcolor2 text-xs mb-2 block">GitHub Personal Access Token (copilot scope required)</span>
+            {#each DBState.db.copilot?.githubTokens ?? [] as token, i}
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="flex-1">
+                        <TextInput hideText={DBState.db.hideApiKey} size={"sm"} placeholder="ghp_xxxxxxxxxxxx" bind:value={DBState.db.copilot.githubTokens[i]}/>
+                    </div>
+                    <button class="text-textcolor2 hover:text-green-500 cursor-pointer" title="Verify token" onclick={() => verifyCopilotToken(i)}>
+                        {#if copilotTokenStatus.get(i) === 'loading'}
+                            <LoaderIcon size={16} class="animate-spin"/>
+                        {:else if copilotTokenStatus.get(i) === 'valid'}
+                            <CheckCircleIcon size={16} class="text-green-500"/>
+                        {:else if copilotTokenStatus.get(i) === 'invalid'}
+                            <XCircleIcon size={16} class="text-draculared"/>
+                        {:else}
+                            <CheckCircleIcon size={16}/>
+                        {/if}
+                    </button>
+                    <button class="text-textcolor2 hover:text-draculared cursor-pointer" onclick={() => {
+                        DBState.db.copilot.githubTokens = DBState.db.copilot.githubTokens.filter((_, idx) => idx !== i)
+                        copilotTokenStatus = new Map([...copilotTokenStatus].filter(([k]) => k !== i))
+                    }}>
+                        <TrashIcon size={16}/>
+                    </button>
+                </div>
+                {#if copilotTokenStatus.get(i) === 'invalid'}
+                    <span class="text-draculared text-xs mb-2 block">{copilotTokenErrors.get(i) ?? 'Invalid token'}</span>
+                {:else if copilotTokenStatus.get(i) === 'valid'}
+                    <span class="text-green-500 text-xs mb-2 block">Token verified</span>
+                {/if}
+            {/each}
+            <button class="flex items-center gap-1 text-textcolor2 hover:text-green-500 cursor-pointer mb-3" onclick={() => {
+                if (!DBState.db.copilot) {
+                    DBState.db.copilot = { githubTokens: [], keyRotate: 'sequential', machineId: '', vsCodeVersion: '', chatVersion: '' }
+                }
+                DBState.db.copilot.githubTokens = [...DBState.db.copilot.githubTokens, '']
+            }}>
+                <PlusIcon size={16}/> <span class="text-sm">Add Token</span>
+            </button>
+            {#if (DBState.db.copilot?.githubTokens?.length ?? 0) > 1}
+                <span class="text-textcolor text-sm">Key Rotation</span>
+                <SelectInput bind:value={DBState.db.copilot.keyRotate}>
+                    <OptionInput value="sequential">Sequential</OptionInput>
+                    <OptionInput value="on-error">On Error</OptionInput>
+                </SelectInput>
+            {/if}
+
+            <Accordion name="Version Override" styled>
+                <span class="text-textcolor2 text-xs mb-2 block">Leave empty for defaults. Check latest versions:</span>
+                <div class="flex gap-2 mb-2 text-xs">
+                    <a href="https://code.visualstudio.com/updates/" target="_blank" rel="noopener" class="text-blue-400 hover:text-blue-300 underline">VS Code Releases</a>
+                    <a href="https://github.com/microsoft/vscode-copilot-chat/releases/latest" target="_blank" rel="noopener" class="text-blue-400 hover:text-blue-300 underline">Copilot Chat Releases</a>
+                </div>
+                <span class="text-textcolor text-sm">VS Code Version</span>
+                <TextInput size={"sm"} placeholder="1.111.0" bind:value={DBState.db.copilot.vsCodeVersion}/>
+                <span class="text-textcolor text-sm mt-2">Copilot Chat Version</span>
+                <TextInput size={"sm"} placeholder="0.39.2" bind:value={DBState.db.copilot.chatVersion}/>
+            </Accordion>
+
+            {#if (DBState.db.copilot?.githubTokens?.length ?? 0) > 0}
+                <div class="border-t border-darkborderc mt-3 pt-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-textcolor text-sm font-semibold">Usage / Quota</span>
+                        <button class="text-xs text-textcolor2 hover:text-green-500 cursor-pointer" onclick={loadCopilotUsage}>
+                            {copilotUsageLoading ? 'Loading...' : 'Refresh'}
+                        </button>
+                    </div>
+                    {#if copilotUsageError}
+                        <span class="text-draculared text-xs block">{copilotUsageError}</span>
+                    {/if}
+                    {#if copilotUsage}
+                        <div class="text-xs text-textcolor2 space-y-2">
+                            <div class="flex gap-3">
+                                <span>Plan: <span class="text-textcolor font-medium">{copilotUsage.planType}</span></span>
+                                <span>Account: <span class="text-textcolor font-medium">{copilotUsage.login}</span></span>
+                            </div>
+                            {#each copilotUsage.quotas as quota}
+                                <div class="border border-darkborderc rounded p-2">
+                                    <div class="flex justify-between mb-1">
+                                        <span class="text-textcolor capitalize">{quota.quotaId.replace(/_/g, ' ')}</span>
+                                        {#if quota.unlimited}
+                                            <span class="text-green-500">Unlimited</span>
+                                        {:else}
+                                            <span class="text-textcolor">{quota.remaining} / {quota.entitlement}</span>
+                                        {/if}
+                                    </div>
+                                    {#if !quota.unlimited}
+                                        <div class="w-full bg-darkborderc rounded-full h-1.5">
+                                            <div
+                                                class="h-1.5 rounded-full transition-all"
+                                                class:bg-green-500={quota.percentRemaining > 30}
+                                                class:bg-yellow-500={quota.percentRemaining <= 30 && quota.percentRemaining > 10}
+                                                class:bg-draculared={quota.percentRemaining <= 10}
+                                                style="width: {100 - quota.percentRemaining}%"
+                                            ></div>
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/each}
+                            {#if copilotUsage.quotaResetDate}
+                                <div>Resets: <span class="text-textcolor">{copilotUsage.quotaResetDate}</span></div>
+                            {/if}
+                        </div>
+                    {:else if !copilotUsageLoading}
+                        <span class="text-textcolor2 text-xs">Click Refresh to load usage info</span>
+                    {/if}
+                </div>
+
+                <div class="border-t border-darkborderc mt-3 pt-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-textcolor text-sm font-semibold">Models</span>
+                        <button class="text-xs text-textcolor2 hover:text-green-500 cursor-pointer" onclick={syncCopilotModels}>
+                            {copilotModelSyncStatus === 'loading' ? 'Syncing...' : 'Sync Models'}
+                        </button>
+                    </div>
+                    {#if copilotModelSyncStatus === 'done'}
+                        <span class="text-green-500 text-xs mt-1 block">{copilotModelSyncCount} models available. Reload model list to see new models.</span>
+                    {:else if copilotModelSyncStatus === 'error'}
+                        <span class="text-draculared text-xs mt-1 block">Failed to sync models</span>
+                    {:else}
+                        <span class="text-textcolor2 text-xs mt-1 block">Fetch available models from Copilot API</span>
+                    {/if}
+                </div>
+            {/if}
+        </Accordion>
     {/if}
     {#if modelInfo.provider === LLMProvider.Mistral || subModelInfo.provider === LLMProvider.Mistral}
         <span class="text-textcolor">Mistral {language.apiKey}</span>

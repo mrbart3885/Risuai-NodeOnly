@@ -13,7 +13,7 @@ import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from
 import { decodeRisuSave, encodeRisuSaveLegacy, RisuSaveEncoder, RisuSavePatcher, type toSaveType } from "./storage/risuSave";
 import { AutoStorage } from "./storage/autoStorage";
 import { ConflictError } from "./storage/nodeStorage";
-import { supportsPatchSync } from "./platform";
+import { isNodeServer, supportsPatchSync } from "./platform";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
 import { autoServerBackup, saveDbKei } from "./kei/backup";
@@ -1574,7 +1574,38 @@ export async function fetchNative(url: string, arg: {
         })
     }
 
-    // Try direct fetch first (upstream behavior), fall back to proxy on CORS/network error
+    // Copilot API requires proxy (CORS blocked), even when usePlainFetch is on
+    const isCopilotUrl = url.includes('githubcopilot.com') || url.includes('copilot_internal')
+    const db = DBState?.db
+    const shouldUseProxy = isNodeServer && (!db?.usePlainFetch || isCopilotUrl)
+
+    if (shouldUseProxy) {
+        const proxyHeaders: Record<string, string> = {
+            "risu-header": encodeURIComponent(JSON.stringify(headers)),
+            "risu-url": encodeURIComponent(url),
+            "risu-auth": await forageStorage.createAuth(),
+            ...(arg.useRisuTk ? { "x-risu-tk": "use" } : {}),
+            ...(db?.requestLocation ? { "risu-location": db.requestLocation } : {}),
+        }
+
+        if (realBody) {
+            proxyHeaders["Content-Type"] = headers["Content-Type"] ?? headers["content-type"] ?? "application/octet-stream"
+        }
+
+        const r = await fetch(`/proxy2`, {
+            body: realBody as any,
+            headers: proxyHeaders,
+            method: arg.method,
+            signal: arg.signal
+        })
+
+        return new Response(r.body, {
+            headers: r.headers,
+            status: r.status
+        })
+    }
+
+    // Direct fetch (usePlainFetch enabled, or non-node)
     try {
         return await fetch(url, {
             body: realBody as any,

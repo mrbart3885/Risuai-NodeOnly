@@ -45,7 +45,7 @@ export function applyParameters(
     function getEffort(effort: number) {
         switch (effort) {
             case -1: {
-                return 'minimal'
+                return 'none'
             }
             case 0: {
                 return 'low'
@@ -55,6 +55,9 @@ export function applyParameters(
             }
             case 2: {
                 return 'high'
+            }
+            case 3: {
+                return 'xhigh'
             }
             default: {
                 return 'medium'

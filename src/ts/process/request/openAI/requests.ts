@@ -5,6 +5,7 @@ import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
 import { strongBan, tokenizeNum } from "src/ts/tokenizer"
 import { getFreeOpenRouterModels } from "src/ts/model/openrouter"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
+import { isNodeServer } from "src/ts/platform"
 import { simplifySchema } from "src/ts/util"
 
 import { extractJSON, getOpenAIJSONSchema } from "../../templates/jsonSchema"
@@ -506,6 +507,10 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     if(risuIdentify){
         headers["X-Proxy-Risu"] = 'RisuAI'
     }
+    // Copilot provider injects its own headers
+    if(arg.extraHeaders){
+        headers = { ...headers, ...arg.extraHeaders }
+    }
     if(arg.multiGen){
         // Check if tools are enabled - multiGen with tools is not supported
         if(arg.tools && arg.tools.length > 0){
@@ -669,7 +674,8 @@ async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Record<str
         headers: headers,
         abortSignal: arg.abortSignal,
         chatId: arg.chatId,
-        interceptor: 'openai_basic'
+        interceptor: 'openai_basic',
+        plainFetchDeforce: !!arg.extraHeaders,
     })
 
     function processTextResponse(dat: any):string{
@@ -1031,7 +1037,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         max_output_tokens: maxTokens,
         tools: [],
         store: false
-    }, ['temperature', 'top_p'], {}, arg.mode, {
+    }, arg.modelInfo.parameters, {}, arg.mode, {
         modelId: arg.modelInfo.id
     })
 
@@ -1091,13 +1097,17 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         }
     }
 
-    const headers = {
+    let headers: Record<string, string> = {
         "Authorization": "Bearer " + (arg.key ?? db.openAIKey),
         "Content-Type": "application/json"
     }
 
     if(risuIdentify){
         headers["X-Proxy-Risu"] = 'RisuAI'
+    }
+    // Copilot provider injects its own headers
+    if(arg.extraHeaders){
+        headers = { ...headers, ...arg.extraHeaders }
     }
 
     if(arg.previewBody){
@@ -1115,12 +1125,42 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         body.tools.push('web_search_preview')
     }
 
+    // Streaming path for ResponseAPI
+    if(arg.useStreaming){
+        body.stream = true
+
+        const da = await fetchNative(requestURL, {
+            body: JSON.stringify(body),
+            method: "POST",
+            headers: headers,
+            signal: arg.abortSignal,
+            chatId: arg.chatId,
+            interceptor: 'openai_response_api_streaming'
+        })
+
+        if(da.status !== 200){
+            return {
+                type: "fail",
+                result: await textifyReadableStream(da.body)
+            }
+        }
+
+        const transtream = getResponseAPITranStream()
+        da.body.pipeTo(transtream.writable)
+
+        return {
+            type: 'streaming',
+            result: transtream.readable,
+        }
+    }
+
     const response = await globalFetch(requestURL, {
         body: body,
         headers: headers,
         chatId: arg.chatId,
         abortSignal: arg.abortSignal,
-        interceptor: 'openai_response_api'
+        interceptor: 'openai_response_api',
+        plainFetchDeforce: !!arg.extraHeaders,
     });
 
     if(!response.ok){
@@ -1142,6 +1182,40 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         type: 'success',
         result: result
     }
+}
+
+function getResponseAPITranStream():TransformStream<Uint8Array, StreamResponseChunk> {
+    let buffer = new Uint8Array([])
+    let text = ""
+
+    return new TransformStream<Uint8Array, StreamResponseChunk>({
+        transform(chunk, controller) {
+            buffer = new Uint8Array([...buffer, ...chunk])
+            const lines = Buffer.from(buffer).toString().split('\n')
+
+            // Keep incomplete last line in buffer
+            const incomplete = lines.pop() ?? ''
+            buffer = new TextEncoder().encode(incomplete)
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue
+                const raw = line.slice(6).trim()
+                if (raw === '[DONE]') continue
+
+                try {
+                    const event = JSON.parse(raw)
+
+                    // response.output_text.delta — streaming text chunk
+                    if (event.type === 'response.output_text.delta' && event.delta) {
+                        text += event.delta
+                        controller.enqueue({ "0": text })
+                    }
+                } catch {
+                    // skip malformed JSON
+                }
+            }
+        }
+    })
 }
 
 function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Array, StreamResponseChunk> {
