@@ -608,13 +608,6 @@ function encodeBackupEntry(name, data) {
     return Buffer.concat([nameLength, encodedName, dataLength, data]);
 }
 
-function writeBackupEntry(res, name, data) {
-    // Do not reuse the same 4-byte buffer across multiple writes.
-    // Node may flush writes asynchronously, so mutating the buffer before the
-    // previous write is fully handed off can corrupt the backup stream header.
-    res.write(encodeBackupEntry(name, data));
-}
-
 function isInvalidBackupPathSegment(name) {
     return (
         !name ||
@@ -1817,14 +1810,20 @@ app.get('/api/backup/export', async (req, res, next) => {
                 ? kvGet(entry.key)
                 : await fs.readFile(entry.sourcePath);
             if (value) {
-                writeBackupEntry(res, entry.backupName, value);
+                const ok = res.write(encodeBackupEntry(entry.backupName, value));
+                if (!ok) {
+                    await new Promise(resolve => res.once('drain', resolve));
+                }
             }
         }
 
         if (dbSize) {
             const dbValue = kvGet('database/database.bin');
             if (dbValue) {
-                writeBackupEntry(res, 'database.risudat', dbValue);
+                const ok = res.write(encodeBackupEntry('database.risudat', dbValue));
+                if (!ok) {
+                    await new Promise(resolve => res.once('drain', resolve));
+                }
             }
         }
         res.end();
