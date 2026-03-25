@@ -110,6 +110,12 @@ export async function startObserveDom(){
 
     domObserver = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
+            if(mutation.type === 'attributes'){
+                if(mutation.target instanceof HTMLElement){
+                    nodeObserve(mutation.target)
+                }
+                return
+            }
             mutation.addedNodes.forEach((node) => {
                 observeNodeTree(node)
             })
@@ -118,6 +124,8 @@ export async function startObserveDom(){
     domObserver.observe(target, {
         childList: true,
         subtree: true,
+        attributes: true,
+        attributeFilter: ['x-hl-lang', 'risu-ctrl'],
     })
 }
 
