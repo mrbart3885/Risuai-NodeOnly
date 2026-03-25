@@ -543,15 +543,16 @@ export class SandboxHost {
 
 
                     // WebKit on iOS fails when Response.body (ReadableStream)
-                    // is transferred through postMessage. Pre-read and send as text.
+                    // is transferred through postMessage. Pre-read into an
+                    // ArrayBuffer (preserves binary data) and send that instead.
                     const isWebKit = /Safari/.test(navigator.userAgent) && !/Chrome|Chromium/.test(navigator.userAgent);
                     if (isWebKit && result instanceof Response && result.body) {
                         try {
-                            const bodyText = await result.text();
+                            const buf = await result.arrayBuffer();
                             response.result = {
                                 __type: 'CALLBACK_STREAMS',
                                 __specialType: 'Response',
-                                value: bodyText,
+                                value: buf,
                                 init: {
                                     status: result.status,
                                     statusText: result.statusText,
