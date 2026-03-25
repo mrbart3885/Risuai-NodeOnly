@@ -1,7 +1,7 @@
 <script lang="ts">
 
     import Suggestion from './Suggestion.svelte';
-    import { CameraIcon, DatabaseIcon, DicesIcon, GlobeIcon, ImagePlusIcon, LanguagesIcon, Laugh, MenuIcon, MicOffIcon, PackageIcon, Plus, RefreshCcwIcon, ReplyIcon, Send, StepForwardIcon, XIcon, BrainIcon, ArrowDown, SparkleIcon, ZapIcon } from "@lucide/svelte";
+    import { CameraIcon, DatabaseIcon, GlobeIcon, ImagePlusIcon, LanguagesIcon, Laugh, MenuIcon, MicOffIcon, PackageIcon, Plus, RefreshCcwIcon, ReplyIcon, Send, StepForwardIcon, XIcon, BrainIcon, ArrowDown, SparkleIcon, ZapIcon } from "@lucide/svelte";
     import { selectedCharID, PlaygroundStore, createSimpleCharacter, hypaV3ModalOpen, ScrollToMessageStore, additionalChatMenu, additionalFloatingActionButtons, easyPanelStore } from "../../ts/stores.svelte";
     import { tick } from 'svelte';
     import Chat from "./Chat.svelte";
@@ -45,7 +45,6 @@
     let messageInputTranslate:string = $state('')
     let openMenu = $state(false)
     let loadPages = $state(30)
-    let autoMode = $state(false)
     let rerolls:Message[][] = []
     let rerollid = -1
     let lastCharId = -1
@@ -331,21 +330,6 @@
     function abortChat(){
         if(abortController){
             abortController.abort()
-        }
-    }
-
-    async function runAutoMode() {
-        if(autoMode){
-            autoMode = false
-            return
-        }
-        const selectedChar = $selectedCharID
-        autoMode = true
-        while(autoMode){
-            await sendChatMain()
-            if(selectedChar !== $selectedCharID){
-                autoMode = false
-            }
         }
     }
 
@@ -662,7 +646,7 @@
                             class="peer-focus:border-textcolor  flex justify-center border-y border-darkborderc items-center text-gray-100 p-3 hover:bg-blue-500 transition-colors" onclick={abortChat}
                             style:height={inputHeight}
                     >
-                        <div class="loadmove chat-process-stage-{$chatProcessStage}" class:autoload={autoMode}></div>
+                        <div class="loadmove chat-process-stage-{$chatProcessStage}"></div>
                     </button>
                 {:else}
                     <button
@@ -886,14 +870,6 @@
                 <div class="{DBState.db.fixedChatTextarea ? 'fixed' : 'absolute'} right-2 bottom-16 p-5 bg-darkbg flex flex-col gap-3 text-textcolor rounded-md" onclick={(e) => {
                     e.stopPropagation()
                 }}>
-                    {#if DBState.db.characters[$selectedCharID].type === 'group'}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={runAutoMode}>
-                            <DicesIcon />
-                            <span class="ml-2">{language.autoMode}</span>
-                        </div>
-                    {/if}
-
-                    
                     <!-- svelte-ignore block_empty -->
                     {#if DBState.db.characters[$selectedCharID].ttsMode === 'webspeech' || DBState.db.characters[$selectedCharID].ttsMode === 'elevenlab'}
                         <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
@@ -1080,10 +1056,6 @@
         border-left: 0.4rem solid #8b5cf6;
     }
 
-    .autoload{
-        border-top: 0.4rem solid #10b981;
-        border-left: 0.4rem solid #10b981;
-    }
 
     @keyframes spin {
         

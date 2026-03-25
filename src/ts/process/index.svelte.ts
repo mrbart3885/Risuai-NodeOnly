@@ -15,7 +15,6 @@ import { exampleMessage } from "./exampleMessages";
 import { sayTTS } from "./tts";
 import { supaMemory } from "./memory/supaMemory";
 import { v4 } from "uuid";
-import { groupOrder } from "./group";
 import { runTrigger } from "./triggers";
 import { HypaProcesser } from "./memory/hypamemory";
 import { additionalInformations } from "./embedding/addinfo";
@@ -247,50 +246,11 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }
 
     if(nowChatroom.type === 'group'){
-        if(chatProcessIndex === -1){
-            const charNames =nowChatroom.characters.map((v) => findCharacterbyIdwithCache(v).name)
+        alertError('Group chat is no longer supported.')
+        return false
+    }
 
-            const messages = nowChatroom.chats[nowChatroom.chatPage].message
-            const lastMessage = messages[messages.length-1]
-            let order = nowChatroom.characters.map((v,i) => {
-                return {
-                    id: v,
-                    talkness: nowChatroom.characterActive[i] ? nowChatroom.characterTalks[i] : -1,
-                    index: i
-                }
-            }).filter((v) => {
-                return v.talkness > 0
-            })
-            if(!nowChatroom.orderByOrder){
-                order = groupOrder(order, lastMessage?.data).filter((v) => {
-                    if(v.id === lastMessage?.saying){
-                        return false
-                    }
-                    return true
-                })
-            }
-            for(let i=0;i<order.length;i++){
-                const r = await sendChat(order[i].index, {
-                    chatAdditonalTokens: caculatedChatTokens,
-                    signal: abortSignal
-                })
-                if(!r){
-                    return false
-                }
-            }
-            return true
-        }
-        else{
-            currentChar = findCharacterbyIdwithCache(nowChatroom.characters[chatProcessIndex])
-            if(!currentChar){
-                throwError(`cannot find character: ${nowChatroom.characters[chatProcessIndex]}`)
-                return false
-            }
-        }
-    }
-    else{
-        currentChar = nowChatroom
-    }
+    currentChar = nowChatroom
 
     let chatAdditonalTokens = arg.chatAdditonalTokens ?? caculatedChatTokens
     const tokenizer = new ChatTokenizer(chatAdditonalTokens, DBState.db.aiModel.startsWith('gpt') ? 'noName' : 'name')
@@ -435,13 +395,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             content: description
         })
 
-        if(nowChatroom.type === 'group'){
-            const systemMsg = `[Write the next reply only as ${currentChar.name}]`
-            unformated.postEverything.push({
-                role: 'system',
-                content: systemMsg
-            })
-        }
     }
 
     const lorepmt = await loadLoreBookV3Prompt()
@@ -766,7 +719,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
 
     let ms:Message[] = makeMs(currentChat)
 
-    if(nowChatroom.type !== 'group' && !msReseted){
+    if(!msReseted){
         const firstMsg = currentChat.fmIndex === -1 ? nowChatroom.firstMessage : nowChatroom.alternateGreetings[currentChat.fmIndex]
 
         const chat:OpenAIChat = {
@@ -881,23 +834,9 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         let attr:string[] = []
         let role:'user'|'assistant'|'system' = msg.role === 'user' ? 'user' : 'assistant'
 
-        if(
-            (nowChatroom.type === 'group' && findCharacterbyIdwithCache(msg.saying).chaId !== currentChar.chaId) ||
-            (nowChatroom.type === 'group' && DBState.db.groupOtherBotRole === 'assistant') ||
-            (usingPromptTemplate && DBState.db.promptSettings.sendName)
-        ){
+        if(usingPromptTemplate && DBState.db.promptSettings.sendName){
             const form = DBState.db.groupTemplate || `<{{char}}\'s Message>\n{{slot}}\n</{{char}}\'s Message>`
-            formatedChat = risuChatParser(form, {chara: findCharacterbyIdwithCache(msg.saying).name}).replace('{{slot}}', formatedChat)
-            switch(DBState.db.groupOtherBotRole){
-                case 'user':
-                case 'assistant':
-                case 'system':
-                    role = DBState.db.groupOtherBotRole
-                    break
-                default:
-                    role = 'assistant'
-                    break
-            }
+            formatedChat = risuChatParser(form, {chara: currentChar.name}).replace('{{slot}}', formatedChat)
         }
         let thoughts:string[] = []
         const maxThoughtDepth = DBState.db.promptSettings?.maxThoughtTagDepth ?? -1
@@ -1460,7 +1399,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         biasString: biases,
         currentChar: currentChar,
         useStreaming: true,
-        isGroupChat: nowChatroom.type === 'group',
+        isGroupChat: false,
         bias: {},
         continue: arg.continue,
         chatId: generationId,
@@ -1924,10 +1863,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
 
         }
         else if(currentChar.viewScreen === 'imggen'){
-            if(chatProcessIndex !== -1){
-                throwError("Stable diffusion in group chat is not supported")
-            }
-
             const msgs = DBState.db.characters[selectedChar].chats[selectedChat].message
             let msgStr = ''
             for(let i = (msgs.length - 1);i>=0;i--){

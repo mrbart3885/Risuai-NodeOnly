@@ -42,7 +42,7 @@
                 if (chara.type === 'group' && message.saying) {
                     speaker = findCharacterbyId(message.saying);
                 }
-                
+
                 return { ...message, speaker };
             })
             .filter(Boolean);
@@ -177,33 +177,18 @@
 
                         {#if expandAll || expandedBookmarks.has(msg.chatId)}
                             <div class="p-1 border-t border-darkborderc">
-                                {#if chara.type === 'group'}
                                     <Chat
                                         idx={msg.originalIndex}
                                         message={msg.data}
-                                        name={msg.speaker?.name}
-                                        img={getCharImage(msg.speaker?.image, 'css')}
+                                        name={msg.role === 'user' ? getUserName() : (msg.speaker?.name ?? chara.name)}
+                                        img={msg.role === 'user' ? getCharImage(getUserIcon(), 'css') : getCharImage(msg.speaker?.image ?? chara.image, 'css')}
                                         role={msg.role}
                                         messageGenerationInfo={msg.generationInfo}
                                         rerollIcon={false}
-                                        largePortrait={msg.speaker?.largePortrait}
-                                        character={msg.saying}
+                                        largePortrait={msg.speaker?.largePortrait ?? (chara as import('src/ts/storage/database.svelte').character).largePortrait}
+                                        character={msg.speaker ? msg.saying : simpleChar}
                                         isLastMemory={false}
                                     />
-                                {:else}
-                                    <Chat
-                                        idx={msg.originalIndex}
-                                        message={msg.data}
-                                        name={msg.role === 'user' ? getUserName() : chara.name}
-                                        img={msg.role === 'user' ? getCharImage(getUserIcon(), 'css') : getCharImage(chara.image, 'css')}
-                                        role={msg.role}
-                                        messageGenerationInfo={msg.generationInfo}
-                                        rerollIcon={false}
-                                        largePortrait={chara.largePortrait}
-                                        character={simpleChar}
-                                        isLastMemory={false}
-                                    />
-                                {/if}
                             </div>
                         {/if}
                     </div>

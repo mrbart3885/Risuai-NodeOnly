@@ -27,7 +27,7 @@
         hasNewUnreadMessage = $bindable(false)
     }:{
         messages: Message[]
-        currentCharacter: character|groupChat
+        currentCharacter: character | groupChat
         onReroll: () => void
         unReroll: () => void
         currentUsername: string

@@ -45,16 +45,15 @@
     }
 
     function sortChar(char: (character|groupChat)[]) {
-        return char.map((c, i) => {
-            return {
-                name: c.name || "Unnamed",
+        return char.map((c, i) => ({
+                name: c.type === 'group' ? `[Group] ${c.name || "Unnamed"}` : (c.name || "Unnamed"),
                 image: c.image,
                 chats: c.chats.length,
                 i: i,
+                type: c.type,
                 interaction: c.lastInteraction || 0,
                 agoText: makeAgoText(c.lastInteraction || 0),
-            }
-        }).sort((a, b) => {
+            })).sort((a, b) => {
             if (a.interaction === b.interaction) {
                 return a.name.localeCompare(b.name);
             }

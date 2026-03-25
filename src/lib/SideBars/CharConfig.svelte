@@ -1,22 +1,20 @@
 <script lang="ts">
     import { language } from "../../lang";
     import { tokenizeAccurate } from "../../ts/tokenizer";
-    import { saveImage as saveAsset, type character, type groupChat } from "../../ts/storage/database.svelte";
+    import { saveImage as saveAsset, type character } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import { untrack } from 'svelte';
     import { CharConfigSubMenu, MobileGUI, selectedCharID, hypaV3ModalOpen } from "../../ts/stores.svelte";
-    import { PlusIcon, SmileIcon, TrashIcon, UserIcon, ActivityIcon, BookIcon, User, Braces, Volume2Icon, DownloadIcon, HardDriveUploadIcon, Share2Icon, ImageIcon, ImageOffIcon, ArrowUp, ArrowDown } from '@lucide/svelte'
+    import { PlusIcon, SmileIcon, TrashIcon, UserIcon, ActivityIcon, BookIcon, Braces, Volume2Icon, DownloadIcon, HardDriveUploadIcon, Share2Icon, ImageIcon, ImageOffIcon, ArrowUp, ArrowDown } from '@lucide/svelte'
     import Check from "../UI/GUI/CheckInput.svelte";
-    import { addCharEmotion, addingEmotion, getCharImage, rmCharEmotion, selectCharImg, makeGroupImage, removeChar, changeCharImage } from "../../ts/characters";
+    import { addCharEmotion, addingEmotion, getCharImage, rmCharEmotion, selectCharImg, removeChar, changeCharImage } from "../../ts/characters";
     import LoreBook from "./LoreBook/LoreBookSetting.svelte";
     import { showHypaV2Alert } from "../../ts/alert";
-    import BarIcon from "./BarIcon.svelte";
-    import { findCharacterbyId, getAuthorNoteDefaultText, selectMultipleFile, selectSingleFile } from "../../ts/util";
+    import { getAuthorNoteDefaultText, selectMultipleFile, selectSingleFile } from "../../ts/util";
     import Help from "../Others/Help.svelte";
     import { exportChar } from "src/ts/characterCards";
     import { getElevenTTSVoices, getWebSpeechTTSVoices, getVOICEVOXVoices, oaiVoices, getNovelAIVoices } from "src/ts/process/tts";
     import { getFileSrc } from "src/ts/globalApi.svelte";
-    import { addGroupChar, rmCharFromGroup } from "src/ts/process/group";
     import TextInput from "../UI/GUI/TextInput.svelte";
     import NumberInput from "../UI/GUI/NumberInput.svelte";
     import TextAreaInput from "../UI/GUI/TextAreaInput.svelte";
@@ -82,8 +80,9 @@
 
     $effect.pre(() => {
         const chara = DBState.db.characters[$selectedCharID]
-        const desc = chara.type !== 'group' ? (chara as character).desc : null
-        const firstMsg = chara.type !== 'group' ? chara.firstMessage : null
+        if(chara.type === 'group') return
+        const desc = (chara as character).desc
+        const firstMsg = chara.firstMessage
         const localNote = chara.chats[chara.chatPage].note
 
         untrack(() => {
@@ -164,12 +163,6 @@
         }
     });
 
-    $effect.pre(() => {
-        if(DBState.db.characters[$selectedCharID].type === 'group' && ($CharConfigSubMenu === 4 || $CharConfigSubMenu === 5)){
-            $CharConfigSubMenu = 0
-        }
-
-    });
 
     async function getFishSpeechModels() {
         try {
@@ -222,7 +215,18 @@
 
 </script>
 
-{#if licensed !== 'private' && !$MobileGUI}
+{#if DBState.db.characters[$selectedCharID]?.type === 'group'}
+    <div class="p-4 text-textcolor2 text-center flex flex-col items-center gap-3">
+        <p>Group chat is no longer supported.</p>
+        <p class="text-sm">This group can be safely deleted if no longer needed.</p>
+        <Button styled="danger" size="sm" onclick={() => {
+            removeChar($selectedCharID, DBState.db.characters[$selectedCharID]?.name ?? '')
+        }}>
+            <TrashIcon size={16} />
+            {language.removeCharacter}
+        </Button>
+    </div>
+{:else if licensed !== 'private' && !$MobileGUI}
     <div class="flex mb-2" class:gap-2={iconButtonSize === 24} class:gap-1={iconButtonSize < 24}>
         <button class={$CharConfigSubMenu === 0 ? 'text-textcolor ' : 'text-textcolor2'} onclick={() => {$CharConfigSubMenu = 0}}>
             <UserIcon size={iconButtonSize} />
@@ -254,7 +258,7 @@
 
 
 {#if $CharConfigSubMenu === 0}
-    {#if DBState.db.characters[$selectedCharID].type !== 'group' && licensed !== 'private'}
+    {#if licensed !== 'private'}
         <TextInput size="xl" marginBottom placeholder="Character Name" bind:value={DBState.db.characters[$selectedCharID].name} />
         <span class="text-textcolor">{language.description} <Help key="charDesc"/></span>
         <TextAreaInput highlight margin="both" autocomplete="off" bind:value={(DBState.db.characters[$selectedCharID] as character).desc}></TextAreaInput>
@@ -262,57 +266,6 @@
         <span class="text-textcolor">{language.firstMessage} <Help key="charFirstMessage"/></span>
         <TextAreaInput highlight margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].firstMessage}></TextAreaInput>
         <span class="text-textcolor2 mb-6 text-sm">{tokens.firstMsg} {language.tokens}</span>
-
-    {:else if licensed !== 'private' && DBState.db.characters[$selectedCharID].type === 'group'}
-        <TextInput size="xl" marginBottom placeholder="Group Name" bind:value={DBState.db.characters[$selectedCharID].name} />
-        <span class="text-textcolor">{language.character}</span>
-        <div class="p-4 gap-2 bg-bgcolor rounded-lg char-grid">
-            {#if (DBState.db.characters[$selectedCharID] as groupChat).characters.length === 0}
-                <span class="text-textcolor2">No Character</span>
-            {:else}
-                <div></div>
-                <div class="text-center">{language.talkness}</div>
-                <div class="text-center">{language.active}</div>
-                {#each (DBState.db.characters[$selectedCharID] as groupChat).characters as char, i}
-                    {#await getCharImage(findCharacterbyId(char).image, 'css')}
-                        <BarIcon onClick={() => {
-                            rmCharFromGroup(i)
-                        }}>
-                            <User/>
-                        </BarIcon>
-                    {:then im} 
-                        <BarIcon onClick={() => {
-                            rmCharFromGroup(i)
-                        }} additionalStyle={im} />
-                    {/await}
-                    <div class="flex items-center px-2 py-3">
-                        {#each [1,2,3,4,5,6] as barIndex}
-                            <button class="bg-selected h-full flex-1 border-r-bgcolor border-r" 
-                                aria-labelledby="loading"
-                                class:bg-green-500={(DBState.db.characters[$selectedCharID] as groupChat).characterTalks[i] >= (1 / 6 * barIndex)}
-                                class:bg-selected={(DBState.db.characters[$selectedCharID] as groupChat).characterTalks[i] < (1 / 6 * barIndex)}
-                                class:rounded-l-lg={barIndex === 1}
-                                class:rounded-r-lg={barIndex === 6}
-                                onclick={() => {
-                                    if(DBState.db.characters[$selectedCharID].type === 'group'){
-                                        (DBState.db.characters[$selectedCharID] as groupChat).characterTalks[i] = (1 / 6 * barIndex)
-                                    }
-                                }}
-                            ></button>
-                        {/each}
-                    </div>
-                    <div class="flex items-center justify-center">
-                        <Check margin={false} bind:check={(DBState.db.characters[$selectedCharID] as groupChat).characterActive[i]} />
-                    </div>
-                {/each}
-            {/if}
-        </div>
-        <div class="text-textcolor2 mt-1 flex mb-6">
-            <button onclick={addGroupChar} class="hover:text-textcolor cursor-pointer">
-                <PlusIcon />
-            </button>
-        </div>
-
     {/if}
     <span class="text-textcolor">{language.authorNote} <Help key="chatNote"/></span>
     <TextAreaInput
@@ -327,11 +280,6 @@
     {#if !$MobileGUI}
         <Toggles bind:chara={DBState.db.characters[$selectedCharID]} noContainer />
 
-        {#if DBState.db.characters[$selectedCharID].type === 'group'}
-            <div class="flex mt-2 items-center">
-                <Check bind:check={(DBState.db.characters[$selectedCharID] as groupChat).orderByOrder} name={language.orderByOrder}/>
-            </div>
-        {/if}
     {/if}
 {:else if licensed === 'private'}
     <span>You are not allowed</span>
@@ -347,7 +295,7 @@
         <button onclick={() => {
             viewSubMenu = 0
         }} class="p-2 flex-1" class:bg-selected={viewSubMenu === 0}>
-            <span>{DBState.db.characters[$selectedCharID].type !== 'group' ? language.charIcon : language.groupIcon}</span>
+            <span>{language.charIcon}</span>
         </button>
         <button onclick={() => {
             viewSubMenu = 1
@@ -362,15 +310,6 @@
     </div>
 
     {#if viewSubMenu === 0}
-        {#if DBState.db.characters[$selectedCharID].type === 'group'}
-            <button onclick={async () => {await selectCharImg($selectedCharID)}}>
-                {#await getCharImage(DBState.db.characters[$selectedCharID].image, 'css')}
-                    <div class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3"></div>
-                {:then im}
-                    <div class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3" style={im}></div>     
-                {/await}
-            </button>
-        {:else}
             <div class="p-2 border-darkborderc border rounded-md flex flex-wrap gap-2">
                 {#if DBState.db.characters[$selectedCharID].image !== '' && DBState.db.characters[$selectedCharID].image}
                     <button onclick={() => {
@@ -442,43 +381,24 @@
                     <TrashIcon size="18" />
                 </button>
             </div>
-        {/if}
 
-        {#if DBState.db.characters[$selectedCharID].type === 'character' && DBState.db.characters[$selectedCharID].image !== ''}
+        {#if DBState.db.characters[$selectedCharID].image !== ''}
             <div class="flex items-center mt-4">
                 <Check bind:check={(DBState.db.characters[$selectedCharID] as character).largePortrait} name={language.largePortrait}/>
             </div>
-        {/if}
-
-        {#if DBState.db.characters[$selectedCharID].type === 'group'}
-            <Button onclick={makeGroupImage}>
-                {language.createGroupImg}
-            </Button>
         {/if}
 
 
     {:else if viewSubMenu === 1}
         <!-- svelte-ignore block_empty -->
 
-        {#if DBState.db.characters[$selectedCharID].type !== 'group'}
             <SelectInput className="mb-2" bind:value={DBState.db.characters[$selectedCharID].viewScreen} onchange={() => {
-                if(DBState.db.characters[$selectedCharID].type === 'character'){
-                    DBState.db.characters[$selectedCharID] = updateInlayScreen((DBState.db.characters[$selectedCharID] as character))
-                }
+                DBState.db.characters[$selectedCharID] = updateInlayScreen((DBState.db.characters[$selectedCharID] as character))
             }}>
                 <OptionInput value="none">{language.none}</OptionInput>
                 <OptionInput value="emotion">{language.emotionImage}</OptionInput>
                 <OptionInput value="imggen">{language.imageGeneration}</OptionInput>
             </SelectInput>
-        {:else}
-            <SelectInput className="mb-2" bind:value={DBState.db.characters[$selectedCharID].viewScreen}>
-                <OptionInput value="none">{language.none}</OptionInput>
-                <OptionInput value="single">{language.singleView}</OptionInput>
-                <OptionInput value="multiple">{language.SpacedView}</OptionInput>
-                <OptionInput value="emp">{language.emphasizedView}</OptionInput>
-
-            </SelectInput>
-        {/if}
 
         {#if DBState.db.characters[$selectedCharID].viewScreen === 'emotion'}
             <span class="text-textcolor mt-6">{language.emotionImage} <Help key="emotion"/></span>
@@ -724,7 +644,7 @@
 
     <Button onclick={async () => {
         removeChar($selectedCharID, DBState.db.characters[$selectedCharID].name)
-    }} className="mt-2" size="sm">{ DBState.db.characters[$selectedCharID].type === 'group' ? language.removeGroup : language.removeCharacter}</Button>
+    }} className="mt-2" size="sm">{language.removeCharacter}</Button>
     
 {:else if $CharConfigSubMenu === 5}
     {#if DBState.db.characters[$selectedCharID].type === 'character'}
@@ -994,7 +914,6 @@
     {#if !$MobileGUI}
         <h2 class="mb-2 text-2xl font-bold mt-2">{language.advancedSettings}</h2>
     {/if}
-        {#if DBState.db.characters[$selectedCharID].type !== 'group'}
         <span class="text-textcolor mt-2">Bias <Help key="bias"/></span>
         <div class="w-full max-w-full border border-selected rounded-md p-2 mb-2">
 
@@ -1155,7 +1074,7 @@
         </div>
 
         <div class="flex items-center mt-4">
-            <Check bind:check={DBState.db.characters[$selectedCharID].escapeOutput} name={language.escapeOutput}/>
+            <Check bind:check={(DBState.db.characters[$selectedCharID] as import('src/ts/storage/database.svelte').character).escapeOutput} name={language.escapeOutput}/>
         </div>
 
         {#if DBState.db.supaModelType !== 'none' && DBState.db.hypav2}
@@ -1193,17 +1112,6 @@
             {language.applyModule}
         </Button>
 
-    {:else}
-        {#if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData.length > 4 || (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemory ?? DBState.db.characters[$selectedCharID].supaMemory)}
-            <span class="text-textcolor mt-4">{language.SuperMemory}</span>
-            <TextAreaInput margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData}></TextAreaInput>
-        {/if}
-
-        <div class="flex items-center mt-4">
-            <Check bind:check={DBState.db.characters[$selectedCharID].lowLevelAccess} name={language.lowLevelAccess}/>
-            <span> <Help key="lowLevelAccess" name={language.lowLevelAccess}/></span>
-        </div>
-    {/if}
 {/if}
 
 
@@ -1218,8 +1126,4 @@
         text-overflow: ellipsis;
     }
 
-    .char-grid{
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-    }
 </style>

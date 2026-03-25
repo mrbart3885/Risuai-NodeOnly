@@ -3,7 +3,6 @@ import {
     getDatabase,
     type Chat,
     type character,
-    type groupChat,
 } from "src/ts/storage/database.svelte";
 import type { OpenAIChat } from "../index.svelte";
 import type { ChatTokenizer } from "src/ts/tokenizer";
@@ -337,7 +336,7 @@ export async function hypaMemoryV2(
     currentTokens: number,
     maxContextTokens: number,
     room: Chat,
-    char: character | groupChat,
+    char: character,
     tokenizer: ChatTokenizer
 ): Promise<{
     currentTokens: number;

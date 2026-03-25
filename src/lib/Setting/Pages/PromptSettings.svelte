@@ -275,12 +275,6 @@
     {/if}
     <span class="text-textcolor mt-4">{language.maxThoughtTagDepth}</span>
     <NumberInput bind:value={DBState.db.promptSettings.maxThoughtTagDepth}/>
-    <span class="text-textcolor mt-4">{language.groupOtherBotRole} <Help key="groupOtherBotRole"/></span>
-    <SelectInput bind:value={DBState.db.groupOtherBotRole}>
-        <OptionInput value="user">User</OptionInput>
-        <OptionInput value="system">System</OptionInput>
-        <OptionInput value="assistant">assistant</OptionInput>
-    </SelectInput>
     <span class="text-textcolor mt-4">{language.customPromptTemplateToggle} <Help key='customPromptTemplateToggle' /></span>
     <TextAreaInput bind:value={DBState.db.customPromptTemplateToggle}/>
     <span class="text-textcolor mt-4">{language.defaultVariables} <Help key='defaultVariables' /></span>

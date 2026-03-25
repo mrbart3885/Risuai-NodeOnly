@@ -10,7 +10,6 @@ import { parseChatML } from "src/ts/parser/chatML";
 import {
     type Chat,
     type character,
-    type groupChat,
     getDatabase,
 } from "src/ts/storage/database.svelte";
 import { type OpenAIChat } from "../index.svelte";
@@ -105,7 +104,7 @@ export async function hypaMemoryV3(
     currentTokens: number,
     maxContextTokens: number,
     room: Chat,
-    char: character | groupChat,
+    char: character,
     tokenizer: ChatTokenizer
 ): Promise<HypaV3Result> {
     const settings = getCurrentHypaV3Preset().settings;
@@ -163,7 +162,7 @@ async function hypaMemoryV3MainExp(
     currentTokens: number,
     maxContextTokens: number,
     room: Chat,
-    char: character | groupChat,
+    char: character,
     tokenizer: ChatTokenizer
 ): Promise<HypaV3Result> {
     const db = getDatabase();
@@ -943,7 +942,7 @@ async function hypaMemoryV3Main(
     currentTokens: number,
     maxContextTokens: number,
     room: Chat,
-    char: character | groupChat,
+    char: character,
     tokenizer: ChatTokenizer
 ): Promise<HypaV3Result> {
     const db = getDatabase();

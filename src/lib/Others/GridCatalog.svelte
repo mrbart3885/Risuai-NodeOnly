@@ -3,7 +3,7 @@
     import { type Database } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import BarIcon from "../SideBars/BarIcon.svelte";
-    import { ArrowLeft, User, Users, SquareMousePointer, TrashIcon, Undo2Icon } from "@lucide/svelte";
+    import { ArrowLeft, User, SquareMousePointer, TrashIcon, Undo2Icon } from "@lucide/svelte";
     import { selectedCharID } from "../../ts/stores.svelte";
     import TextInput from "../UI/GUI/TextInput.svelte";
     import Button from "../UI/GUI/Button.svelte";
@@ -47,7 +47,7 @@
                     image: c.image,
                     index: i,
                     type: c.type,
-                    name: c.name,
+                    name: c.type === 'group' ? `[Group] ${c.name}` : c.name,
                     desc: c.creatorNotes ?? 'No description'
                 })
             }
@@ -99,11 +99,7 @@
                                 <BarIcon onClick={() => {changeChar(char.index)}} additionalStyle={getCharImage(char.image, 'css')}></BarIcon>
                             {:else}
                                 <BarIcon onClick={() => {changeChar(char.index)}} additionalStyle={char.index === $selectedCharID ? 'background:var(--risu-theme-selected)' : ''}>
-                                    {#if char.type === 'group'}
-                                        <Users />
-                                    {:else}
-                                        <User/>
-                                    {/if}
+                                            <User/>
                                 </BarIcon>
                             {/if}
                         </div>

@@ -73,22 +73,12 @@
         {/each}
         <div class="flex mt-2 items-center">
             <button class="text-textcolor2 hover:text-green-500 cursor-pointer mr-1" onclick={() => {
-                const cha = DBState.db.characters[$selectedCharID]
                 const len = DBState.db.characters[$selectedCharID].chats.length
                 let chats = DBState.db.characters[$selectedCharID].chats
                 const newChat = {
                     message:[], note:'', name:`New Chat ${len + 1}`, localLore:[], fmIndex: -1, id: v4()
                 }
                 chats.unshift(newChat)
-                if(cha.type === 'group'){
-                    cha.characters.map((c) => {
-                        newChat.message.push({
-                            saying: c,
-                            role: 'char',
-                            data: findCharacterbyId(c).firstMessage
-                        })
-                    })
-                }
                 DBState.db.characters[$selectedCharID].chats = chats
                 changeChatTo(0)
                 void requestImmediateSave({

@@ -1,5 +1,5 @@
 import type { OpenAIChat } from "../index.svelte";
-import { getDatabase, type Chat, type character, type groupChat } from "../../storage/database.svelte";
+import { getDatabase, type Chat, type character } from "../../storage/database.svelte";
 import { tokenize, type ChatTokenizer } from "../../tokenizer";
 import { requestChatData } from "../request/request";
 import { HypaProcesser } from "./hypamemory";
@@ -14,7 +14,7 @@ export async function supaMemory(
         currentTokens:number,
         maxContextTokens:number,
         room:Chat,
-        char:character|groupChat,
+        char:character,
         tokenizer:ChatTokenizer,
         arg:{asHyper?:boolean} = {}
     ): Promise<{ currentTokens: number; chats: OpenAIChat[]; error?:string; memory?:string;lastId?:string}>{
@@ -331,7 +331,7 @@ export async function supaMemory(
                 if((chunkSize + tokens) > maxChunkSize){
                     if(stringlizedChat === ''){
                         if(cont.role !== 'function' && cont.role !== 'system'){
-                            stringlizedChat += `${cont.role === 'assistant' ? char.type === 'group' ? '' : char.name : getUserName()}: ${cont.content}\n\n`
+                            stringlizedChat += `${cont.role === 'assistant' ? char.name : getUserName()}: ${cont.content}\n\n`
                             spiceLen += 1
                             currentTokens -= tokens
                             chunkSize += tokens
@@ -340,7 +340,7 @@ export async function supaMemory(
                     lastId = cont.memo
                     break
                 }
-                stringlizedChat += `${cont.role === 'assistant' ? char.type === 'group' ? '' : char.name : getUserName()}: ${cont.content}\n\n`
+                stringlizedChat += `${cont.role === 'assistant' ? char.name : getUserName()}: ${cont.content}\n\n`
                 spiceLen += 1
                 currentTokens -= tokens
                 chunkSize += tokens

@@ -22,7 +22,7 @@
     import { changeChatTo, createChatCopyName, requestImmediateSave } from "src/ts/globalApi.svelte";
 
     interface Props {
-        chara: character|groupChat;
+        chara: character | groupChat;
     }
 
     let { chara = $bindable() }: Props = $props();
@@ -137,22 +137,12 @@
 </script>
 <div class="flex flex-col w-full">
     <Button className="relative bottom-2" onclick={() => {
-        const cha = chara
         const len = chara.chats.length
         let chats = chara.chats
         const newChat = {
             message:[] as any[], note:'', name:`New Chat ${len + 1}`, localLore:[] as any[], fmIndex: -1, id: v4()
         }
         chats.unshift(newChat)
-        if(cha.type === 'group'){
-            cha.characters.map((c) => {
-                newChat.message.push({
-                    saying: c,
-                    role: 'char',
-                    data: findCharacterbyId(c).firstMessage
-                })
-            })
-        }
         chara.chats = chats
         changeChatTo(0)
         void requestImmediateSave({
@@ -520,9 +510,4 @@
             <Toggles bind:chara={chara} noContainer />
         {/if}
     </div>
-    {#if chara.type === 'group'}
-    <div class="flex mt-2 items-center">
-        <CheckInput bind:check={chara.orderByOrder} name={language.orderByOrder}/>
-    </div>
-    {/if}
 </div>

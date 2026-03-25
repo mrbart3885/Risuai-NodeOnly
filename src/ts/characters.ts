@@ -22,38 +22,6 @@ export function createNewCharacter() {
     return db.characters.length - 1
 }
 
-export function createNewGroup(){
-    let db = getDatabase()
-    db.characters.push({
-        type: 'group',
-        name: "",
-        firstMessage: "",
-        chats: [{
-            message: [],
-            note: '',
-            name: 'Chat 1',
-            localLore: []
-        }],
-        chatFolders: [],
-        chatPage: 0,
-        viewScreen: 'none',
-        globalLore: [],
-        characters: [],
-        autoMode: false,
-        useCharacterLore: true,
-        emotionImages: [],
-        customscript: [],
-        chaId: uuidv4(),
-        firstMsgIndex: -1,
-        characterTalks: [],
-        characterActive: [],
-        realmId: ''
-    })
-    setDatabase(db)
-    checkCharOrder()
-    return db.characters.length - 1
-}
-
 export async function getCharImage(loc:string, type:'plain'|'css'|'contain'|'lgcss') {
     const db = getDatabase()
     
@@ -628,20 +596,6 @@ export function characterFormatUpdate(indexOrCharacter:number|character, arg:{
         }
         cha.ttsMode ??= ''
     }
-    else{
-        if((!cha.characterTalks) || cha.characterTalks.length !== cha.characters.length){
-            cha.characterTalks = []
-            for(let i=0;i<cha.characters.length;i++){
-                cha.characterTalks.push(1 / 6 * 4)
-            }
-        }
-        if((!cha.characterActive) || cha.characterActive.length !== cha.characters.length){
-            cha.characterActive = []
-            for(let i=0;i<cha.characters.length;i++){
-                cha.characterActive.push(true)
-            }
-        }
-    }
     if(checkNullish(cha.customscript)){
         cha.customscript = []
     }
@@ -736,94 +690,6 @@ export function createBlankChar():character{
 }
 
 
-export async function makeGroupImage() {
-    try {
-        alertStore.set({
-            type: 'wait',
-            msg: `Loading..`
-        })
-        const db = getDatabase()
-        const charID = get(selectedCharID)
-        const group = db.characters[charID]
-        if(group.type !== 'group'){
-            return
-        }
-    
-        const imageUrls = await Promise.all(group.characters.map((v) => {
-            return getCharImage(findCharacterbyId(v).image, 'plain')
-        }))
-    
-        
-    
-        const canvas = document.createElement("canvas");
-        canvas.width = 256
-        canvas.height = 256
-        const ctx = canvas.getContext("2d");
-      
-        // Load the images
-        const images = [];
-        let loadedImages = 0;
-      
-        await Promise.all(
-            imageUrls.map(
-            (url) =>
-                new Promise<void>((resolve) => {
-                    const img = new Image();
-                    img.crossOrigin="anonymous"
-                    img.onload = () => {
-                        images.push(img);
-                        resolve();
-                    };
-                    img.src = url;
-                })
-            )
-        );
-      
-        // Calculate dimensions and draw the grid
-        const numImages = images.length;
-        const numCols = Math.ceil(Math.sqrt(images.length));
-        const numRows = Math.ceil(images.length / numCols);
-        const cellWidth = canvas.width / numCols;
-        const cellHeight = canvas.height / numRows;
-      
-        for (let row = 0; row < numRows; row++) {
-          for (let col = 0; col < numCols; col++) {
-            const index = row * numCols + col;
-            if (index >= numImages) break;
-            ctx.drawImage(
-              images[index],
-              col * cellWidth,
-              row * cellHeight,
-              cellWidth,
-              cellHeight
-            );
-          }
-        }
-      
-        // Return the image URI
-    
-        const uri = canvas.toDataURL()
-        canvas.remove()
-        db.characters[charID].image = await saveImage(dataURLtoBuffer(uri));
-        setDatabase(db)
-        alertStore.set({
-            type: 'none',
-            msg: ''
-        })
-    } catch (error) {
-        alertError(error)
-    }
-}
-
-function dataURLtoBuffer(string:string){
-    const regex = /^data:.+\/(.+);base64,(.*)$/;
-
-    const matches = string.match(regex);
-    const ext = matches[1];
-    const data = matches[2];
-    return Buffer.from(data, 'base64');
-}
-
 export async function removeChar(index:number,name:string, type:'normal'|'permanent'|'permanentForce' = 'normal'){
     const db = getDatabase()
     if(type !== 'permanentForce'){
@@ -867,9 +733,6 @@ export async function addCharacter(arg:{
         case 'createfromScratch':
             createNewCharacter()
             break
-        case 'createGroup':
-            createNewGroup()
-            break
         case 'importCharacter':
             await importCharacter()
             break
@@ -889,6 +752,13 @@ export function changeChar(index: number, arg:{
 } = {}) {
     const reseter = arg.reseter ?? (() => {})
     if(get(doingChat)){
+      return
+    }
+    const char = getDatabase().characters[index]
+    if(char && char.type === 'group'){
+      // Allow selecting group to show deprecation UI, but skip format update
+      reseter();
+      selectedCharID.set(index);
       return
     }
     reseter();
