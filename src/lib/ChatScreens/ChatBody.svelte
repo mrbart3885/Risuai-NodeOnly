@@ -5,7 +5,7 @@
     import { alertError } from "../../ts/alert"
     import { tick } from 'svelte'
     import { addMetadataToElement, getDistance, ParseMarkdown, postTranslationParse, resolveInlayPlaceholders, trimMarkdown, type CbsConditions, type simpleCharacterArgument } from "../../ts/parser/parser.svelte"
-    import { getLLMCache, translateHTML } from "../../ts/translator/translator"
+    import { getLLMCache, setLLMCache, translateHTML } from "../../ts/translator/translator"
     import { getModuleAssets } from "src/ts/process/modules";
     import { getCurrentCharacter } from "src/ts/storage/database.svelte";
     import { getFileSrc } from "src/ts/globalApi.svelte";
@@ -20,6 +20,8 @@
         translated: boolean
         translating: boolean
         retranslate: boolean
+        editTranslationMode: boolean
+        editTranslationText: string
         bodyRoot?: HTMLElement|null
         modelShortName: string
     }
@@ -33,6 +35,8 @@
         translated = $bindable(false),
         translating = $bindable(false),
         retranslate = $bindable(false),
+        editTranslationMode = $bindable(false),
+        editTranslationText = $bindable(''),
         bodyRoot,
         modelShortName = '',
     }: Props =  $props()
@@ -56,6 +60,30 @@
                 chatRole: null,
             }
         }
+    }
+
+    async function getTranslationCacheKey(data: string, charArg: string | simpleCharacterArgument, chatID: number): Promise<string> {
+        if(DBState.db.translateBeforeHTMLFormatting){
+            return data
+        }
+        if(!DBState.db.legacyTranslation){
+            return await ParseMarkdown(data, charArg, 'pretranslate', chatID, getCbsCondition())
+        }
+        return await ParseMarkdown(data, charArg, 'notrim', chatID, getCbsCondition())
+    }
+
+    export async function loadTranslationForEdit(): Promise<void> {
+        const key = await getTranslationCacheKey(msgDisplay, character, idx)
+        const cached = await getLLMCache(key)
+        editTranslationText = cached ?? ''
+        editTranslationMode = true
+    }
+
+    export async function saveTranslationEdit(): Promise<void> {
+        const key = await getTranslationCacheKey(msgDisplay, character, idx)
+        await setLLMCache(key, editTranslationText)
+        editTranslationMode = false
+        retranslate = true
     }
 
     const markParsing = async (data: string, charArg: string | simpleCharacterArgument, chatID: number, tries?:number) => {
