@@ -42,6 +42,7 @@
     "diff": "^7.0.0",
     "dompurify": "^3.3.1",
     "express": "^4.22.1",
+    "express-rate-limit": "^8.3.1",
     "fast-json-patch": "^3.1.1",
     "fflate": "^0.8.2",
     "highlight.js": "^11.11.1",
@@ -59,6 +60,7 @@
     "postcss-selector-parser": "^7.1.1",
     "pyodide": "^0.27.7",
     "rfdc": "^1.4.1",
+    "sharp": "^0.33.5",
     "sortablejs": "^1.15.6",
     "streamsaver": "^2.0.6",
     "sucrase": "^3.35.1",
@@ -69,8 +71,7 @@
     "uuid": "^9.0.1",
     "wasmoon": "^1.16.0",
     "wavefile": "^11.0.0",
-    "web-streams-polyfill": "^3.3.3",
-    "sharp": "^0.33.5"
+    "web-streams-polyfill": "^3.3.3"
   },
   "devDependencies": {
     "@rollup/plugin-strip": "^3.0.4",

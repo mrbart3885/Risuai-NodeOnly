@@ -6,6 +6,7 @@ const htmlparser = require('node-html-parser');
 const { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } = require('fs');
 const fs = require('fs/promises')
 const nodeCrypto = require('crypto')
+const rateLimit = require('express-rate-limit')
 const sharp = require('sharp')
 const { kvGet, kvSet, kvDel, kvList,
         kvDelPrefix, kvListWithSizes, kvSize, kvGetUpdatedAt, clearEntities, checkpointWal,
@@ -589,6 +590,28 @@ async function checkDiskSpace(requiredBytes) {
     }
 }
 
+const authenticatedRouteLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 90,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please retry shortly.' }
+});
+const authRouteLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 90,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please retry shortly.' }
+});
+const loginRouteLimiter = rateLimit({
+    windowMs: 30 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many attempts. Please wait and try again later.' }
+});
+
 function isHex(str) {
     return hexRegex.test(str.toUpperCase().trim()) || str === '__password';
 }
@@ -1140,17 +1163,17 @@ async function hubProxyFunc(req, res) {
     }
 }
 
-app.get('/proxy', reverseProxyFunc_get);
-app.get('/proxy2', reverseProxyFunc_get);
-app.get('/hub-proxy/*', hubProxyFunc);
+app.get('/proxy', authenticatedRouteLimiter, reverseProxyFunc_get);
+app.get('/proxy2', authenticatedRouteLimiter, reverseProxyFunc_get);
+app.get('/hub-proxy/*', authenticatedRouteLimiter, hubProxyFunc);
 
-app.post('/proxy', reverseProxyFunc);
-app.post('/proxy2', reverseProxyFunc);
-app.put('/proxy', reverseProxyFunc);
-app.put('/proxy2', reverseProxyFunc);
-app.delete('/proxy', reverseProxyFunc);
-app.delete('/proxy2', reverseProxyFunc);
-app.post('/hub-proxy/*', hubProxyFunc);
+app.post('/proxy', authenticatedRouteLimiter, reverseProxyFunc);
+app.post('/proxy2', authenticatedRouteLimiter, reverseProxyFunc);
+app.put('/proxy', authenticatedRouteLimiter, reverseProxyFunc);
+app.put('/proxy2', authenticatedRouteLimiter, reverseProxyFunc);
+app.delete('/proxy', authenticatedRouteLimiter, reverseProxyFunc);
+app.delete('/proxy2', authenticatedRouteLimiter, reverseProxyFunc);
+app.post('/hub-proxy/*', authenticatedRouteLimiter, hubProxyFunc);
 
 // app.get('/api/password', async(req, res)=> {
 //     if(password === ''){
@@ -1164,7 +1187,7 @@ app.post('/hub-proxy/*', hubProxyFunc);
 //     }
 // })
 
-app.get('/api/test_auth', async(req, res) => {
+app.get('/api/test_auth', authRouteLimiter, async(req, res) => {
 
     if(!password){
         res.send({status: 'unset'})
@@ -1177,23 +1200,7 @@ app.get('/api/test_auth', async(req, res) => {
     }
 })
 
-let loginTries = 0;
-let loginTriesResetsIn = 0;
-app.post('/api/login', async (req, res) => {
-
-    if(loginTriesResetsIn < Date.now()){
-        loginTriesResetsIn = Date.now() + (30 * 1000); //30 seconds
-        loginTries = 0;
-    }
-
-    if(loginTries >= 10){
-        res.status(429).send({error: 'Too many attempts. Please wait and try again later.'})
-        return;
-    }
-    else{
-        loginTries++;
-    }
-
+app.post('/api/login', loginRouteLimiter, async (req, res) => {
     if(password === ''){
         res.status(400).send({error: 'Password not set'})
         return;
@@ -1367,7 +1374,7 @@ app.post('/api/set_password', async (req, res) => {
     }
 })
 
-app.get('/api/read', async (req, res, next) => {
+app.get('/api/read', authRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1414,7 +1421,7 @@ app.get('/api/read', async (req, res, next) => {
     }
 });
 
-app.get('/api/remove', async (req, res, next) => {
+app.get('/api/remove', authRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1447,7 +1454,7 @@ app.get('/api/remove', async (req, res, next) => {
     }
 });
 
-app.get('/api/list', async (req, res, next) => {
+app.get('/api/list', authRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1469,7 +1476,7 @@ app.get('/api/list', async (req, res, next) => {
     }
 });
 
-app.post('/api/write', async (req, res, next) => {
+app.post('/api/write', authRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
@@ -1557,7 +1564,7 @@ app.post('/api/db/flush', sessionAuthMiddleware, async (req, res, next) => {
 });
 
 // ─── Patch sync endpoint ──────────────────────────────────────────────────────
-app.post('/api/patch', async (req, res, next) => {
+app.post('/api/patch', authRouteLimiter, async (req, res, next) => {
     if (!enablePatchSync) {
         res.status(404).send({ error: 'Patch sync is not enabled' });
         return;
@@ -1657,7 +1664,7 @@ app.post('/api/patch', async (req, res, next) => {
 // ─── Bulk asset endpoints (3-2-B) ─────────────────────────────────────────────
 const BULK_BATCH = 50;
 
-app.post('/api/assets/bulk-read', async (req, res, next) => {
+app.post('/api/assets/bulk-read', authRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){ return; }
     try {
         const keys = req.body; // string[] — decoded key strings
@@ -1725,7 +1732,7 @@ app.post('/api/assets/bulk-read', async (req, res, next) => {
     } catch(error){ next(error); }
 });
 
-app.post('/api/assets/bulk-write', async (req, res, next) => {
+app.post('/api/assets/bulk-write', authRouteLimiter, async (req, res, next) => {
     if(!await checkAuth(req, res)){ return; }
     try {
         const entries = req.body; // {key: string, value: base64}[]
