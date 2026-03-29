@@ -154,6 +154,14 @@ export function setDatabase(data:Database){
     if(checkNullish(data.botPresetsId)){
         data.botPresetsId = 0
     }
+    if(checkNullish(data.themePresets)){
+        let defaultTheme = safeStructuredClone(themePresetTemplate)
+        defaultTheme.name = "Default"
+        data.themePresets = [defaultTheme]
+    }
+    if(checkNullish(data.themePresetsId)){
+        data.themePresetsId = 0
+    }
     if(checkNullish(data.sdProvider)){
         data.sdProvider = ''
     }
@@ -889,6 +897,8 @@ export interface Database{
     waifuWidth2:number
     botPresets:botPreset[]
     botPresetsId:number
+    themePresets:themePreset[]
+    themePresetsId:number
     togglePresets?:TogglePreset[]
     sdProvider: string
     webUiUrl:string
@@ -1666,6 +1676,70 @@ export interface botPreset{
 }
 
 
+export interface themePreset{
+    name: string
+    // Theme tab (submenu 0)
+    theme: string
+    guiHTML: string
+    customCSS: string
+    customGUI: string
+    waifuWidth: number
+    waifuWidth2: number
+    colorSchemeName: string
+    colorScheme: ColorScheme
+    textTheme: string
+    customTextTheme: {
+        FontColorStandard: string
+        FontColorBold: string
+        FontColorItalic: string
+        FontColorItalicBold: string
+        FontColorQuote1: string
+        FontColorQuote2: string
+    }
+    font: string
+    customFont: string
+    // Size & Speed tab (submenu 1)
+    zoomsize: number
+    lineHeight: number
+    iconsize: number
+    textAreaSize: number
+    textAreaTextSize: number
+    sideBarSize: number
+    assetWidth: number
+    animationSpeed: number
+    memoryLimitThickness?: number
+    settingsCloseButtonSize: number
+    // Others tab (submenu 2)
+    fullScreen: boolean
+    showMemoryLimit: boolean
+    showFirstMessagePages: boolean
+    hideRealm: boolean
+    hideAllImages?: boolean
+    showFolderName: boolean
+    customBackground: string
+    playMessage: boolean
+    playMessageOnTranslateEnd: boolean
+    roundIcons: boolean
+    textScreenColor?: string
+    textBorder?: boolean
+    textScreenRounded?: boolean
+    textScreenBorder?: string
+    showSavingIcon: boolean
+    showPromptComparison: boolean
+    useChatCopy: boolean
+    useAdditionalAssetsPreview: boolean
+    useLegacyGUI: boolean
+    hideApiKey: boolean
+    unformatQuotes: boolean
+    blockquoteStyling?: boolean
+    customQuotes: boolean
+    customQuotesData?: [string, string, string, string]
+    betaMobileGUI: boolean
+    menuSideBar: boolean
+    notification: boolean
+    useChatSticker: boolean
+}
+
 interface hordeConfig{
     apiKey:string
     model:string
@@ -1999,6 +2073,67 @@ export const presetTemplate:botPreset = {
     verbosity: 1
 }
 
+export const themePresetTemplate: themePreset = {
+    name: "New Theme",
+    theme: '',
+    guiHTML: '',
+    customCSS: '',
+    customGUI: '',
+    waifuWidth: 100,
+    waifuWidth2: 100,
+    colorSchemeName: 'default',
+    colorScheme: safeStructuredClone(defaultColorScheme),
+    textTheme: 'standard',
+    customTextTheme: {
+        FontColorStandard: "#f8f8f2",
+        FontColorBold: "#f8f8f2",
+        FontColorItalic: "#8C8D93",
+        FontColorItalicBold: "#8C8D93",
+        FontColorQuote1: '#8BE9FD',
+        FontColorQuote2: '#FFB86C'
+    },
+    font: 'default',
+    customFont: '',
+    zoomsize: 100,
+    lineHeight: 1.25,
+    iconsize: 100,
+    textAreaSize: 0,
+    textAreaTextSize: 0,
+    sideBarSize: 0,
+    assetWidth: -1,
+    animationSpeed: 0.4,
+    memoryLimitThickness: 1,
+    settingsCloseButtonSize: 24,
+    fullScreen: false,
+    showMemoryLimit: false,
+    showFirstMessagePages: false,
+    hideRealm: false,
+    hideAllImages: false,
+    showFolderName: false,
+    customBackground: '',
+    playMessage: false,
+    playMessageOnTranslateEnd: false,
+    roundIcons: false,
+    textScreenColor: null,
+    textBorder: false,
+    textScreenRounded: false,
+    textScreenBorder: null,
+    showSavingIcon: false,
+    showPromptComparison: false,
+    useChatCopy: false,
+    useAdditionalAssetsPreview: false,
+    useLegacyGUI: false,
+    hideApiKey: true,
+    unformatQuotes: false,
+    blockquoteStyling: false,
+    customQuotes: false,
+    customQuotesData: ['"', '"', '\u2018', '\u2019'],
+    betaMobileGUI: false,
+    menuSideBar: false,
+    notification: false,
+    useChatSticker: false,
+}
+
 const defaultSdData:[string,string][] = [
     ["always", "solo, 1girl"],
     ['negative', ''],
@@ -2247,6 +2382,205 @@ export function setPreset(db:Database, newPres: botPreset){
     db.dynamicOutput = newPres.dynamicOutput
 
     return db
+}
+
+// Theme preset functions
+
+export function saveCurrentThemePreset(){
+    let db = getDatabase()
+    let pres = db.themePresets
+    const saved: themePreset = {
+        name: pres[db.themePresetsId]?.name ?? "Default",
+        theme: db.theme,
+        guiHTML: db.guiHTML,
+        customCSS: db.customCSS,
+        customGUI: db.customGUI,
+        waifuWidth: db.waifuWidth,
+        waifuWidth2: db.waifuWidth2,
+        colorSchemeName: db.colorSchemeName,
+        colorScheme: safeStructuredClone(db.colorScheme),
+        textTheme: db.textTheme,
+        customTextTheme: safeStructuredClone(db.customTextTheme),
+        font: db.font,
+        customFont: db.customFont,
+        zoomsize: db.zoomsize,
+        lineHeight: db.lineHeight,
+        iconsize: db.iconsize,
+        textAreaSize: db.textAreaSize,
+        textAreaTextSize: db.textAreaTextSize,
+        sideBarSize: db.sideBarSize,
+        assetWidth: db.assetWidth,
+        animationSpeed: db.animationSpeed,
+        memoryLimitThickness: db.memoryLimitThickness,
+        settingsCloseButtonSize: db.settingsCloseButtonSize,
+        fullScreen: db.fullScreen,
+        showMemoryLimit: db.showMemoryLimit,
+        showFirstMessagePages: db.showFirstMessagePages,
+        hideRealm: db.hideRealm,
+        hideAllImages: db.hideAllImages,
+        showFolderName: db.showFolderName,
+        customBackground: db.customBackground,
+        playMessage: db.playMessage,
+        playMessageOnTranslateEnd: db.playMessageOnTranslateEnd,
+        roundIcons: db.roundIcons,
+        textScreenColor: db.textScreenColor,
+        textBorder: db.textBorder,
+        textScreenRounded: db.textScreenRounded,
+        textScreenBorder: db.textScreenBorder,
+        showSavingIcon: db.showSavingIcon,
+        showPromptComparison: db.showPromptComparison,
+        useChatCopy: db.useChatCopy,
+        useAdditionalAssetsPreview: db.useAdditionalAssetsPreview,
+        useLegacyGUI: db.useLegacyGUI,
+        hideApiKey: db.hideApiKey,
+        unformatQuotes: db.unformatQuotes,
+        blockquoteStyling: db.blockquoteStyling,
+        customQuotes: db.customQuotes,
+        customQuotesData: db.customQuotesData ? [...db.customQuotesData] as [string,string,string,string] : ['"','"','\u2018','\u2019'],
+        betaMobileGUI: db.betaMobileGUI,
+        menuSideBar: db.menuSideBar,
+        notification: db.notification,
+        useChatSticker: db.useChatSticker,
+    }
+    if(!Array.isArray(pres)){
+        pres = []
+    }
+    if(db.themePresetsId >= pres.length){
+        pres.push(saved)
+    } else {
+        pres[db.themePresetsId] = saved
+    }
+    db.themePresets = pres
+    setDatabase(db)
+}
+
+export function changeToThemePreset(id = 0, savecurrent = true){
+    if(savecurrent){
+        saveCurrentThemePreset()
+    }
+    let db = getDatabase()
+    const pres = db.themePresets
+    const p = pres[id]
+    if(!p) return
+    db.themePresetsId = id
+    db.theme = p.theme ?? db.theme
+    db.guiHTML = p.guiHTML ?? db.guiHTML
+    db.customCSS = p.customCSS ?? db.customCSS
+    db.customGUI = p.customGUI ?? db.customGUI
+    db.waifuWidth = p.waifuWidth ?? db.waifuWidth
+    db.waifuWidth2 = p.waifuWidth2 ?? db.waifuWidth2
+    db.colorSchemeName = p.colorSchemeName ?? db.colorSchemeName
+    db.colorScheme = safeStructuredClone(p.colorScheme ?? db.colorScheme)
+    db.textTheme = p.textTheme ?? db.textTheme
+    db.customTextTheme = safeStructuredClone(p.customTextTheme ?? db.customTextTheme)
+    db.font = p.font ?? db.font
+    db.customFont = p.customFont ?? db.customFont
+    db.zoomsize = p.zoomsize ?? db.zoomsize
+    db.lineHeight = p.lineHeight ?? db.lineHeight
+    db.iconsize = p.iconsize ?? db.iconsize
+    db.textAreaSize = p.textAreaSize ?? db.textAreaSize
+    db.textAreaTextSize = p.textAreaTextSize ?? db.textAreaTextSize
+    db.sideBarSize = p.sideBarSize ?? db.sideBarSize
+    db.assetWidth = p.assetWidth ?? db.assetWidth
+    db.animationSpeed = p.animationSpeed ?? db.animationSpeed
+    db.memoryLimitThickness = p.memoryLimitThickness ?? db.memoryLimitThickness
+    db.settingsCloseButtonSize = p.settingsCloseButtonSize ?? db.settingsCloseButtonSize
+    db.fullScreen = p.fullScreen ?? db.fullScreen
+    db.showMemoryLimit = p.showMemoryLimit ?? db.showMemoryLimit
+    db.showFirstMessagePages = p.showFirstMessagePages ?? db.showFirstMessagePages
+    db.hideRealm = p.hideRealm ?? db.hideRealm
+    db.hideAllImages = p.hideAllImages ?? db.hideAllImages
+    db.showFolderName = p.showFolderName ?? db.showFolderName
+    db.customBackground = p.customBackground ?? db.customBackground
+    db.playMessage = p.playMessage ?? db.playMessage
+    db.playMessageOnTranslateEnd = p.playMessageOnTranslateEnd ?? db.playMessageOnTranslateEnd
+    db.roundIcons = p.roundIcons ?? db.roundIcons
+    db.textScreenColor = p.textScreenColor
+    db.textBorder = p.textBorder
+    db.textScreenRounded = p.textScreenRounded
+    db.textScreenBorder = p.textScreenBorder
+    db.showSavingIcon = p.showSavingIcon ?? db.showSavingIcon
+    db.showPromptComparison = p.showPromptComparison ?? db.showPromptComparison
+    db.useChatCopy = p.useChatCopy ?? db.useChatCopy
+    db.useAdditionalAssetsPreview = p.useAdditionalAssetsPreview ?? db.useAdditionalAssetsPreview
+    db.useLegacyGUI = p.useLegacyGUI ?? db.useLegacyGUI
+    db.hideApiKey = p.hideApiKey ?? db.hideApiKey
+    db.unformatQuotes = p.unformatQuotes ?? db.unformatQuotes
+    db.blockquoteStyling = p.blockquoteStyling ?? db.blockquoteStyling
+    db.customQuotes = p.customQuotes ?? db.customQuotes
+    db.customQuotesData = p.customQuotesData ? [...p.customQuotesData] as [string,string,string,string] : db.customQuotesData
+    db.betaMobileGUI = p.betaMobileGUI ?? db.betaMobileGUI
+    db.menuSideBar = p.menuSideBar ?? db.menuSideBar
+    db.notification = p.notification ?? db.notification
+    db.useChatSticker = p.useChatSticker ?? db.useChatSticker
+    setDatabase(db)
+}
+
+export function copyThemePreset(id: number){
+    saveCurrentThemePreset()
+    let db = getDatabase()
+    const newPres = safeStructuredClone(db.themePresets[id])
+    newPres.name += " Copy"
+    db.themePresets.push(newPres)
+    setDatabase(db)
+}
+
+export async function downloadThemePreset(id: number, type: 'json'|'risutheme' = 'json'){
+    saveCurrentThemePreset()
+    let db = getDatabase()
+    let pres = safeStructuredClone(db.themePresets[id])
+
+    if(type === 'json'){
+        downloadFile(pres.name + "_theme.json", Buffer.from(JSON.stringify(pres, null, 2)))
+    } else {
+        const buf = fflate.compressSync(encodeMsgpack({
+            presetVersion: 1,
+            type: 'theme',
+            preset: await encryptBuffer(
+                encodeMsgpack(pres),
+                'risutheme'
+            )
+        }))
+        const buf2 = await encodeRPack(buf)
+        downloadFile(pres.name + "_theme.risutheme", buf2)
+    }
+
+    alertNormal(language.successExport)
+}
+
+export async function importThemePreset(f: {
+    name: string
+    data: Uint8Array
+} | null = null){
+    if(!f){
+        f = await selectSingleFile(["json", "risutheme"])
+    }
+    if(!f) return
+
+    let pre: any
+    if(f.name.endsWith('.risutheme')){
+        let data = await decodeRPack(f.data)
+        const decoded = await decodeMsgpack(fflate.decompressSync(data))
+        if(decoded.presetVersion === 1 && decoded.type === 'theme'){
+            pre = {
+                ...safeStructuredClone(themePresetTemplate),
+                ...decodeMsgpack(Buffer.from(await decryptBuffer(decoded.preset, 'risutheme')))
+            }
+        }
+    } else {
+        pre = {
+            ...safeStructuredClone(themePresetTemplate),
+            ...(JSON.parse(Buffer.from(f.data).toString('utf-8')))
+        }
+    }
+
+    if(!pre) return
+
+    let db = getDatabase()
+    pre.name = pre.name ?? "Imported Theme"
+    db.themePresets.push(pre)
+    setDatabase(db)
+    alertNormal(language.successImport)
 }
 
 import { encode as encodeMsgpack, decode as decodeMsgpack } from "msgpackr/index-no-eval";
