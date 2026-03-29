@@ -130,8 +130,6 @@ export const languageEnglish = {
         useExperimental: "If enabled, it will show some experimental features.",
         forceProxyAsOpenAI: "If enabled, it will force to use OpenAI format when using reverse proxy.",
         localNetworkModeDesc: "Routes private/LAN model URLs through the local server instead of browser direct fetch.\n\n**Purpose**\n- Avoid browser private-network/CORS restrictions\n- Mitigate timeout risk for slow first-token local inference\n\n**How it works**\n- Streaming uses experimental Job+WebSocket relay first (fallback to /proxy2)\n- Non-streaming uses /proxy2 relay\n\n**Constraints**\n- Scope is OpenAI-compatible request paths only",
-        forcePlainFetch: "If enabled, it will use browser fetch api instead of native http request. this can cause CORS errors.",
-        autoFillRequestURL: "If enabled, it will autofill request url to match the current model.",
         chainOfThought: "If enabled, it will add chain of thought prompt to the prompt.",
         gptVisionQuality: "This option is used to set the quality of the image detection model. the higher the quality, the more accurate the detection, but more tokens are used.",
         genTimes:
