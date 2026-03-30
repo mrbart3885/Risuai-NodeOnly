@@ -1,6 +1,12 @@
+// ── NodeOnly: server-side JWT ────────────────────────────────────────────────
+// Upstream uses client-side ECDSA JWT (crypto.subtle) which requires Secure
+// Context (HTTPS/localhost). NodeOnly needs HTTP remote access, so JWT
+// signing is moved to the server. The client only caches and forwards
+// server-issued tokens. If upstream changes its auth flow, sync manually.
+// Server counterpart: server/node/server.cjs (createServerJwt, checkAuth,
+// /api/login, /api/token/refresh)
 import { language } from "src/lang"
 import { alertError, alertInput, waitAlert } from "../alert"
-import { base64url, getKeypairStore, saveKeypairStore } from "../util"
 
 // Custom error class for database conflict detection
 export class ConflictError extends Error {
@@ -20,17 +26,14 @@ export class NodeStorage{
     private cachedJwt: { token: string; expiresAt: number } | null = null
     private static sessionInitialized = false
     private static sessionPending: Promise<void> | null = null
-    JSONStringlifyAndbase64Url(obj:any){
-        return base64url(Buffer.from(JSON.stringify(obj), 'utf-8'))
-    }
+    private refreshPending: Promise<string> | null = null
 
     async createAuth(){
         const now = Date.now()
         if (this.cachedJwt && this.cachedJwt.expiresAt - now > 30_000) {
             return this.cachedJwt.token
         }
-        const token = await this._createFreshAuth()
-        this.cachedJwt = { token, expiresAt: now + 5 * 60 * 1000 }
+        const token = await this._refreshToken()
         return token
     }
 
@@ -60,65 +63,30 @@ export class NodeStorage{
         }
     }
 
-    private async _createFreshAuth(){
-        const keyPair = await this.getKeyPair()
-        const date = Math.floor(Date.now() / 1000)
-
-        const header = {
-            alg: "ES256",
-            typ: "JWT",
-        }
-        const payload = {
-            iat: date,
-            exp: date + 5 * 60, //5 minutes expiration
-            pub: await crypto.subtle.exportKey('jwk', keyPair.publicKey)
-        }
-        const sig = await crypto.subtle.sign(
-            {
-                name: "ECDSA",
-                hash: "SHA-256"
-            },
-            keyPair.privateKey,
-            Buffer.from(
-                this.JSONStringlifyAndbase64Url(header) + "." + this.JSONStringlifyAndbase64Url(payload)
-            )
-        )
-        const sigString = base64url(new Uint8Array(sig))
-        return this.JSONStringlifyAndbase64Url(header) + "." + this.JSONStringlifyAndbase64Url(payload) + "." + sigString
+    private async _refreshToken(): Promise<string> {
+        if (this.refreshPending) return this.refreshPending
+        this.refreshPending = this._doRefreshToken()
+        try { return await this.refreshPending }
+        finally { this.refreshPending = null }
     }
 
-    async getKeyPair():Promise<CryptoKeyPair>{
-        
-        const storedKey = await getKeypairStore('node')
-
-        if(storedKey){
-            return storedKey
+    private async _doRefreshToken(): Promise<string> {
+        const res = await fetch('/api/token/refresh', {
+            method: 'POST',
+            headers: { 'risu-auth': this.cachedJwt?.token ?? '' }
+        })
+        if (res.ok) {
+            const data = await res.json()
+            this.cachedJwt = { token: data.token, expiresAt: Date.now() + 5 * 60 * 1000 }
+            return data.token
         }
-
-        const keyPair = await crypto.subtle.generateKey(
-            {
-                name: "ECDSA",
-                namedCurve: "P-256"
-            },
-            false,
-            ["sign", "verify"],
-        );
-
-        await saveKeypairStore('node', keyPair)
-
-        return keyPair
-
+        return this.cachedJwt?.token ?? ''
     }
 
     private async loginWithPassword(password: string) {
-        const keypair = await this.getKeyPair()
-        const publicKey = await crypto.subtle.exportKey('jwk', keypair.publicKey)
         const response = await fetch('/api/login', {
             method: "POST",
-            body: JSON.stringify({
-                password,
-                publicKey
-            }),
+            body: JSON.stringify({ password }),
             headers: {
                 'content-type': 'application/json'
             }
@@ -141,6 +109,10 @@ export class NodeStorage{
             throw new Error(message)
         }
 
+        const data = await response.json()
+        if (data.token) {
+            this.cachedJwt = { token: data.token, expiresAt: Date.now() + 5 * 60 * 1000 }
+        }
         this.authChecked = true
     }
 
@@ -153,7 +125,6 @@ export class NodeStorage{
             const data = await response.clone().json()
             return [
                 'No auth header',
-                'Unknown Public Key',
                 'Invalid Signature',
                 'Token Expired'
             ].includes(data?.error)
@@ -274,7 +245,7 @@ export class NodeStorage{
         if(!this.authChecked){
             const data = await (await fetch('/api/test_auth',{
                 headers: {
-                    'risu-auth': await this.createAuth()
+                    'risu-auth': this.cachedJwt?.token ?? ''
                 }
             })).json()
 
