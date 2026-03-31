@@ -584,9 +584,9 @@ async function translateLLM(text:string, arg:{to:string, from:string, regenerate
     return result
 }
 
-export function clearLLMCache(): void {
+export async function clearLLMCache(): Promise<void> {
     llmTranslateCache.clear()
-    void clearPersistentPrefix(llmTranslateCachePrefix)
+    await clearPersistentPrefix(llmTranslateCachePrefix)
 }
 
 export async function getLLMCache(text:string):Promise<string | null>{
@@ -613,6 +613,36 @@ export async function searchLLMCache(partialKey:string):Promise<{key: string, va
         results.push(payload)
     }
     return results
+}
+
+export async function setLLMCache(key:string, value:string):Promise<void>{
+    llmTranslateCache.set(key, value)
+    await setPersistentLLMCache(key, value)
+}
+
+export async function exportLLMCacheAsJSON():Promise<Record<string, string>>{
+    const result:Record<string, string> = {}
+    for(const [key, value] of llmTranslateCache){
+        result[key] = value
+    }
+    const storageKeys = await listPersistentKeys(llmTranslateCachePrefix)
+    for (const storageKey of storageKeys) {
+        const payload = await readPersistentJson<{ key: string, value: string }>(storageKey)
+        if (payload && !(payload.key in result)) {
+            result[payload.key] = payload.value
+        }
+    }
+    return result
+}
+
+export async function importLLMCacheFromJSON(data:Record<string, string>):Promise<number>{
+    let count = 0
+    for(const [key, value] of Object.entries(data)){
+        llmTranslateCache.set(key, value)
+        await setPersistentLLMCache(key, value)
+        count++
+    }
+    return count
 }
 
 

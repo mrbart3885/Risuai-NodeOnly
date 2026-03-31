@@ -19,6 +19,7 @@
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
     import { getOpenRouterModels } from "src/ts/model/openrouter";
+    import OpenrouterModelGrid from "src/lib/UI/OpenrouterModelGrid.svelte";
     import OobaSettings from "./OobaSettings.svelte";
     import Accordion from "src/lib/UI/Accordion.svelte";
     import OpenrouterSettings from "./OpenrouterSettings.svelte";
@@ -63,17 +64,9 @@
         console.log('Vertex AI token cleared');
     }
 
-    $effect(() => {
-        if (DBState.db.aiModel === 'openrouter' || DBState.db.subModel === 'openrouter') {
-            openRouterSearchQuery = ""
-        }
-    });
-
-
     let submenu = $state(DBState.db.useLegacyGUI ? -1 : 0)
     let modelInfo = $derived(getModelInfo(DBState.db.aiModel))
     let subModelInfo = $derived(getModelInfo(DBState.db.subModel))
-    let openRouterSearchQuery = $state("")
 </script>
 <h2 class="mb-2 text-2xl font-bold mt-2">{language.chatBot}</h2>
 
@@ -166,7 +159,7 @@
         <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.customProxyRequestModel} placeholder="Name" />
         <span class="text-textcolor mt-4"> {language.format}</span>
         <SelectInput value={DBState.db.customAPIFormat.toString()} onchange={(e) => {
-            DBState.db.customAPIFormat = parseInt(e.currentTarget.value)
+            DBState.db.customAPIFormat = parseInt(e.currentTarget.value) as LLMFormat
         }}>
             <OptionInput value={LLMFormat.OpenAICompatible.toString()}>
                 OpenAI Compatible
@@ -205,38 +198,9 @@
 
         <span class="text-textcolor mt-4">OpenRouter {language.model}</span>
         {#await getOpenRouterModels()}
-            <SelectInput className="mt-2 mb-4" value="">
-                <OptionInput value="">Loading...</OptionInput>
-            </SelectInput>
+            <OpenrouterModelGrid bind:value={DBState.db.openrouterRequestModel} loading={true} />
         {:then m}
-            {#if m && m.length > 0}
-                <TextInput 
-                    bind:value={openRouterSearchQuery} 
-                    placeholder={language.openRouterSearchModel}
-                    size="sm" 
-                />
-            {/if}
-            <SelectInput className="mt-2 mb-4" bind:value={DBState.db.openrouterRequestModel}>
-                {#if !m || (m.length === 0)}
-                    <OptionInput value="risu/free">Free Auto</OptionInput>
-                    <OptionInput value="openai/gpt-5.2">GPT 5.2</OptionInput>
-                    <OptionInput value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</OptionInput>
-                    <OptionInput value="anthropic/claude-opus-4.5">Claude Opus 4.5</OptionInput>
-                    <OptionInput value="google/gemini-3-flash-preview">Google Gemini 3 Flash Preview</OptionInput>
-                    <OptionInput value="google/gemini-3-pro-preview">Google Gemini 3 Pro Preview</OptionInput>
-                {:else}
-                    <OptionInput value="risu/free">Free Auto</OptionInput>
-                    <OptionInput value="openrouter/auto">OpenRouter Auto</OptionInput>
-                    {#each m.filter(model => {
-                        if (openRouterSearchQuery === "") return true;
-                        const searchTerms = openRouterSearchQuery.trim().toLowerCase().split(/\s+/);
-                        const modelText = (model.name + " " + model.id).toLowerCase();
-                        return searchTerms.every(term => modelText.includes(term));
-                    }) as model}
-                        <OptionInput value={model.id}>{model.name}</OptionInput>
-                    {/each}
-                {/if}
-            </SelectInput>
+            <OpenrouterModelGrid bind:value={DBState.db.openrouterRequestModel} models={m ?? []} />
         {/await}
     {/if}
     {#if DBState.db.aiModel === 'openrouter' || DBState.db.aiModel === 'reverse_proxy'}
@@ -573,7 +537,7 @@
         {/if}
     </Accordion>
 
-    {#snippet CustomFlagButton(name:string,flag:number)}
+    {#snippet CustomFlagButton(name:string,flag:LLMFlags)}
         <Button className="mt-2" onclick={(e) => {
             if(DBState.db.customFlags.includes(flag)){
                 DBState.db.customFlags = DBState.db.customFlags.filter((f) => f !== flag)

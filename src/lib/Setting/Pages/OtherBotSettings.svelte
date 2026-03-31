@@ -1198,6 +1198,8 @@
                 <SliderInput marginBottom min={0} max={1 - settings.memoryTokensRatio} step={0.01} fixed={2} bind:value={settings.extraSummarizationRatio} />
                 <span class="text-textcolor">{language.hypaV3Settings.maxChatsPerSummaryLabel} <Help key="hypaV3MaxChatsPerSummary"/></span>
                 <NumberInput marginBottom size="sm" min={1} bind:value={settings.maxChatsPerSummary} />
+                <span class="text-textcolor">{language.hypaV3Settings.queryChatCountLabel} <Help key="hypaV3QueryChatCount"/></span>
+                <NumberInput marginBottom size="sm" min={1} max={20} bind:value={settings.queryChatCount} />
                 <span class="text-textcolor">{language.hypaV3Settings.recentMemoryRatioLabel} <Help key="hypaV3RecentMemoryRatio"/></span>
                 <SliderInput marginBottom min={0} max={1} step={0.01} fixed={2} bind:value={settings.recentMemoryRatio} />
                 <span class="text-textcolor">{language.hypaV3Settings.similarMemoryRatioLabel} <Help key="hypaV3SimilarMemoryRatio"/></span>
@@ -1287,6 +1289,7 @@
             <OptionInput value="openai3large">OpenAI text-embedding-3-large</OptionInput>
             <OptionInput value="ada">OpenAI Ada</OptionInput>
             <OptionInput value="custom">Custom (OpenAI-compatible)</OptionInput>
+            <OptionInput value="voyageContext3">Voyage Context 3</OptionInput>
         </SelectInput>
 
         {#if DBState.db.hypaModel === 'openai3small' || DBState.db.hypaModel === 'openai3large' || DBState.db.hypaModel === 'ada'}
@@ -1301,6 +1304,11 @@
             <TextInput size="sm" marginBottom bind:value={DBState.db.hypaCustomSettings.key}/>
             <span class="text-textcolor">Request Model</span>
             <TextInput size="sm" marginBottom bind:value={DBState.db.hypaCustomSettings.model}/>
+        {/if}
+
+        {#if DBState.db.hypaModel === 'voyageContext3'}
+            <span class="text-textcolor">Voyage API Key</span>
+            <TextInput size="sm" marginBottom hideText={DBState.db.hideApiKey} bind:value={DBState.db.voyageApiKey}/>
         {/if}
 
     </Accordion>

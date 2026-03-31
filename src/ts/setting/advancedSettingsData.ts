@@ -135,6 +135,18 @@ export const advancedSettingsItems: SettingItem[] = [
         id: 'adv.exp.chatComp', type: 'check', labelKey: 'experimentalChatCompression', bindKey: 'chatCompression',
         condition: (ctx) => ctx.db.useExperimental, helpKey: 'experimentalChatCompressionDesc', showExperimental: true, classes: 'mt-4'
     },
+    {
+        id: 'adv.localNetworkMode', type: 'check', fallbackLabel: 'Local Network Mode (Experimental)',
+        bindKey: 'localNetworkMode', helpKey: 'localNetworkModeDesc',
+        condition: (ctx) => ctx.db.useExperimental, showExperimental: true, classes: 'mt-4'
+    },
+    {
+        id: 'adv.localNetworkTimeout', type: 'number', fallbackLabel: 'Local Network Timeout (sec)',
+        bindKey: 'localNetworkTimeoutSec',
+        condition: (ctx) => ctx.db.useExperimental && ctx.db.localNetworkMode,
+        classes: 'block mb-1', containerClasses: 'pl-7',
+        options: { min: 30, max: 3600, inputClassName: 'w-full', marginBottom: false }
+    },
 
     // Unrecommended Section
     {

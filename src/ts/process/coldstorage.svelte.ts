@@ -1,7 +1,9 @@
 import { forageStorage } from "../globalApi.svelte"
 import { DBState } from "../stores.svelte"
 import type { NodeStorage } from "../storage/nodeStorage"
-import { compress, decompress as fflateDecompress } from "fflate"
+import { compress as fflateCompress, decompress as fflateDecompress } from "fflate"
+import { alertError } from "../alert"
+import { language } from "src/lang"
 
 export const coldStorageHeader = '\uEF01COLDSTORAGE\uEF01'
 
@@ -9,7 +11,7 @@ async function decompress(data:Uint8Array) {
     return new Promise<Uint8Array>((resolve, reject) => {
         fflateDecompress(data, (err, decompressed) => {
             if (err) {
-                reject(err)
+                return reject(err)
             }
             resolve(decompressed)
         })
@@ -31,24 +33,31 @@ async function getColdStorageItem(key:string) {
     }
 }
 
-async function setColdStorageItem(key:string, value:any) {
+async function setColdStorageItem(key:string, value:any):Promise<boolean> {
 
-    const json = JSON.stringify(value)
-    const compressed = await (new Promise<Uint8Array>((resolve, reject) => {
-        compress(new TextEncoder().encode(json), (err, compressed) => {
-            if (err) {
-                reject(err)
-            }
-            resolve(compressed)
-        })
-    }))
+    let compressed:Uint8Array
+    try {
+        const json = JSON.stringify(value)
+        compressed = await (new Promise<Uint8Array>((resolve, reject) => {
+            fflateCompress(new TextEncoder().encode(json), (err, result) => {
+                if (err) {
+                    return reject(err)
+                }
+                resolve(result)
+            })
+        }))
+    } catch (error) {
+        console.error('Cold storage compression failed:', error)
+        return false
+    }
 
     try {
         const storage = forageStorage.realStorage as NodeStorage
         await storage.setItem('coldstorage/' + key, compressed)
-        return
+        return true
     } catch (error) {
-        console.error(error)
+        console.error('Cold storage node write failed:', error)
+        return false
     }
 }
 
@@ -93,13 +102,28 @@ export async function makeColdData(){
 
             if(greatestTime < coldTime){
                 const id = crypto.randomUUID()
-                await setColdStorageItem(id, {
+                const writeSuccess = await setColdStorageItem(id, {
                     message: chat.message,
                     hypaV2Data: chat.hypaV2Data,
                     hypaV3Data: chat.hypaV3Data,
                     scriptstate: chat.scriptstate,
                     localLore: chat.localLore
                 })
+
+                if(!writeSuccess){
+                    console.error(`Cold storage write failed for chat ${chat.id ?? j} in character ${i}, keeping original data`)
+                    alertError(language.errors.coldStorageWriteFailed)
+                    continue
+                }
+
+                // Verify the data can be read back before replacing
+                const verifyData = await getColdStorageItem(id)
+                if(!verifyData || (!Array.isArray(verifyData) && !verifyData.message)){
+                    console.error(`Cold storage verification failed for chat ${chat.id ?? j}, keeping original data`)
+                    alertError(language.errors.coldStorageVerifyFailed)
+                    continue
+                }
+
                 chat.message = [{
                     time: currentTime,
                     data: coldStorageHeader + id,
@@ -136,12 +160,23 @@ export async function preLoadChat(characterIndex:number, chatIndex:number){
             chat.message = coldData
             chat.lastDate = Date.now()
         }
-        else if(coldData){
+        else if(coldData?.message){
             chat.message = coldData.message
             chat.hypaV2Data = coldData.hypaV2Data
             chat.hypaV3Data = coldData.hypaV3Data
             chat.scriptstate = coldData.scriptstate
             chat.localLore = coldData.localLore
+            chat.lastDate = Date.now()
+        }
+        else{
+            console.error(`Cold storage data not found for key: ${coldDataKey}`)
+            chat.message = [{
+                time: Date.now(),
+                data: `[Cold storage data could not be loaded. Key: ${coldDataKey}]`,
+                role: 'char'
+            }]
+            chat.lastDate = Date.now()
+            return
         }
         await setColdStorageItem(coldDataKey + '_accessMeta', {
             lastAccess: Date.now()

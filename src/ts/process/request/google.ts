@@ -9,7 +9,7 @@ import { callTool, decodeToolCall, encodeToolCall } from "../mcp/mcp"
 import { alertError } from "src/ts/alert";
 import { addFetchLog } from "src/ts/globalApi.svelte"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from './request'
-import { applyParameters, type LLMParameter } from './shared'
+import { applyParameters, setObjectValue, type LLMParameter } from './shared'
 import { bodyIntercepterStore } from "src/ts/stores.svelte"
 
 type GeminiFunctionCall = {
@@ -228,11 +228,15 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
                                     functionResponse: {
                                         name: segment.call.call.name,
                                         response: {
-                                            data: segment.call.response.filter((r) => {
-                                                return r.type === 'text'
-                                            }).map((r) => {
-                                                return r.text
-                                            })
+                                            data: (() => {
+                                                const res: string[] = []
+                                                for (const r of segment.call.response) {
+                                                    if (r.type === 'text') {
+                                                        res.push(r.text)
+                                                    }
+                                                }
+                                                return res
+                                            })()
                                         }
                                     }
                                 }]
@@ -321,7 +325,7 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
         return arg.modelInfo.parameters.includes(v)
     })
 
-    const body = {
+    let body: any = {
         contents: reformatedChat,
         generation_config: applyParameters({
             "maxOutputTokens": maxTokens
@@ -574,6 +578,76 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
         body.tools = undefined
     }
 
+    if(arg.aiModel === 'reverse_proxy' || arg.aiModel?.startsWith('xcustom:::')){
+        let additionalParams: [string, string][] = []
+
+        if(arg.aiModel === 'reverse_proxy'){
+            additionalParams = db.additionalParams || []
+        }
+        else if(arg.aiModel.startsWith('xcustom:::')){
+            const found = db.customModels.find(m => m.id === arg.aiModel)
+            const params = found?.params
+            if(params){
+                const lines = params.split('\n')
+                for(const line of lines){
+                    const split = line.split('=')
+                    if(split.length >= 2){
+                        additionalParams.push([split[0], split.slice(1).join('=')])
+                    }
+                }
+            }
+        }
+
+        for(let i=0;i<additionalParams.length;i++){
+            let key = additionalParams[i][0]
+            let value = additionalParams[i][1]
+
+            if(!key || !value){
+                continue
+            }
+
+            if(value === '{{none}}'){
+                if(key.startsWith('header::')){
+                    key = key.replace('header::', '')
+                    delete headers[key]
+                }
+                else{
+                    delete body[key]
+                }
+                continue
+            }
+
+            if(key.startsWith('header::')){
+                key = key.replace('header::', '')
+                headers[key] = value
+            }
+            else if(value.startsWith('json::')){
+                value = value.replace('json::', '')
+                try {
+                    body[key] = JSON.parse(value)
+                } catch (error) {}
+            }
+            else if((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))){
+                body = setObjectValue(body, key, value.slice(1, -1))
+            }
+            else if(value === 'true' || value === 'false'){
+                body = setObjectValue(body, key, value === 'true')
+            }
+            else if(value === 'null'){
+                body = setObjectValue(body, key, null)
+            }
+            else{
+                const num = Number(value)
+                if(isNaN(num)){
+                    body = setObjectValue(body, key, value)
+                }
+                else{
+                    body = setObjectValue(body, key, num)
+                }
+            }
+        }
+    }
+
     if(arg.previewBody){
         return {
             type: 'success',
@@ -581,7 +655,7 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
                 url: url,
                 body: body,
                 headers: headers
-            })      
+            })
         }
     }
 
@@ -627,8 +701,17 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
                 rDatas[i].text = extracted
             }
         }
-        const thoughts = rDatas.filter(d => d.thought).map(d => d.text).join('\n\n')
-        const content = rDatas.filter(d => !d.thought).map(d => d.text).join('\n\n')
+        const thoughtsArr: string[] = []
+        const contentArr: string[] = []
+        for (const d of rDatas) {
+            if (d.thought) {
+                thoughtsArr.push(d.text)
+            } else {
+                contentArr.push(d.text)
+            }
+        }
+        const thoughts = thoughtsArr.join('\n\n')
+        const content = contentArr.join('\n\n')
         return (thoughts ? `<Thoughts>\n\n${thoughts}\n\n</Thoughts>\n\n` : '') + content
     }
 
@@ -792,7 +875,12 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
     }
     parts = parts.filter((p) => p)
 
-    const calls = parts.filter((p) => !!p?.functionCall).map((p) => p?.functionCall as GeminiFunctionCall)
+    const calls: GeminiFunctionCall[] = []
+    for (const p of parts) {
+        if (p?.functionCall) {
+            calls.push(p.functionCall as GeminiFunctionCall)
+        }
+    }
 
     // If there are function calls, handle calls and send next request
     if(calls.length > 0){

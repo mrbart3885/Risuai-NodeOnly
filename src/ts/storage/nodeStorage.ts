@@ -437,7 +437,7 @@ export class NodeStorage{
 }
 
 async function digestPassword(message:string) {
-    const crypt = await (await fetch('/api/crypto', {
+    const res = await fetch('/api/crypto', {
         body: JSON.stringify({
             data: message
         }),
@@ -445,7 +445,9 @@ async function digestPassword(message:string) {
             'content-type': 'application/json'
         },
         method: "POST"
-    })).text()
-    
-    return crypt;
+    })
+    if(res.status < 200 || res.status >= 300){
+        throw new Error(`Password hashing failed (${res.status})`)
+    }
+    return await res.text()
 }

@@ -4,7 +4,7 @@ import { appendLastPath } from "src/ts/util";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { makeHashedStorageKey, readPersistentJson, writePersistentJson } from "src/ts/storage/persistentKv";
 
-export type HypaModel = 'custom'|'ada'|'openai3small'|'openai3large'|'MiniLM'|'MiniLMGPU'|'nomic'|'nomicGPU'|'bgeSmallEn'|'bgeSmallEnGPU'|'bgem3'|'bgem3GPU'|'multiMiniLM'|'multiMiniLMGPU'
+export type HypaModel = 'custom'|'ada'|'openai3small'|'openai3large'|'MiniLM'|'MiniLMGPU'|'nomic'|'nomicGPU'|'bgeSmallEn'|'bgeSmallEnGPU'|'bgem3'|'bgem3GPU'|'multiMiniLM'|'multiMiniLMGPU'|'bgeM3Ko'|'bgeM3KoGPU'|'voyageContext3'
 
 // In a typical environment, bge-m3 is a heavy model.
 // If your GPU can't handle this model, you'll see errror below.
@@ -90,8 +90,8 @@ export class HypaProcesser{
         for (let i = 0; i < subPrompts.length; i += 1) {
           const input = subPrompts[i];
     
-          const data = await this.getEmbeds(input)
-    
+          const data = await this.getEmbeds(input, 'document')
+
           embeddings.push(...data);
         }
     
@@ -99,7 +99,37 @@ export class HypaProcesser{
     }
     
     
-    async getEmbeds(input:string[]|string):Promise<VectorArray[]> {
+    async getEmbeds(input:string[]|string, inputType:'query'|'document' = 'query'):Promise<VectorArray[]> {
+        if(this.model === 'voyageContext3'){
+            const db = getDatabase()
+            const apiKey = db.voyageApiKey?.trim()
+            if(!apiKey){
+                throw new Error('Voyage Context 3 requires a Voyage API Key')
+            }
+
+            const inputs:string[] = Array.isArray(input) ? input : [input]
+            const gf = await globalFetch("https://api.voyageai.com/v1/contextualizedembeddings", {
+                headers: {
+                    "Authorization": "Bearer " + apiKey,
+                    "Content-Type": "application/json"
+                },
+                body: {
+                    "inputs": inputs.map(s => [s]),
+                    "model": "voyage-context-3",
+                    "input_type": inputType
+                }
+            })
+
+            if(!gf.ok || !gf.data.data){
+                throw new Error(JSON.stringify(gf.data))
+            }
+
+            const result:VectorArray[] = []
+            for(let i=0;i<gf.data.data.length;i++){
+                result.push(gf.data.data[i].data[0].embedding)
+            }
+            return result
+        }
         if(Object.keys(localModels.models).includes(this.model)){
             const inputs:string[] = Array.isArray(input) ? input : [input]
             let results:Float32Array[] = await runEmbedding(inputs, localModels.models[this.model], localModels.gpuModels.includes(this.model) ? 'webgpu' : 'wasm')
@@ -243,12 +273,22 @@ export class HypaProcesser{
     }
 }
 
-export function similarity(a:VectorArray, b:VectorArray) {    
+export function similarity(a:VectorArray, b:VectorArray) {
     let dot = 0;
     for(let i=0;i<a.length;i++){
         dot += a[i] * b[i]
     }
     return dot
+}
+
+export function contextHash(texts: string[]): string {
+    let h = 0x811c9dc5
+    const s = texts.join('\0')
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i)
+        h = Math.imul(h, 0x01000193)
+    }
+    return (h >>> 0).toString(36)
 }
 
 export type VectorArray = number[]|Float32Array
