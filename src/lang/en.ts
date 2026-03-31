@@ -912,6 +912,7 @@ export const languageEnglish = {
     enableDragPartialEdit: "Enable Drag Partial Edit (Select text to edit)",
     setNodePassword: "Set your password to security",
     inputNodePassword: "Input your password. if you can't remember, remove save/__password.txt in your server files and restart the server.",
+    sessionDeactivated: "Session has been deactivated because another device has connected. The page will reload.",
     simple: "Simple",
     advanced: "Advanced",
     askReRollAutoSuggestions: "Re-Roll Auto Suggestions",

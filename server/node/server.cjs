@@ -591,6 +591,11 @@ async function fetchLatestRelease() {
 // cookie issued after initial JWT auth. Single-user environment: Map is fine.
 const sessions = new Map() // token → expiresAt (ms)
 
+// ── Active device session (single-writer lock) ─────────────────────────────
+// Only the last device that activated a session may perform write operations.
+// This prevents stale tabs/devices from silently overwriting data.
+let activeDeviceKey = null // string | null
+
 function parseSessionCookie(req) {
     const cookieHeader = req.headers.cookie || ''
     for (const part of cookieHeader.split(';')) {
@@ -1811,6 +1816,25 @@ app.post('/api/session', async (req, res) => {
     res.json({ ok: true })
 })
 
+// ── Active device session (single-writer lock) ─────────────────────────────
+// Issues a unique device key. Only the latest key holder may write data.
+// Previous sessions are immediately locked out of write operations.
+app.post('/api/session/activate', async (req, res) => {
+    if (!await checkAuth(req, res)) return
+    const deviceKey = nodeCrypto.randomBytes(32).toString('hex')
+    activeDeviceKey = deviceKey
+    console.log('[Session] New active device session issued')
+    res.json({ deviceKey })
+})
+
+function checkActiveDevice(req, res) {
+    if (!activeDeviceKey) return true // no session activated yet — allow
+    const clientKey = req.headers['x-device-key']
+    if (clientKey === activeDeviceKey) return true
+    res.status(423).json({ error: 'Session deactivated' })
+    return false
+}
+
 // ── Direct asset serving (F-1) ─────────────────────────────────────────────
 // Serves KV-stored assets as proper HTTP responses with long-term caching.
 // Key is hex-encoded to safely pass through URL. Auth via session cookie.
@@ -2008,6 +2032,9 @@ app.get('/api/remove', async (req, res, next) => {
     if(!await checkAuth(req, res)){
         return;
     }
+    if(!checkActiveDevice(req, res)){
+        return;
+    }
     const filePath = req.headers['file-path'];
     if (!filePath) {
         res.status(400).send({ error:'File path required' });
@@ -2061,6 +2088,9 @@ app.get('/api/list', async (req, res, next) => {
 
 app.post('/api/write', async (req, res, next) => {
     if(!await checkAuth(req, res)){
+        return;
+    }
+    if(!checkActiveDevice(req, res)){
         return;
     }
     const filePath = req.headers['file-path'];
@@ -2154,6 +2184,9 @@ app.post('/api/patch', async (req, res, next) => {
         return;
     }
     if(!await checkAuth(req, res)){
+        return;
+    }
+    if(!checkActiveDevice(req, res)){
         return;
     }
     const filePath = req.headers['file-path'];
@@ -2321,6 +2354,7 @@ app.post('/api/assets/bulk-read', async (req, res, next) => {
 
 app.post('/api/assets/bulk-write', async (req, res, next) => {
     if(!await checkAuth(req, res)){ return; }
+    if(!checkActiveDevice(req, res)){ return; }
     try {
         const entries = req.body; // {key: string, value: base64}[]
         if(!Array.isArray(entries)){
@@ -2448,6 +2482,7 @@ app.get('/api/backup/export', async (req, res, next) => {
 // Pre-flight check: auth + size + disk space before client starts uploading
 app.post('/api/backup/import/prepare', async (req, res, next) => {
     if (!await checkAuth(req, res)) { return; }
+    if (!checkActiveDevice(req, res)) { return; }
     try {
         if (importInProgress) {
             res.status(409).json({ error: 'Another import is already in progress' });
@@ -2480,6 +2515,7 @@ app.post('/api/backup/import/prepare', async (req, res, next) => {
 
 app.post('/api/backup/import', async (req, res, next) => {
     if(!await checkAuth(req, res)){ return; }
+    if(!checkActiveDevice(req, res)){ return; }
 
     if (importInProgress) {
         res.status(409).json({ error: 'Another import is already in progress' });
@@ -2734,6 +2770,7 @@ app.post('/api/backup/import', async (req, res, next) => {
 const COMPRESS_IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'bmp']);
 
 app.post('/api/inlays/compress', sessionAuthMiddleware, async (req, res) => {
+    if(!checkActiveDevice(req, res)){ return; }
     const quality = typeof req.body?.quality === 'number' ? req.body.quality : 85;
 
     res.writeHead(200, {

@@ -6,7 +6,7 @@
 // Server counterpart: server/node/server.cjs (createServerJwt, checkAuth,
 // /api/login, /api/token/refresh)
 import { language } from "src/lang"
-import { alertError, alertInput, waitAlert } from "../alert"
+import { alertError, alertInput, alertNormal, waitAlert } from "../alert"
 
 // Custom error class for database conflict detection
 export class ConflictError extends Error {
@@ -84,6 +84,9 @@ export class NodeStorage{
     private cachedJwt: { token: string; expiresAt: number } | null = null
     private static sessionInitialized = false
     private static sessionPending: Promise<void> | null = null
+    private static deviceKey: string | null = null
+    private static deviceKeyPending: Promise<void> | null = null
+    private static sessionDeactivated = false
     private refreshPending: Promise<string> | null = null
 
     async createAuth(){
@@ -119,6 +122,43 @@ export class NodeStorage{
         } finally {
             NodeStorage.sessionPending = null
         }
+    }
+
+    // ── Active device session (single-writer lock) ─────────────────────────
+    // Requests a unique device key from the server. Only the last device to
+    // activate may perform write operations. Previous sessions get 423.
+    private async activateDevice() {
+        if (NodeStorage.deviceKey) return
+        if (NodeStorage.deviceKeyPending) return NodeStorage.deviceKeyPending
+        NodeStorage.deviceKeyPending = this._doActivateDevice()
+        return NodeStorage.deviceKeyPending
+    }
+
+    private async _doActivateDevice() {
+        try {
+            const res = await fetch('/api/session/activate', {
+                method: 'POST',
+                headers: { 'risu-auth': await this.createAuth() },
+            })
+            if (res.ok) {
+                const data = await res.json()
+                NodeStorage.deviceKey = data.deviceKey
+            }
+        } catch {
+            // Network error: will retry on next call
+        } finally {
+            NodeStorage.deviceKeyPending = null
+        }
+    }
+
+    private handleSessionDeactivated() {
+        if (NodeStorage.sessionDeactivated) return
+        NodeStorage.sessionDeactivated = true
+        // Show alert and reload page on confirmation
+        alertNormal(language.sessionDeactivated ?? 'Session has been deactivated. The page will reload.')
+        waitAlert().then(() => {
+            location.reload()
+        })
     }
 
     private async _refreshToken(): Promise<string> {
@@ -192,14 +232,25 @@ export class NodeStorage{
     }
 
     private async authFetch(input: RequestInfo | URL, init: RequestInit = {}, retry = true) {
+        if (NodeStorage.sessionDeactivated) {
+            throw new Error('Session deactivated')
+        }
         await this.checkAuth()
         const headers = new Headers(init.headers)
         headers.set('risu-auth', await this.createAuth())
+        if (NodeStorage.deviceKey) {
+            headers.set('x-device-key', NodeStorage.deviceKey)
+        }
 
         const response = await fetch(input, {
             ...init,
             headers
         })
+
+        if (response.status === 423) {
+            this.handleSessionDeactivated()
+            throw new Error('Session deactivated')
+        }
 
         if(retry && await this.shouldRetryAuth(response)){
             this.authChecked = false
@@ -356,12 +407,14 @@ export class NodeStorage{
 
                 await this.loginWithPassword(input)
                 await this.initSession()
+                await this.activateDevice()
                 return
             }
             else if(data.status === 'incorrect'){
                 const input = await digestPassword(await alertInput(language.inputNodePassword))
                 await this.loginWithPassword(input)
                 await this.initSession()
+                await this.activateDevice()
                 return
             }
             else{
@@ -372,6 +425,7 @@ export class NodeStorage{
             }
         }
         await this.initSession()
+        await this.activateDevice()
     }
 
     listItem = this.keys
@@ -499,6 +553,9 @@ export class NodeStorage{
             xhr.open('POST', '/api/backup/import')
             xhr.setRequestHeader('content-type', 'application/x-risu-backup')
             xhr.setRequestHeader('risu-auth', authHeader)
+            if (NodeStorage.deviceKey) {
+                xhr.setRequestHeader('x-device-key', NodeStorage.deviceKey)
+            }
 
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable) {
@@ -508,6 +565,11 @@ export class NodeStorage{
 
             xhr.onerror = () => reject(new Error('backup import request failed'))
             xhr.onload = () => {
+                if (xhr.status === 423) {
+                    this.handleSessionDeactivated()
+                    reject(new Error('Session deactivated'))
+                    return
+                }
                 if (xhr.status < 200 || xhr.status >= 300) {
                     reject(new Error(`backup import error: ${xhr.status}`))
                     return
