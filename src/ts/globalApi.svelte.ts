@@ -294,7 +294,10 @@ export async function saveDb() {
         chat: [],
         root: false,
         botPreset: false,
-        modules: false
+        modules: false,
+        loadouts: false,
+        plugins: false,
+        pluginCustomStorage: false
     }
 
     let encoder = new RisuSaveEncoder()
@@ -314,6 +317,9 @@ export async function saveDb() {
         return !!(
             toSave.botPreset ||
             toSave.modules ||
+            toSave.loadouts ||
+            toSave.plugins ||
+            toSave.pluginCustomStorage ||
             toSave.root ||
             toSave.character.length > 0 ||
             toSave.chat.length > 0
@@ -327,6 +333,9 @@ export async function saveDb() {
         changeTracker.root = false
         changeTracker.botPreset = false
         changeTracker.modules = false
+        changeTracker.loadouts = false
+        changeTracker.plugins = false
+        changeTracker.pluginCustomStorage = false
         return toSave
     }
 
@@ -387,7 +396,10 @@ export async function saveDb() {
 
         $effect(() => {
             for (const key in DBState.db) {
-                if (key !== 'characters' && key !== 'botPresets' && key !== 'modules') {
+                if (
+                    key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
+                    key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
+                ) {
                     $state.snapshot(DBState.db[key])
                 }
             }
@@ -418,6 +430,21 @@ export async function saveDb() {
                 return
             }
             changeTracker.modules = true
+            saveTimeoutExecute()
+        })
+        $effect(() => {
+            $state.snapshot(DBState.db.loadouts)
+            changeTracker.loadouts = true
+            saveTimeoutExecute()
+        })
+        $effect(() => {
+            $state.snapshot(DBState.db.plugins)
+            changeTracker.plugins = true
+            saveTimeoutExecute()
+        })
+        $effect(() => {
+            $state.snapshot(DBState.db.pluginCustomStorage)
+            changeTracker.pluginCustomStorage = true
             saveTimeoutExecute()
         })
         $effect(() => {
@@ -472,6 +499,9 @@ export async function saveDb() {
         })
         changeTracker.botPreset = changeTracker.botPreset || toSave.botPreset
         changeTracker.modules = changeTracker.modules || toSave.modules
+        changeTracker.loadouts = changeTracker.loadouts || toSave.loadouts
+        changeTracker.plugins = changeTracker.plugins || toSave.plugins
+        changeTracker.pluginCustomStorage = changeTracker.pluginCustomStorage || toSave.pluginCustomStorage
         changeTracker.root = changeTracker.root || toSave.root
     }
 
@@ -484,7 +514,10 @@ export async function saveDb() {
             const localDb = safeStructuredClone(db) as Database
 
             for (const key in localDb) {
-                if (key !== 'characters' && key !== 'botPresets' && key !== 'modules') {
+                if (
+                    key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
+                    key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
+                ) {
                     mergedDb[key] = safeStructuredClone(localDb[key])
                 }
             }
