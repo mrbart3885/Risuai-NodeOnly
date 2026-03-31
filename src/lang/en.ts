@@ -22,10 +22,12 @@ export const languageEnglish = {
         noUserIcon: "You must set your icon first.",
         emptyText: "Text is empty.",
         wrongPassword: "Wrong Password",
+        coldStorageWriteFailed: "Cold storage write failed. Your chat data has been preserved.",
+        coldStorageVerifyFailed: "Cold storage verification failed. Your chat data has been preserved.",
         vertexAuthError: "Vertex AI authentication details are missing.",
         networkFetch: "This happens when the network is unstable or the server is down.",
         networkFetchWeb:
-            "This can be a CORS error. this only happens when using web version dude to limitations of the browser. try using desktop local version, or other version of Risuai.",
+            "This can be a CORS error. this only happens when using web version due to limitations of the browser. try using desktop local version, or other version of Risuai.",
         networkFetchPlain: "This can be a plain fetch error. try disabling force plain fetch option in settings.",
         requestLogRemoved: "This request log is removed.",
         requestLogRemovedDesc: "This request log removes when client is refreshed or reloaded.",
@@ -33,11 +35,11 @@ export const languageEnglish = {
     showHelp: "Show Help",
     help: {
         model: "Model option is a main model used in chat.",
-        submodel: "Auxiliary Model is a model that used in analizing emotion images and auto suggestions and etc. gpt3.5 is recommended.",
-        oaiapikey: "Api key for OpenAI. you can get it in https://platform.openai.com/account/api-keys",
+        submodel: "Auxiliary Model is a model that used in analyzing emotion images and auto suggestions and etc. gpt3.5 is recommended.",
+        oaiapikey: "API key for OpenAI. you can get it in https://platform.openai.com/account/api-keys",
         mainprompt: "The main prompt option sets the default model behavior.",
         jailbreak: "The jailbreak prompt option activates when jailbreak toggle is on in character.",
-        globalNote: "a note that strongly effects model behavior, also known as UJB. works in all characters.",
+        globalNote: "A note that strongly affects model behavior, also known as UJB. Works in all characters.",
         autoSuggest: "Prompts used to generate options when automatically suggesting user responses.",
         formatOrder: "formating order of prompt. lower blocks does more effect to the model.",
         forceUrl: "if it is not blank, the request will go to the url that you had inputed.",
@@ -47,12 +49,12 @@ export const languageEnglish = {
         presensePenalty: "Higher values prevent the use of duplicate words in all context, but character's response can break down more easily.",
         sdProvider: "provider for image generation.",
         msgSound: "Plays *ding* sound when character responses",
-        charDesc: "Brief description of the character. this effects characters response.",
-        charFirstMessage: "First message of the character. this highly effects characters response.",
-        charNote: "a note that strongly effects model behavior. embbedded to current character. also known as UJB.",
+        charDesc: "Brief description of the character. This affects characters response.",
+        charFirstMessage: "First message of the character. This highly affects characters response.",
+        charNote: "A note that strongly affects model behavior. Embbedded to current character, also known as UJB.",
         toggleNsfw: "toggles jailbreak prompt on and off.",
         lorebook: "Lorebook is a user-made dictionary for AI. AI only sees it when where is an activation keys in the context.",
-        loreName: "name of the lore. it dosen't effects the Ai.",
+        loreName: "Name of the lore. It doesn't affect the Ai.",
         loreActivationKey: "If one of the activation key exists in context, the lore will be activated and prompt will go in. seperated by commas.",
         loreorder: "If insert Order is higher, it will effect the model more, and it will more lessly cuted when activated lore are many.",
         bias: "bias is a key-value data which modifies the likelihood of string appearing.\nit can be -100 to 100, higher values will be more likely to appear, and lower values will be more unlikely to appear. \nAdditionaly, if its set to -101, it would work as 'strong ban word' for some models. \nWarning: if the tokenizer is wrong, it not work properly.",
@@ -61,9 +63,9 @@ export const languageEnglish = {
         imggen: "After analyzing the chat, apply the prompt to {{slot}}.",
         regexScript:
             "Regex Script is a custom regex that replaces string that matches IN to OUT.\n\nThere four type options." +
-            "\n\n- **Modify Input** modifys user's input" +
-            "\n\n- **Modify Output** modifys character's output" +
-            "\n\n- **Modify Request Data** modifys current chat data when sent." +
+            "\n\n- **Modify Input** modifies user's input" +
+            "\n\n- **Modify Output** modifies character's output" +
+            "\n\n- **Modify Request Data** modifies current chat data when sent." +
             "\n\n- **Modify Display** just modifies the text when shown without modifying chat data." +
             "\n\nIN must be a regex without flags and without slashes in start and end.\n\nOUT is a string which can include replacement patterns. these are the patterns:" +
             "\n\n- $$\n\n    - inserts $" +
@@ -84,13 +86,13 @@ export const languageEnglish = {
             "If your WebUI supports older version of api, your url should look *like https:.../run/textgen*\n\n" +
             "If your WebUI supports newVersion of api, your url should look like *https://.../api/v1/generate* and use the api server as host, and add --api to arguments.",
         exampleMessage:
-            "Example conversations that effects output of the character. it dosen't uses tokens permanently." +
+            "Example conversations that affects output of the character. It doesn't uses tokens permanently." +
             "\n\nExample format of conversations:" +
             "\n\n```\n<START>\n{{user}}: hi\n{{char}}: hello\n<START>\n{{user}}: hi\nHaruhi: hello\n```" +
             "\n\n```<START>``` Marks the beginning of a new conversation.",
         creatorQuotes: "Note that appearances on top of first message. Used to inform users about this character. It doesn't go into prompt.",
         systemPrompt: "A prompt that replaces main prompt in settings if its not blank.",
-        chatNote: "a note that strongly effects model behavior. embbedded to current chat. also known as memory or ujb.",
+        chatNote: "A note that strongly affects model behavior. Embbedded to current chat, also known as memory or UJB.",
         personality: "A brief description about character's personality. \n\n**It is not recommended to use this option. Describe it in character description instead.**",
         scenario: "A brief description about character's scenario. \n\n**It is not recommended to use this option. Describe it in character description instead.**",
         utilityBot: "When activated, it ignores main prompt, jailbreak and other prompts. used for bot made for utility, not for roleplay.",
@@ -127,8 +129,9 @@ export const languageEnglish = {
         inlayImagePriority: "If enabled, inlays render as images first for faster loading. Video/audio inlays auto-switch after image load fails. Disable if you use many video/audio inlays.",
         useExperimental: "If enabled, it will show some experimental features.",
         forceProxyAsOpenAI: "If enabled, it will force to use OpenAI format when using reverse proxy.",
-        forcePlainFetch: "If enabled, it will use browser fetch api instead of native http request. this can cause CORS errors.",
-        autoFillRequestURL: "If enabled, it will autofill request url to match the current model.",
+        forcePlainFetch: "If enabled, it will use the browser Fetch API instead of the native HTTP request. This can cause CORS errors.",
+        autoFillRequestURL: "If enabled, it will automatically fill the request URL to match the current model.",
+        localNetworkModeDesc: "Routes private/LAN model URLs through the local server instead of browser direct fetch.\n\n**Purpose**\n- Avoid browser private-network/CORS restrictions\n- Mitigate timeout risk for slow first-token local inference\n\n**How it works**\n- Streaming uses experimental Job+WebSocket relay first (fallback to /proxy2)\n- Non-streaming uses /proxy2 relay\n\n**Constraints**\n- Scope is OpenAI-compatible request paths only",
         chainOfThought: "If enabled, it will add chain of thought prompt to the prompt.",
         gptVisionQuality: "This option is used to set the quality of the image detection model. the higher the quality, the more accurate the detection, but more tokens are used.",
         genTimes:
@@ -284,6 +287,9 @@ export const languageEnglish = {
             "Maximum embedding model requests per minute for similarity search.",
         hypaV3EmbeddingMaxConcurrent:
             "Maximum concurrent embedding model requests for similarity search.",
+        hypaV3QueryChatCount:
+            "The number of recent chat messages used as the query for similarity search. " +
+            "Higher values use more chat context to determine similarity.",
     },
     setup: {
         chooseProvider: "Choose AI Provider",
@@ -1092,6 +1098,11 @@ export const languageEnglish = {
     openRouterProviderOnly: "Allowed Providers",
     openRouterProviderIgnore: "Ignored Providers",
     openRouterSearchModel: "Search models...",
+    openRouterSortByName: "Name",
+    openRouterSortByPrice: "Price",
+    openRouterSortByProvider: "Provider",
+    openRouterSortAsc: "Asc",
+    openRouterSortDesc: "Desc",
     geminiApiKey: "Gemini API Key",
     removePunctuationHypa: "Memory Punctuation Removal",
     memoryLimitThickness: "Memory Limit Thickness",
@@ -1289,6 +1300,15 @@ export const languageEnglish = {
     translatorPrompt: "Translation Prompt",
     translateBeforeHTMLFormatting: "Translate Before HTML Formatting",
     retranslate: "Retranslate",
+    editTranslation: "Edit Translation",
+    editTranslationSave: "Save Translation",
+    exportTranslationCache: "Export Translation Cache",
+    importTranslationCache: "Import Translation Cache",
+    importTranslationCacheConfirm: "This will merge entries into your translation cache. Existing keys will be overwritten. Continue?",
+    importTranslationCacheSuccess: "Imported {0} translation cache entries.",
+    exportTranslationCacheEmpty: "Translation cache is empty.",
+    clearTranslationCache: "Clear Translation Cache",
+    clearTranslationCacheConfirm: "This will delete all translation cache entries. This cannot be undone. Continue?",
     loading: "Loading",
     autoTranslateCachedOnly: "Auto-translate Cached Messages Only",
     notification: "Notification",
@@ -1344,6 +1364,7 @@ export const languageEnglish = {
         memoryTokensRatioLabel: "Memory Tokens Ratio",
         extraSummarizationRatioLabel: "Extra Summarization Ratio",
         maxChatsPerSummaryLabel: "Max Messages Per Summary",
+        queryChatCountLabel: "Query Chat Count",
         recentMemoryRatioLabel: "Recent Memory Ratio",
         similarMemoryRatioLabel: "Similar Memory Ratio",
         randomMemoryRatioLabel: "Random Memory Ratio",
@@ -1463,6 +1484,8 @@ export const languageEnglish = {
         webcam: "Toggle Webcam",
         focusInput: "Focus Input",
         scrollToActiveChar: "Scroll to Active Character",
+        loadout: "Loadout",
+        popupEditor: "Popup Editor",
     },
     screenTooSmall: "Screen is too small to show the interface.",
     advancedModelSettings: "Advanced Model Settings",
@@ -1572,6 +1595,7 @@ export const languageEnglish = {
     mainDomAccessConsent: "Plugin {} is requesting to access the main Document, which may expose sensitive information. Do you want to allow this?",
     replacerPermissionConsent: "Plugin {} is requesting permission to replace content in the chat, which may be used to manipulate the conversation. Do you want to allow this?",
     providerPermissionConsent: "Plugin {} is requesting permission to access the provider, which may allow it to make unauthorized API calls. Do you want to allow this?",
+    sendChatConsent: "Plugin {} is requesting permission to send chat messages on your behalf, which will trigger AI responses. Do you want to allow this?",
     pluginV2Warning: "Plugin V2 and V2.1 is considered unsafe and will stop working in future versions. **Please do not use these versions of plugins.**. If you are the developer of this plugin, please update to V3 as soon as possible.",
     createFolderOnBranch: "Create Folder on Branch",
     hamburgerButtonBottom: "Move Menu Button to Bottom of Sidebar",
@@ -1655,6 +1679,9 @@ export const languageEnglish = {
     togglePresetImport: "Import from File",
     togglePresetImported: (name: string) => `Preset "${name}" imported.`,
     togglePresetImportError: "Invalid toggle preset file.",
+    loadouts: "Loadouts",
+    loadout: "Loadout",
+    longPressToPopupEditor: "Long press to open popup editor",
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

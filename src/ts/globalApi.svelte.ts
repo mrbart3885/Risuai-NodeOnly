@@ -24,6 +24,8 @@ import { updateLorebooks } from "./characters";
 import { initMobileGesture } from "./hotkey";
 import { moduleUpdate } from "./process/modules";
 import { makeColdData } from "./process/coldstorage.svelte";
+import { isLocalNetworkUrl } from "./network/localNetwork";
+import { decodeProxyJobWsChunk, formatProxyStreamErrorMessage, parseProxyJobWsEvent } from "./network/proxyJobWs";
 
 export const forageStorage = new AutoStorage()
 
@@ -77,6 +79,31 @@ let fileCache: {
 
 let pathCache: { [key: string]: string } = {}
 let checkedPaths: string[] = []
+
+function buildTimeoutSignal(signal: AbortSignal | undefined, timeoutMs: number | undefined) {
+    if (!timeoutMs || timeoutMs <= 0) {
+        return {
+            signal,
+            cleanup: () => {}
+        }
+    }
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+    if (signal) {
+        if (signal.aborted) {
+            controller.abort()
+        } else {
+            signal.addEventListener('abort', () => controller.abort(), { once: true })
+        }
+    }
+
+    return {
+        signal: controller.signal,
+        cleanup: () => clearTimeout(timeoutId)
+    }
+}
 
 /**
  * Gets the source URL of a file.
@@ -267,7 +294,10 @@ export async function saveDb() {
         chat: [],
         root: false,
         botPreset: false,
-        modules: false
+        modules: false,
+        loadouts: false,
+        plugins: false,
+        pluginCustomStorage: false
     }
 
     let encoder = new RisuSaveEncoder()
@@ -287,6 +317,9 @@ export async function saveDb() {
         return !!(
             toSave.botPreset ||
             toSave.modules ||
+            toSave.loadouts ||
+            toSave.plugins ||
+            toSave.pluginCustomStorage ||
             toSave.root ||
             toSave.character.length > 0 ||
             toSave.chat.length > 0
@@ -300,6 +333,9 @@ export async function saveDb() {
         changeTracker.root = false
         changeTracker.botPreset = false
         changeTracker.modules = false
+        changeTracker.loadouts = false
+        changeTracker.plugins = false
+        changeTracker.pluginCustomStorage = false
         return toSave
     }
 
@@ -322,6 +358,9 @@ export async function saveDb() {
         let didInitRootEffect = false
         let didInitBotPresetEffect = false
         let didInitModulesEffect = false
+        let didInitLoadoutsEffect = false
+        let didInitPluginsEffect = false
+        let didInitPluginStorageEffect = false
         let didInitGeneralEffect = false
 
         const debounceTime = 500; // 500 milliseconds
@@ -360,7 +399,10 @@ export async function saveDb() {
 
         $effect(() => {
             for (const key in DBState.db) {
-                if (key !== 'characters' && key !== 'botPresets' && key !== 'modules') {
+                if (
+                    key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
+                    key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
+                ) {
                     $state.snapshot(DBState.db[key])
                 }
             }
@@ -391,6 +433,33 @@ export async function saveDb() {
                 return
             }
             changeTracker.modules = true
+            saveTimeoutExecute()
+        })
+        $effect(() => {
+            $state.snapshot(DBState.db.loadouts)
+            if (!didInitLoadoutsEffect) {
+                didInitLoadoutsEffect = true
+                return
+            }
+            changeTracker.loadouts = true
+            saveTimeoutExecute()
+        })
+        $effect(() => {
+            $state.snapshot(DBState.db.plugins)
+            if (!didInitPluginsEffect) {
+                didInitPluginsEffect = true
+                return
+            }
+            changeTracker.plugins = true
+            saveTimeoutExecute()
+        })
+        $effect(() => {
+            $state.snapshot(DBState.db.pluginCustomStorage)
+            if (!didInitPluginStorageEffect) {
+                didInitPluginStorageEffect = true
+                return
+            }
+            changeTracker.pluginCustomStorage = true
             saveTimeoutExecute()
         })
         $effect(() => {
@@ -445,6 +514,9 @@ export async function saveDb() {
         })
         changeTracker.botPreset = changeTracker.botPreset || toSave.botPreset
         changeTracker.modules = changeTracker.modules || toSave.modules
+        changeTracker.loadouts = changeTracker.loadouts || toSave.loadouts
+        changeTracker.plugins = changeTracker.plugins || toSave.plugins
+        changeTracker.pluginCustomStorage = changeTracker.pluginCustomStorage || toSave.pluginCustomStorage
         changeTracker.root = changeTracker.root || toSave.root
     }
 
@@ -457,7 +529,10 @@ export async function saveDb() {
             const localDb = safeStructuredClone(db) as Database
 
             for (const key in localDb) {
-                if (key !== 'characters' && key !== 'botPresets' && key !== 'modules') {
+                if (
+                    key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
+                    key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
+                ) {
                     mergedDb[key] = safeStructuredClone(localDb[key])
                 }
             }
@@ -750,6 +825,8 @@ interface GlobalFetchArgs {
     useRisuToken?: boolean;
     chatId?: string;
     interceptor?: string;
+    requestTimeoutMs?: number;
+    networkRoute?: 'auto' | 'local_network';
 }
 
 /**
@@ -814,12 +891,12 @@ export function addFetchLog(arg: {
 export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promise<GlobalFetchResult> {
     try {
         const db = getDatabase();
-        const method = arg.method ?? "POST";
 
         if (arg.abortSignal?.aborted) { return { ok: false, data: 'aborted', headers: {}, status: 400 }; }
 
         const urlHost = new URL(url).hostname
-        const forcePlainFetch = ((knownHostes.includes(urlHost)) || db.usePlainFetch || arg.plainFetchForce) && !arg.plainFetchDeforce
+        const useLocalNetworkRoute = arg.networkRoute === 'local_network' && isLocalNetworkUrl(url)
+        const forcePlainFetch = ((knownHostes.includes(urlHost)) || db.usePlainFetch || arg.plainFetchForce) && !arg.plainFetchDeforce && !useLocalNetworkRoute
 
         if(arg.interceptor){
             for (const interceptor of bodyIntercepterStore) {
@@ -832,14 +909,27 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
             }
         }
 
-        if (forcePlainFetch) {
-            return await fetchWithPlainFetch(url, arg);
+        const timeoutSignal = buildTimeoutSignal(arg.abortSignal, arg.requestTimeoutMs)
+        const requestArg = timeoutSignal.signal === arg.abortSignal
+            ? arg
+            : { ...arg, abortSignal: timeoutSignal.signal }
+
+        try {
+            if (useLocalNetworkRoute) {
+                return await fetchWithProxy(url, requestArg);
+            }
+
+            if (forcePlainFetch) {
+                return await fetchWithPlainFetch(url, requestArg);
+            }
+            //userScriptFetch is provided by userscript
+            if (window.userScriptFetch && !arg.plainFetchDeforce) {
+                return await fetchWithUSFetch(url, requestArg);
+            }
+            return await fetchWithProxy(url, requestArg);
+        } finally {
+            timeoutSignal.cleanup()
         }
-        //userScriptFetch is provided by userscript
-        if (window.userScriptFetch && !arg.plainFetchDeforce) {
-            return await fetchWithUSFetch(url, arg);
-        }
-        return await fetchWithProxy(url, arg);
 
     } catch (error) {
         console.error(error);
@@ -1525,6 +1615,8 @@ export async function fetchNative(url: string, arg: {
     useRisuTk?: boolean,
     chatId?: string
     interceptor?: string
+    requestTimeoutMs?: number
+    networkRoute?: 'auto' | 'local_network'
 }): Promise<Response> {
     const useInterceptor = !!arg.interceptor
     if (arg.body === undefined && (arg.method === 'POST' || arg.method === 'PUT')) {
@@ -1572,49 +1664,238 @@ export async function fetchNative(url: string, arg: {
         resType: 'stream',
         chatId: arg.chatId,
     })
-    if (window.userScriptFetch) {
-        return await window.userScriptFetch(url, {
-            body: realBody as any,
-            headers: headers,
-            method: arg.method,
-            signal: arg.signal
-        })
+    const useLocalNetworkRoute = arg.networkRoute === 'local_network' && isLocalNetworkUrl(url)
+    const timeoutSignal = buildTimeoutSignal(arg.signal, arg.requestTimeoutMs)
+    const requestSignal = timeoutSignal.signal
+    const db = getDatabase()
+    let throughProxy = !db.usePlainFetch
+    if (useLocalNetworkRoute) {
+        throughProxy = true
     }
 
-    // Try direct fetch first (upstream behavior), fall back to proxy on CORS/network error
     try {
-        return await fetch(url, {
-            body: realBody as any,
-            headers: headers,
-            method: arg.method,
-            signal: arg.signal,
-        })
-    } catch (e) {
-        if (arg.signal?.aborted) throw e
-        const proxyHeaders: Record<string, string> = {
-            "risu-header": encodeURIComponent(JSON.stringify(headers)),
-            "risu-url": encodeURIComponent(url),
-            "risu-auth": await forageStorage.createAuth(),
-            ...(arg.useRisuTk ? { "x-risu-tk": "use" } : {}),
-            ...(DBState?.db?.requestLocation ? { "risu-location": DBState.db.requestLocation } : {}),
+        if (window.userScriptFetch && !throughProxy) {
+            return await window.userScriptFetch(url, {
+                body: realBody as any,
+                headers: headers,
+                method: arg.method,
+                signal: requestSignal
+            })
         }
 
-        if (realBody) {
-            proxyHeaders["Content-Type"] = headers["Content-Type"] ?? headers["content-type"] ?? "application/json"
+        // Local network streaming: try WebSocket proxy job, fallback to /proxy2
+        const useProxyJobWs = useLocalNetworkRoute
+            && arg.interceptor === 'openai_streaming'
+            && arg.method === 'POST'
+        if (useProxyJobWs) {
+            try {
+                return await fetchViaProxyJobWs(url, {
+                    method: arg.method,
+                    headers,
+                    body: realBody,
+                    signal: requestSignal,
+                    requestTimeoutMs: arg.requestTimeoutMs,
+                })
+            } catch (wsErr) {
+                console.warn('[ProxyJobWS] fallback to /proxy2 due to error:', wsErr)
+            }
         }
 
-        const r = await fetch(`/proxy2`, {
-            body: realBody as any,
-            headers: proxyHeaders,
-            method: arg.method,
-            signal: arg.signal
-        })
+        // Local network non-streaming or WS fallback: go through /proxy2 directly
+        if (useLocalNetworkRoute) {
+            return await fetchViaProxy2(url, headers, realBody, {
+                ...arg,
+                signal: requestSignal
+            })
+        }
 
-        return new Response(r.body, {
-            headers: r.headers,
-            status: r.status
-        })
+        // Try direct fetch first (upstream behavior), fall back to proxy on CORS/network error
+        try {
+            return await fetch(url, {
+                body: realBody as any,
+                headers: headers,
+                method: arg.method,
+                signal: requestSignal,
+            })
+        } catch (e) {
+            if (requestSignal?.aborted) throw e
+            return await fetchViaProxy2(url, headers, realBody, {
+                ...arg,
+                signal: requestSignal
+            })
+        }
+    } finally {
+        timeoutSignal.cleanup()
     }
+}
+
+const defaultProxyJobHeartbeatSec = 15
+
+async function fetchViaProxy2(
+    url: string,
+    headers: Record<string, string>,
+    realBody: Uint8Array | undefined,
+    arg: { method?: string, signal?: AbortSignal, useRisuTk?: boolean, requestTimeoutMs?: number }
+): Promise<Response> {
+    const proxyHeaders: Record<string, string> = {
+        "risu-header": encodeURIComponent(JSON.stringify(headers)),
+        "risu-url": encodeURIComponent(url),
+        "risu-auth": await forageStorage.createAuth(),
+        ...(arg.useRisuTk ? { "x-risu-tk": "use" } : {}),
+        ...(arg.requestTimeoutMs && { "risu-timeout-ms": Math.max(1, Math.floor(arg.requestTimeoutMs)).toString() }),
+        ...(DBState?.db?.requestLocation ? { "risu-location": DBState.db.requestLocation } : {}),
+    }
+
+    if (realBody) {
+        proxyHeaders["Content-Type"] = headers["Content-Type"] ?? headers["content-type"] ?? "application/json"
+    }
+
+    const r = await fetch(`/proxy2`, {
+        body: realBody as any,
+        headers: proxyHeaders,
+        method: arg.method,
+        signal: arg.signal
+    })
+
+    return new Response(r.body, {
+        headers: r.headers,
+        status: r.status
+    })
+}
+
+async function fetchViaProxyJobWs(url: string, arg: {
+    method: string,
+    headers: Record<string, string>,
+    body?: Uint8Array,
+    signal?: AbortSignal,
+    requestTimeoutMs?: number,
+}): Promise<Response> {
+    const auth = await forageStorage.createAuth()
+    const bodyBase64 = arg.body ? Buffer.from(arg.body).toString('base64') : ''
+
+    const jobRes = await fetch('/proxy-stream-jobs', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'risu-auth': auth,
+        },
+        body: JSON.stringify({
+            url,
+            method: arg.method,
+            headers: arg.headers,
+            bodyBase64,
+            timeoutMs: arg.requestTimeoutMs,
+            heartbeatSec: defaultProxyJobHeartbeatSec,
+        }),
+        signal: arg.signal,
+    })
+
+    if (!jobRes.ok) {
+        throw new Error(`Failed to create proxy stream job: ${jobRes.status} ${await jobRes.text()}`)
+    }
+
+    const { jobId } = await jobRes.json() as { jobId: string }
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${wsProtocol}//${location.host}/proxy-stream-jobs/${encodeURIComponent(jobId)}/ws?risu-auth=${encodeURIComponent(auth)}`
+
+    return new Promise<Response>((resolve, reject) => {
+        const ws = new WebSocket(wsUrl)
+        let resolved = false
+        let responseStatus = 200
+        let responseHeaders: Record<string, string> = {}
+        let streamController: ReadableStreamDefaultController<Uint8Array> | null = null
+
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                streamController = controller
+            },
+            cancel() {
+                ws.close()
+                fetch(`/proxy-stream-jobs/${encodeURIComponent(jobId)}`, {
+                    method: 'DELETE',
+                    headers: { 'risu-auth': auth },
+                }).catch(() => {})
+            }
+        })
+
+        const abortHandler = () => {
+            ws.close()
+            fetch(`/proxy-stream-jobs/${encodeURIComponent(jobId)}`, {
+                method: 'DELETE',
+                headers: { 'risu-auth': auth },
+            }).catch(() => {})
+            if (!resolved) {
+                resolved = true
+                reject(new DOMException('Aborted', 'AbortError'))
+            }
+        }
+
+        if (arg.signal) {
+            if (arg.signal.aborted) {
+                abortHandler()
+                return
+            }
+            arg.signal.addEventListener('abort', abortHandler, { once: true })
+        }
+
+        ws.onmessage = (ev) => {
+            const event = parseProxyJobWsEvent(typeof ev.data === 'string' ? ev.data : '')
+            if (!event) return
+
+            switch (event.type) {
+                case 'job_accepted':
+                case 'ping':
+                    break
+                case 'upstream_headers':
+                    responseStatus = event.status
+                    responseHeaders = event.headers
+                    if (!resolved) {
+                        resolved = true
+                        resolve(new Response(stream, {
+                            status: responseStatus,
+                            headers: responseHeaders,
+                        }))
+                    }
+                    break
+                case 'chunk': {
+                    const bytes = decodeProxyJobWsChunk(event.dataBase64)
+                    streamController?.enqueue(bytes)
+                    break
+                }
+                case 'error': {
+                    const msg = formatProxyStreamErrorMessage(event.status, event.message)
+                    if (!resolved) {
+                        resolved = true
+                        resolve(new Response(msg, {
+                            status: event.status ?? 502,
+                            headers: { 'content-type': 'text/plain' },
+                        }))
+                    }
+                    streamController?.close()
+                    break
+                }
+                case 'done':
+                    streamController?.close()
+                    break
+            }
+        }
+
+        ws.onerror = () => {
+            if (!resolved) {
+                resolved = true
+                reject(new Error('WebSocket connection failed'))
+            }
+        }
+
+        ws.onclose = () => {
+            arg.signal?.removeEventListener('abort', abortHandler)
+            try { streamController?.close() } catch { /* already closed */ }
+            if (!resolved) {
+                resolved = true
+                reject(new Error('WebSocket closed before response'))
+            }
+        }
+    })
 }
 
 /**

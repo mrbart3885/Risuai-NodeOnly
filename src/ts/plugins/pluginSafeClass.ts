@@ -47,6 +47,7 @@ export class SafeLocalStorage {
 
 
 export class SafeLocalPluginStorage {
+    __classType = 'REMOTE_REQUIRED' as const;
     async getItem<T>(key: string): Promise<T | null> {
         const cacheKey = `safe_plugin_${key}`;
         if (pluginStorage.has(cacheKey)) {

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { DynamicGUI, settingsOpen, sideBarStore, openPresetList, openPersonaList, personaSelectCallback, openHypaV3PresetList, openThemePresetList, MobileGUI, CustomGUISettingMenuStore, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, easyPanelStore } from './ts/stores.svelte';
+    import { DynamicGUI, settingsOpen, sideBarStore, openPresetList, openPersonaList, personaSelectCallback, openHypaV3PresetList, openThemePresetList, MobileGUI, CustomGUISettingMenuStore, loadedStore, alertStore, LoadingStatusState, bookmarkListOpen, popupStore, easyPanelStore, loadoutModalStore, popUpEditorStore } from './ts/stores.svelte';
     import Sidebar from './lib/SideBars/Sidebar.svelte';
     import { DBState } from './ts/stores.svelte';
     import ChatScreen from './lib/ChatScreens/ChatScreen.svelte';
@@ -28,6 +28,8 @@
     import HypaV3Modal from './lib/Others/HypaV3Modal.svelte';
     import HypaV3Progress from './lib/Others/HypaV3Progress.svelte';
     import PluginAlertModal from './lib/Others/PluginAlertModal.svelte';
+    import LoadoutModal from './lib/Others/LoadoutModal.svelte';
+    import PopupEditor from './lib/Others/PopupEditor.svelte';
     import UpdatePopup from './lib/Others/UpdatePopup.svelte';
     import PopupList from './lib/UI/PopupList.svelte';
     import EasyPanel from './lib/Others/ProTools/EasyPanel.svelte';
@@ -239,5 +241,11 @@
     {/if}
     {#if easyPanelStore.open}
         <EasyPanel />
+    {/if}
+    {#if loadoutModalStore.open}
+        <LoadoutModal />
+    {/if}
+    {#if popUpEditorStore.open}
+        <PopupEditor />
     {/if}
 </main>

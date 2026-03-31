@@ -1418,11 +1418,14 @@ interface RisuaiPluginAPI {
     // ========== UI Registration ==========
 
     /**
-     * Registers a settings menu item
+     * Registers a settings menu item.
+     * If `id` is provided and a setting with that ID already exists, it will be replaced in-place (preserving position).
+     *
      * @param name - Display name
      * @param callback - Callback function when clicked
      * @param icon - Icon content (HTML or image URL)
      * @param iconType - Icon type ('html', 'img', or 'none')
+     * @param id - Optional stable ID. If omitted, a UUID is generated. If provided and already registered, the existing entry is replaced in-place.
      *
      * @example
      * ```typescript
@@ -1433,7 +1436,8 @@ interface RisuaiPluginAPI {
      *     // Build settings UI...
      *   },
      *   '⚙️',
-     *   'html'
+     *   'html',
+     *   'my-plugin-settings'
      * );
      * ```
      */
@@ -1441,28 +1445,45 @@ interface RisuaiPluginAPI {
         name: string,
         callback: () => void | Promise<void>,
         icon?: string,
-        iconType?: IconType
+        iconType?: IconType,
+        id?: string
     ): Promise<UIPartResponse>;
 
 
     /**
-     * Registers a floating action button
-     * @param name - Display name
+     * Registers a floating action button.
+     * If `id` is provided and a button with that ID already exists, it will be replaced in-place (preserving position).
+     * When replacing, the button stays in its original location store regardless of the `location` parameter.
+     *
      * @param arg - Button configuration
+     * @param arg.name - Display name
      * @param arg.icon - Icon content (HTML or image URL)
      * @param arg.iconType - Icon type ('html', 'img', or 'none')
-     * @param arg.location - Button location ('action', 'chat', or 'hamburger')
+     * @param arg.location - Button location ('action', 'chat', or 'hamburger'). Ignored when replacing an existing button.
+     * @param arg.id - Optional stable ID. If omitted, a UUID is generated. If provided and already registered, the existing button is replaced in-place.
      * @param callback - Callback function when clicked
      *
      * @example
      * ```typescript
+     * // First registration
      * await risuai.registerButton({
      *   name: 'My Action',
      *   icon: '🔥',
      *   iconType: 'html',
-     *   location: 'action'
+     *   location: 'action',
+     *   id: 'my-plugin-action'
      * }, async () => {
      *     console.log('Action button clicked!');
+     * });
+     *
+     * // Later: replace in-place (position preserved)
+     * await risuai.registerButton({
+     *   name: 'Updated Action',
+     *   icon: '✨',
+     *   iconType: 'html',
+     *   id: 'my-plugin-action'
+     * }, async () => {
+     *     console.log('Updated!');
      * });
      * ```
      */
@@ -1470,7 +1491,8 @@ interface RisuaiPluginAPI {
         name: string,
         icon: string,
         iconType: 'html'|'img'|'none',
-        location?: 'action'|'chat'|'hamburger'
+        location?: 'action'|'chat'|'hamburger',
+        id?: string
     }, callback: () => void): Promise<UIPartResponse>;
 
     /**
@@ -1772,6 +1794,29 @@ interface RisuaiPluginAPI {
      * @returns The cached translation or null if not found
      */
     getTranslationCache(key: string): Promise<string | null>;
+
+
+    // ========== Model Requesters ==========
+
+    /**
+     * Runs a request through a specified LLM model with given messages and options.
+     * @param options - Options for the LLM request
+     * @param options.messages - Array of chat messages to send to the model
+     * @param options.staticModel - Optional static model name to use (e.g., 'gpt-4')
+     * @param options.mode - Request mode
+     * @returns The model's response, which may be a string or a stream depending on the mode
+     */
+    runLLMModel(options: {
+        messages: any[];
+        staticModel?: string;
+        mode: string;
+    }): Promise<any>;
+
+    /**
+     * Sends a chat message as if it were sent by the user, triggering the normal chat processing flow.
+     * @param message - The chat message to send, if string is a blank message, it will trigger the send action without adding a new message.
+     */
+    sendChat(message: string): Promise<void>;
 
     /**
      * Registers a listener for a named plugin channel (IPC between plugins).

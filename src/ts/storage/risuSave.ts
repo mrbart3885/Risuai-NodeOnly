@@ -72,6 +72,9 @@ export type toSaveType = {
     root: boolean;
     botPreset: boolean;
     modules: boolean;
+    loadouts: boolean;
+    plugins: boolean;
+    pluginCustomStorage: boolean;
 }
 
 enum RisuSaveType {
@@ -84,6 +87,9 @@ enum RisuSaveType {
     REMOTE = 6,
     CHARACTER_WITHOUT_CHAT = 7,
     ROOT_COMPONENT = 8,
+    PLUGINS = 9,
+    LOADOUTS = 10,
+    PLUGIN_STORAGE = 11,
 }
 
 type EncodeBlockArg = {
@@ -118,7 +124,10 @@ export class RisuSaveEncoder {
         let obj:Record<any,any> = {}
         let keys = Object.keys(data)
         for(const key of keys){
-            if(key !== 'characters' && key !== 'botPresets' && key !== 'modules'){
+            if(
+                key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
+                key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
+            ){
                 obj[key] = data[key]
             }
         }
@@ -139,6 +148,24 @@ export class RisuSaveEncoder {
             data: JSON.stringify(data.modules),
             type: RisuSaveType.MODULES,
             name: 'modules'
+        });
+        this.blocks['loadouts'] = await this.encodeBlock({
+            compression,
+            data: JSON.stringify(data.loadouts),
+            type: RisuSaveType.LOADOUTS,
+            name: 'loadouts'
+        });
+        this.blocks['plugins'] = await this.encodeBlock({
+            compression,
+            data: JSON.stringify(data.plugins),
+            type: RisuSaveType.PLUGINS,
+            name: 'plugins'
+        });
+        this.blocks['pluginStorage'] = await this.encodeBlock({
+            compression,
+            data: JSON.stringify(data.pluginCustomStorage),
+            type: RisuSaveType.PLUGIN_STORAGE,
+            name: 'pluginStorage'
         });
         this.characterHashes = {}
         for( const character of data.characters) {
@@ -167,7 +194,10 @@ export class RisuSaveEncoder {
         let obj:Record<any,any> = {}
         let keys = Object.keys(data)
         for(const key of keys){
-            if(key !== 'characters' && key !== 'botPresets' && key !== 'modules'){
+            if(
+                key !== 'characters' && key !== 'botPresets' && key !== 'modules' &&
+                key !== 'loadouts' && key !== 'plugins' && key !== 'pluginCustomStorage'
+            ){
                 obj[key] = data[key]
             }
         }
@@ -213,7 +243,8 @@ export class RisuSaveEncoder {
         // This prevents deleted characters from being resurrected after full-write fallback.
         const currentCharacterIds = new Set<string>((data.characters ?? []).map((character) => character?.chaId).filter(Boolean));
         for (const key of Object.keys(this.blocks)) {
-            if (key === 'root' || key === 'preset' || key === 'modules' || key === 'config') {
+            if (key === 'root' || key === 'preset' || key === 'modules' || key === 'config'
+                || key === 'loadouts' || key === 'plugins' || key === 'pluginStorage') {
                 continue;
             }
             if (!currentCharacterIds.has(key)) {
@@ -236,6 +267,33 @@ export class RisuSaveEncoder {
                 data: JSON.stringify(data.modules),
                 type: RisuSaveType.MODULES,
                 name: 'modules'
+            });
+        }
+
+        if(toSave.loadouts){
+            this.blocks['loadouts'] = await this.encodeBlock({
+                compression: this.compression,
+                data: JSON.stringify(data.loadouts),
+                type: RisuSaveType.LOADOUTS,
+                name: 'loadouts'
+            });
+        }
+
+        if(toSave.pluginCustomStorage){
+            this.blocks['pluginStorage'] = await this.encodeBlock({
+                compression: this.compression,
+                data: JSON.stringify(data.pluginCustomStorage),
+                type: RisuSaveType.PLUGIN_STORAGE,
+                name: 'pluginStorage'
+            });
+        }
+
+        if(toSave.plugins){
+            this.blocks['plugins'] = await this.encodeBlock({
+                compression: this.compression,
+                data: JSON.stringify(data.plugins),
+                type: RisuSaveType.PLUGINS,
+                name: 'plugins'
             });
         }
 
@@ -408,6 +466,7 @@ export class RisuSaveDecoder {
         let directory: string[] = []
         for(let i = 0; i < this.blocks.length; i++){
             const key = i;
+            try {
             switch(this.blocks[key].type){
                 case RisuSaveType.ROOT:{
                     const rootData = JSON.parse(this.blocks[key].content);
@@ -465,6 +524,18 @@ export class RisuSaveDecoder {
                     //ignore for now
                     break;
                 }
+                case RisuSaveType.PLUGINS:{
+                    db.plugins = JSON.parse(this.blocks[key].content);
+                    break;
+                }
+                case RisuSaveType.LOADOUTS:{
+                    db.loadouts = JSON.parse(this.blocks[key].content);
+                    break;
+                }
+                case RisuSaveType.PLUGIN_STORAGE:{
+                    db.pluginCustomStorage = JSON.parse(this.blocks[key].content);
+                    break;
+                }
                 case RisuSaveType.REMOTE:{
                     const remoteInfo:{
                         v:number
@@ -503,6 +574,13 @@ export class RisuSaveDecoder {
                 }
                 default:{
                     console.warn(`Not Implemented RisuSaveType: ${this.blocks[key].type} for ${this.blocks[key].name}`);
+                }
+            }
+            } catch (error) {
+                console.error(`Error processing block ${this.blocks[key].name}:`, error);
+
+                if(this.blocks[key].type === RisuSaveType.ROOT){
+                    throw new Error('Failed to decode root block, cannot proceed with decoding RisuSave data');
                 }
             }
         }

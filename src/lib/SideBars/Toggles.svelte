@@ -225,7 +225,7 @@
             </div>
         {/if}
         {@render toggles(groupedToggles, true)}
-        {#if DBState.db.supaModelType !== 'none' || DBState.db.hanuraiEnable || DBState.db.hypaV3}
+        {#if chara && (DBState.db.supaModelType !== 'none' || DBState.db.hanuraiEnable || DBState.db.hypaV3)}
             <div class="flex mt-2 items-center w-full" class:justify-end={$MobileGUI}>
                 <CheckInput
                     check={DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage]?.supaMemory ?? chara.supaMemory ?? false}

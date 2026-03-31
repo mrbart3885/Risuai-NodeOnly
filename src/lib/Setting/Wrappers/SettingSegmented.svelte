@@ -15,12 +15,12 @@
 
     let localValue: any = $state(untrack(() => getSettingValue(item, ctx)));
 
-    // Sync: DB → local (one-way read)
+    // Sync: DB -> local
     $effect(() => {
         localValue = getSettingValue(item, ctx);
     });
 
-    // Write-back: local → DB (guarded — only fires on actual user changes)
+    // Sync: local -> DB
     $effect(() => {
         const val = localValue;
         if (val === UNINITIALIZED) return;
@@ -31,18 +31,18 @@
         });
     });
 
-    // Transform options for translation
+    // Transform options: filter by condition + resolve labelKey translations
     let processedOptions = $derived((item.options?.segmentOptions ?? [])
         .filter(opt => !opt.condition || opt.condition(ctx))
         .map(opt => ({
-            ...opt,
-            label: opt.labelKey ? (language as any)[opt.labelKey] : opt.label
+            value: opt.value,
+            label: opt.labelKey ? ((language as any)[opt.labelKey] ?? opt.label ?? '') : (opt.label ?? '')
         })));
 
-    // Reset value if current selection becomes hidden
+    // Reset value if current selection becomes hidden due to condition changes
     $effect(() => {
-        const currentValue = untrack(() => localValue);
-        if (processedOptions.length > 0 && currentValue !== undefined && !processedOptions.some(o => o.value === currentValue)) {
+        const currentVal = untrack(() => localValue);
+        if (processedOptions.length > 0 && currentVal !== undefined && !processedOptions.some(o => o.value === currentVal)) {
             localValue = processedOptions[processedOptions.length - 1].value;
         }
     });

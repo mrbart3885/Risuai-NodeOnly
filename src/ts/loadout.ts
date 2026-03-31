@@ -1,0 +1,69 @@
+import { changeUserPersona } from "./persona"
+import { changeToPreset, getCurrentCharacter } from "./storage/database.svelte"
+import { DBState } from "./stores.svelte"
+
+export type Loadout = {
+    name: string
+    id: string
+    lastUsed: number
+    favorite: boolean
+    characterIds: string[]
+    modules: string[]
+    globalVariables: {[key:string]:string}
+    presetName: string
+    personaId: string
+}
+
+export function makeLoadout(options:{
+    name: string
+}): Loadout {
+    const character = getCurrentCharacter()
+    const id = crypto.randomUUID()
+    const preset = DBState.db.botPresets[DBState.db.botPresetsId]
+    return safeStructuredClone({
+        name: options.name,
+        id: id,
+        lastUsed: Date.now(),
+        favorite: false,
+        characterIds: character ? [character.chaId] : [],
+        modules: DBState.db.enabledModules,
+        globalVariables: DBState.db.globalChatVariables,
+        presetName: preset.name ?? '',
+        personaId: DBState.db.personas[DBState.db.selectedPersona]?.id
+    });
+}
+
+type LoadoutApplyOption = 'modules' | 'globalVariables' | 'preset' | 'persona'
+
+export function applyLoadout(loadout: Loadout, apply:LoadoutApplyOption[] = [
+    'modules',
+    'globalVariables',
+    'preset',
+    'persona'
+]) {
+    loadout.lastUsed = Date.now()
+    const chaId = getCurrentCharacter()?.chaId
+    if(chaId && !loadout.characterIds.includes(chaId)) {
+        loadout.characterIds.push(chaId)
+    }
+    if(apply.includes('persona')) {
+        const personaIndex = DBState.db.personas.findIndex(p => p.id === loadout.personaId)
+        changeUserPersona(personaIndex >= 0 ? personaIndex : 0)
+    }
+    if(apply.includes('preset')) {
+        const presetIndex = DBState.db.botPresets.findIndex(p => p.name === loadout.presetName)
+        changeToPreset(presetIndex >= 0 ? presetIndex : 0)
+    }
+    if(apply.includes('modules')) {
+        DBState.db.enabledModules = safeStructuredClone(loadout.modules)
+    }
+    if(apply.includes('globalVariables')) {
+        DBState.db.globalChatVariables = safeStructuredClone(loadout.globalVariables)
+    }
+}
+
+export function saveCurrentLoadout(name: string) {
+    const loadout = makeLoadout({name})
+    DBState.db.loadouts.push(loadout)
+    return loadout
+}

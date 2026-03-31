@@ -1,4 +1,4 @@
-import { type HypaModel, localModels, getPersistedHypaVector, setPersistedHypaVector } from "./hypamemory";
+import { type HypaModel, localModels, getPersistedHypaVector, setPersistedHypaVector, contextHash } from "./hypamemory";
 import { TaskRateLimiter, TaskCanceledError } from "./taskRateLimiter";
 import { runEmbedding } from "../transformers";
 import { globalFetch } from "src/ts/globalApi.svelte";
@@ -108,6 +108,22 @@ export class HypaProcessorV2<TMetadata> {
     const resultMap: Map<string, EmbeddingResult<TMetadata>> = new Map();
     const toEmbed: EmbeddingText<TMetadata>[] = [];
 
+    const voyageCtx = new Map<string, string[]>();
+    if (this.options.model === 'voyageContext3' && saveToMemory) {
+      const groups = new Map<TMetadata, EmbeddingText<TMetadata>[]>();
+      for (const item of ebdTexts) {
+        const g = groups.get(item.metadata) || [];
+        g.push(item);
+        groups.set(item.metadata, g);
+      }
+      for (const [, g] of groups) {
+        const texts = g.map(item => item.content);
+        for (const item of g) {
+          voyageCtx.set(item.id, texts);
+        }
+      }
+    }
+
     // Load cache
     const loadPromises = ebdTexts.map(async (item, index) => {
       const { id, content, metadata } = item;
@@ -119,7 +135,7 @@ export class HypaProcessorV2<TMetadata> {
       }
 
       try {
-        const cached = await getPersistedHypaVector(this.getCacheKey(content)) as EmbeddingResult<TMetadata> | undefined;
+        const cached = await getPersistedHypaVector(this.getCacheKey(content, voyageCtx.get(id))) as EmbeddingResult<TMetadata> | undefined;
 
         if (cached) {
           // Debug log for cache hit
@@ -184,7 +200,7 @@ export class HypaProcessorV2<TMetadata> {
           };
 
           // Save to DB
-          await setPersistedHypaVector(this.getCacheKey(content), {
+          await setPersistedHypaVector(this.getCacheKey(content, voyageCtx.get(id)), {
             content,
             embedding,
           } as any);
@@ -204,7 +220,7 @@ export class HypaProcessorV2<TMetadata> {
       const embeddingTasks = chunks.map((chunk) => {
         const contents = chunk.map((item) => item.content);
 
-        return () => this.getAPIEmbeds(contents);
+        return () => this.getAPIEmbeds(contents, saveToMemory ? "document" : "query");
       });
 
       // Progress callback
@@ -238,7 +254,7 @@ export class HypaProcessorV2<TMetadata> {
           };
 
           // Save to DB
-          await setPersistedHypaVector(this.getCacheKey(content), {
+          await setPersistedHypaVector(this.getCacheKey(content, voyageCtx.get(id)), {
             content,
             embedding,
           } as any);
@@ -283,14 +299,18 @@ export class HypaProcessorV2<TMetadata> {
     return dot / (Math.sqrt(magA) * Math.sqrt(magB));
   }
 
-  private getCacheKey(content: string): string {
+  private getCacheKey(content: string, contextTexts?: string[]): string {
     const db = getDatabase();
     const suffix =
       this.options.model === "custom" && db.hypaCustomSettings?.model?.trim()
         ? `-${db.hypaCustomSettings.model.trim()}`
         : "";
 
-    return `${content}|${this.options.model}${suffix}`;
+    const ctxSuffix = contextTexts && contextTexts.length > 1
+      ? `|ctx:${contextHash(contextTexts)}`
+      : "";
+
+    return `${content}|${this.options.model}${suffix}${ctxSuffix}`;
   }
 
   private getOptimalChunkSize(): number {
@@ -335,7 +355,10 @@ export class HypaProcessorV2<TMetadata> {
     return results;
   }
 
-  private async getAPIEmbeds(contents: string[]): Promise<EmbeddingVector[]> {
+  private async getAPIEmbeds(
+    contents: string[],
+    inputType: "query" | "document" = "query"
+  ): Promise<EmbeddingVector[]> {
     const db = getDatabase();
     let response = null;
 
@@ -387,6 +410,34 @@ export class HypaProcessorV2<TMetadata> {
       response = await globalFetch(
         "https://api.openai.com/v1/embeddings",
         fetchArgs
+      );
+    } else if (this.options.model === 'voyageContext3') {
+      const apiKey = db.voyageApiKey?.trim();
+      if (!apiKey) {
+        throw new Error('Voyage Context 3 requires a Voyage API Key');
+      }
+
+      const voyageResponse = await globalFetch(
+        "https://api.voyageai.com/v1/contextualizedembeddings",
+        {
+          headers: {
+            "Authorization": "Bearer " + apiKey,
+            "Content-Type": "application/json"
+          },
+          body: {
+            "inputs": contents.map(s => [s]),
+            "model": "voyage-context-3",
+            "input_type": inputType
+          }
+        }
+      );
+
+      if (!voyageResponse.ok || !voyageResponse.data.data) {
+        throw new Error(JSON.stringify(voyageResponse.data));
+      }
+
+      return voyageResponse.data.data.map(
+        (group: { data: { embedding: EmbeddingVector }[] }) => group.data[0].embedding
       );
     } else {
       throw new Error(`Unsupported model: ${this.options.model}`);

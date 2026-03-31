@@ -82,6 +82,10 @@ export interface SettingOptions {
     placeholder?: string;
     hideText?: boolean;     // For password-like inputs
     
+    // number
+    inputClassName?: string;
+    marginBottom?: boolean;
+
     // button
     onClick?: () => void | Promise<void>;
     
@@ -146,6 +150,8 @@ export interface SettingItem {
 
     /** Custom CSS classes for the main container or label */
     classes?: string;
+    /** Custom CSS classes for the outer container wrapper */
+    containerClasses?: string;
         
     /**
      * Component ID for custom components (type: 'custom')

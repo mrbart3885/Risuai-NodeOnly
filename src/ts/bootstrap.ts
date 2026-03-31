@@ -168,7 +168,9 @@ export async function loadData() {
 function updateErrorHandling() {
     const errorHandler = (event: ErrorEvent) => {
         console.error(event.error);
-        alertError(event.error);
+        if(!(event.error?.target instanceof Worker)){
+            alertError(event.error);
+        }
     };
     const rejectHandler = (event: PromiseRejectionEvent) => {
         console.error(event.reason);
@@ -395,7 +397,10 @@ async function cleanChunks() {
         db.characters.map((v) => v.chaId)
     )
     for (const asset of indexes) {
-        if (asset.startsWith('assets/')) {
+        if (asset.endsWith('.meta')) {
+            continue
+        }
+        else if (asset.startsWith('assets/')) {
             const n = getBasename(asset)
             if(!uncleanable.has(n)) {
                 await forageStorage.removeItem(asset)

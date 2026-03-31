@@ -49,6 +49,8 @@ interface requestDataArgument{
     escape?:boolean
     tools?: MCPTool[]
     rememberToolUsage?: boolean
+    forceStreaming?: boolean
+    blockPlugins?: boolean
 }
 
 export interface RequestDataArgumentExtended extends requestDataArgument{
@@ -93,7 +95,7 @@ export interface StreamResponseChunk{[key:string]:string}
 export async function requestChatData(arg:requestDataArgument, model:ModelModeExtended, abortSignal:AbortSignal=null):Promise<requestDataResponse> {
     const db = getDatabase()
     const fallBackModels:string[] = safeStructuredClone(db?.fallbackModels?.[model] ?? [])
-    const tools = await getTools()
+    const tools = arg.tools ?? (await getTools())
     fallBackModels.push('')
     let da:requestDataResponse
 
@@ -332,12 +334,19 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
         }
     }
 
+    if(arg.blockPlugins && targ.modelInfo.id.startsWith('pluginmodel:::')){
+        return {
+            type: 'fail',
+            result: 'Plugin calls are blocked by the caller.'
+        }
+    }
+
     targ.formated = safeStructuredClone(arg.formated)
     targ.maxTokens = arg.maxTokens ??db.maxResponse
     targ.temperature = arg.temperature ?? (db.temperature / 100)
     targ.bias = arg.bias
     targ.currentChar = arg.currentChar
-    targ.useStreaming = db.useStreaming && arg.useStreaming
+    targ.useStreaming = arg.forceStreaming ? true : db.useStreaming && arg.useStreaming
     targ.continue = arg.continue ?? false
     targ.biasString = arg.biasString ?? []
     targ.multiGen = ((db.genTime > 1 && targ.aiModel.startsWith('gpt') && (!arg.continue)) && (!arg.noMultiGen))
@@ -984,16 +993,19 @@ async function requestOllama(arg:RequestDataArgumentExtended):Promise<requestDat
 
     const ollama = new Ollama({host: db.ollamaURL})
 
-    const response = await ollama.chat({
-        model: db.ollamaModel,
-        messages: formated.map((v) => {
-            return {
+    const messages = []
+    for (const v of formated) {
+        if (v.role === 'assistant' || v.role === 'user' || v.role === 'system') {
+            messages.push({
                 role: v.role,
                 content: v.content
-            }
-        }).filter((v) => {
-            return v.role === 'assistant' || v.role === 'user' || v.role === 'system'
-        }),
+            })
+        }
+    }
+
+    const response = await ollama.chat({
+        model: db.ollamaModel,
+        messages: messages,
         stream: true
     })
 
