@@ -41,11 +41,12 @@
         img?: string|Promise<string>;
         idx?: number;
         messageGenerationInfo?: MessageGenerationInfo|null;
-        rerollIcon?: boolean|'dynamic';
+        rerollIcon?: boolean|'dynamic'|'force';
         role?: string;
         totalLength?: number;
         onReroll?: () => void;
         unReroll?: () => void;
+        onDeleteSwipe?: () => void;
         character?: simpleCharacterArgument|string|null;
         firstMessage?: boolean;
         altGreeting?: boolean;
@@ -68,6 +69,7 @@
         totalLength = 0,
         onReroll = () => {},
         unReroll = () => {},
+        onDeleteSwipe = () => {},
         character = null,
         firstMessage = false,
         altGreeting = false,
@@ -763,19 +765,41 @@
 {/snippet}
 
 {#snippet rerolls()}
-    {#if rerollIcon || altGreeting}
-        {#if DBState.db.swipe || altGreeting}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-unreroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={unReroll}>
+    {#if (rerollIcon || altGreeting) && role !== 'user'}
+        {#if altGreeting}
+            <!-- First message: always ← counter → -->
+            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-unreroll" onclick={unReroll}>
                 <ArrowLeft size={22}/>
             </button>
-            {#if firstMessage && DBState.db.swipe && DBState.db.showFirstMessagePages}
+            {#if DBState.db.showFirstMessagePages}
                 <span class="flex items-center text-xs text-textcolor2">{currentPage}/{totalPages}</span>
             {/if}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={onReroll}>
+            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" onclick={onReroll}>
                 <ArrowRight size={22}/>
             </button>
+        {:else if DBState.db.swipe}
+            <!-- Normal messages: ← counter ↻/→ with hide/show logic -->
+            {#if currentPage <= 1}
+                <div class:dyna-icon={rerollIcon === 'dynamic'} class:force-show={rerollIcon === 'force'} style="width:22px"></div>
+            {:else}
+                <button class="flex items-center hover:text-blue-500 transition-colors button-icon-unreroll" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'} onclick={unReroll}>
+                    <ArrowLeft size={22}/>
+                </button>
+            {/if}
+            {#if totalPages > 1}
+                <span class="flex items-center text-xs text-textcolor2" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'}>{currentPage}/{totalPages}</span>
+            {/if}
+            {#if currentPage >= totalPages}
+                <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'} onclick={onReroll}>
+                    <RefreshCcwIcon size={22}/>
+                </button>
+            {:else}
+                <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'} onclick={onReroll}>
+                    <ArrowRight size={22}/>
+                </button>
+            {/if}
         {:else}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={onReroll}>
+            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'} onclick={onReroll}>
                 <RefreshCcwIcon size={20}/>
             </button>
         {/if}
@@ -796,10 +820,22 @@
         </button>
     {/if}
 
+    {#if totalPages > 1}
+        <button class="flex items-center hover:text-red-500 transition-colors" onclick={async () => {
+            await sleep(1)
+            onDeleteSwipe()
+        }}>
+            <TrashIcon size={20}/>
+            {#if showNames}
+                <span class="ml-1">Delete Swipe ({currentPage}/{totalPages})</span>
+            {/if}
+        </button>
+    {/if}
+
     <button class="flex items-center hover:text-blue-500 transition-colors" onclick={async () => {
         await sleep(1)
         const currentChat = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage]
-        
+
         if(DBState.db.createFolderOnBranch && !currentChat.folderId){
             const folderId = v4()
             DBState.db.characters[selIdState.selId].chatFolders ??= []

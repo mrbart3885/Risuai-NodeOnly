@@ -20,6 +20,7 @@
         currentCharacter,
         onReroll,
         unReroll,
+        onDeleteSwipe = () => {},
         currentUsername,
         userIcon,
         loadPages,
@@ -30,6 +31,7 @@
         currentCharacter: character | groupChat
         onReroll: () => void
         unReroll: () => void
+        onDeleteSwipe?: () => void
         currentUsername: string
         userIcon: string
         loadPages: number
@@ -64,6 +66,20 @@
         let loadStart = messages.length - 1
         let loadEnd = messages.length - loadPages
 
+        // Find the last real (non-comment, non-disabled) char message index
+        // Only show reroll if it's the actual last non-disabled message
+        let lastRealCharIdx = -1;
+        let lastNonDisabledIdx = -1;
+        for (let i = messages.length - 1; i >= 0; i--) {
+            if (!messages[i].isComment && !messages[i].disabled) {
+                lastNonDisabledIdx = i;
+                break;
+            }
+        }
+        if (lastNonDisabledIdx >= 0 && messages[lastNonDisabledIdx].role === 'char') {
+            lastRealCharIdx = lastNonDisabledIdx;
+        }
+
         if(chatFoldedStateMessageIndex.index !== -1){
             loadStart = chatFoldedStateMessageIndex.index
             loadEnd = Math.max(0, chatFoldedStateMessageIndex.index - loadPages)
@@ -76,13 +92,16 @@
             const message = messages[i];
             const messageLargePortrait = message.role === 'user' ? (userIconPortrait ?? false) : ((currentCharacter as character).largePortrait ?? false);
             const reloadPointer = reloadPointerMap[i] ?? 0;
-            let hashd = message.data + (message.chatId ?? '') + i.toString() + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString();
+            const isRerollTarget = i === lastRealCharIdx;
+            let hashd = message.data + (message.chatId ?? '') + i.toString() + messageLargePortrait.toString() + message.disabled?.toString() + reloadPointer.toString() + (message.swipeId ?? 0).toString() + (message.swipes?.length ?? 0).toString() + isRerollTarget.toString();
             const currentHash = hashCode(hashd);
             currentHashes.add(currentHash);
             if(!hashes.has(currentHash)){
                 const b = document.createElement('div');
                 b.setAttribute('x-hashed', currentHash.toString());
                 b.classList.add('chat-message-container');
+                const swipes = message.swipes;
+                const swipeId = message.swipeId ?? 0;
                 const inst = mount(Chat, {
                     target: b,
                     props: {
@@ -93,7 +112,8 @@
                         img: message.role === 'user' ? userImage : charImage,
                         onReroll: onReroll,
                         unReroll: unReroll,
-                        rerollIcon: 'dynamic',
+                        onDeleteSwipe: i === lastRealCharIdx ? onDeleteSwipe : () => {},
+                        rerollIcon: i === lastRealCharIdx ? 'force' : false,
                         character: simpleChar,
                         largePortrait: message.role === 'user' ? (userIconPortrait ?? false) : ((currentCharacter as character).largePortrait ?? false),
                         messageGenerationInfo: message.generationInfo,
@@ -101,6 +121,10 @@
                         name: message.role === 'user' ? currentUsername : currentCharacter.name,
                         isComment: message.isComment ?? false,
                         disabled: message.disabled ?? false,
+                        ...(i === lastRealCharIdx && swipes && swipes.length > 0 ? {
+                            currentPage: swipeId + 1,
+                            totalPages: swipes.length,
+                        } : {}),
                     },
 
                 })

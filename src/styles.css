@@ -543,7 +543,8 @@ body {
   display: none;
 }
 
-.chat-message-container:first-of-type .dyna-icon {
+.chat-message-container:first-of-type .dyna-icon,
+.chat-message-container .dyna-icon.force-show {
   display: block;
 }
 

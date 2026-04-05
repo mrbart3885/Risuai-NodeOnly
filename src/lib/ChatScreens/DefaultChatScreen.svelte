@@ -22,7 +22,6 @@
     import { aiLawApplies, chatFoldedState, chatFoldedStateMessageIndex, downloadFile } from 'src/ts/globalApi.svelte';
     import { runTrigger } from 'src/ts/process/triggers';
     import { v4 } from 'uuid';
-    import { PreUnreroll, Prereroll } from 'src/ts/process/prereroll';
     import { processMultiCommand } from 'src/ts/process/command';
     import { postChatFile } from 'src/ts/process/files/multisend';
     import { getInlayAsset } from 'src/ts/process/files/inlays';
@@ -45,9 +44,6 @@
     let messageInputTranslate:string = $state('')
     let openMenu = $state(false)
     let loadPages = $state(30)
-    let rerolls:Message[][] = []
-    let rerollid = -1
-    let lastCharId = -1
     let doingChatInputTranslate = false
     let toggleStickers:boolean = $state(false)
     let fileInput:string[] = $state([])
@@ -145,10 +141,6 @@
         if($doingChat){
             return
         }
-        if(lastCharId !== $selectedCharID){
-            rerolls = []
-            rerollid = -1
-        }
 
         let cha = DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].message
 
@@ -207,96 +199,112 @@
         messageInput = ''
         messageInputTranslate = ''
         DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].message = cha
-        rerolls = []
+
         await sleep(10)
         updateInputSizeAll()
         await sendChatMain(continueResponse)
 
     }
 
+    function getLastCharMsg() {
+        const msgs = DBState.db.characters[$selectedCharID]?.chats[DBState.db.characters[$selectedCharID].chatPage]?.message
+        if (!msgs || msgs.length === 0) return null
+        for (let i = msgs.length - 1; i >= 0; i--) {
+            if (msgs[i].role === 'char' && !msgs[i].isComment && !msgs[i].disabled) return msgs[i]
+        }
+        return null
+    }
+
     async function reroll() {
-        if($doingChat){
+        if($doingChat) return
+        const lastMsg = getLastCharMsg()
+        if (!lastMsg) return
+
+        // If swipes exist and not at the end, navigate forward
+        if (lastMsg.swipes && lastMsg.swipeId < lastMsg.swipes.length - 1) {
+            lastMsg.swipeId += 1
+            lastMsg.data = lastMsg.swipes[lastMsg.swipeId]
+            DBState.db.characters[$selectedCharID].reloadKeys += 1
             return
         }
-        if(lastCharId !== $selectedCharID){
-            rerolls = []
-            rerollid = -1
+
+        // Initialize swipes before generation
+        if (!lastMsg.swipes) {
+            lastMsg.swipes = [lastMsg.data]
+            lastMsg.swipeId = 0
         }
-        const genId = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.at(-1)?.generationInfo?.generationId
-        if(genId){
-            const r = Prereroll(genId)
-            if(r){
-                DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].data = r
-                return
-            }
-        }
-        if(rerollid < rerolls.length - 1){
-            if(Array.isArray(rerolls[rerollid + 1])){
-                rerollid += 1
-                let rerollData = safeStructuredClone(rerolls[rerollid])
-                let msgs = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
-                for(let i = 0; i < rerollData.length; i++){
-                    msgs[msgs.length - rerollData.length + i] = rerollData[i]
-                }
-                DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = msgs
-            }
-            return
-        }
-        if(rerolls.length === 0){
-            rerolls.push(safeStructuredClone([DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.at(-1)]))
-            rerollid = rerolls.length - 1
-        }
+
+        // At the end — generate new response
+        // Preserve trailing comment/disabled messages (e.g. branch comments)
         let cha = safeStructuredClone(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message)
-        if(cha.length === 0 ){
-            return
-        }
+        if(cha.length === 0) return
         openMenu = false
+
+        const trailingComments = []
+        while(cha.length > 0 && (cha[cha.length - 1].isComment || cha[cha.length - 1].disabled)) {
+            trailingComments.unshift(cha.pop())
+        }
+
+        if(cha.length === 0) return
         const saying = cha[cha.length - 1].saying
         let sayingQu = 2
         while(cha[cha.length - 1].role !== 'user'){
             if(cha[cha.length - 1].saying === saying){
                 sayingQu -= 1
-                if(sayingQu === 0){
-                    break
-                }
+                if(sayingQu === 0) break
             }
             let msg = cha.pop()
-            if(!msg){
-                return
-            }
+            if(!msg) return
         }
         DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = cha
         await sendChatMain()
+
+        // Restore trailing comments after the new message
+        if (trailingComments.length > 0) {
+            const msgs = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
+            msgs.push(...trailingComments)
+            DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = msgs
+        }
+
+        // After generation, save new response to swipes
+        const newLastMsg = getLastCharMsg()
+        if (newLastMsg && lastMsg.swipes) {
+            if (!newLastMsg.swipes) {
+                newLastMsg.swipes = [...lastMsg.swipes, newLastMsg.data]
+                newLastMsg.swipeId = newLastMsg.swipes.length - 1
+            }
+        }
     }
 
     async function unReroll() {
-        if($doingChat){
-            return
+        if($doingChat) return
+        const lastMsg = getLastCharMsg()
+        if (!lastMsg) return
+
+        if (!lastMsg.swipes || lastMsg.swipeId === undefined || lastMsg.swipeId <= 0) return
+
+        lastMsg.swipeId -= 1
+        lastMsg.data = lastMsg.swipes[lastMsg.swipeId]
+        DBState.db.characters[$selectedCharID].reloadKeys += 1
+    }
+
+    function deleteSwipe() {
+        const lastMsg = getLastCharMsg()
+        if (!lastMsg || !lastMsg.swipes || lastMsg.swipes.length <= 1) return
+
+        const idx = lastMsg.swipeId ?? 0
+        lastMsg.swipes.splice(idx, 1)
+
+        if (idx >= lastMsg.swipes.length) {
+            lastMsg.swipeId = lastMsg.swipes.length - 1
         }
-        if(lastCharId !== $selectedCharID){
-            rerolls = []
-            rerollid = -1
+        lastMsg.data = lastMsg.swipes[lastMsg.swipeId]
+
+        if (lastMsg.swipes.length === 1) {
+            delete lastMsg.swipes
+            delete lastMsg.swipeId
         }
-        const genId = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.at(-1)?.generationInfo?.generationId
-        if(genId){
-            const r = PreUnreroll(genId)
-            if(r){
-                DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].data = r
-                return
-            }
-        }
-        if(rerollid <= 0){
-            return
-        }
-        if(Array.isArray(rerolls[rerollid - 1])){
-            rerollid -= 1
-            let rerollData = safeStructuredClone(rerolls[rerollid])
-            let msgs = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
-            for(let i = 0; i < rerollData.length; i++){
-                msgs[msgs.length - rerollData.length + i] = rerollData[i]
-            }
-            DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = msgs
-        }
+        DBState.db.characters[$selectedCharID].reloadKeys += 1
     }
 
     let abortController:null|AbortController = null
@@ -311,15 +319,10 @@
                 signal:abortController.signal,
                 continue:continued
             })
-            if(previousLength < DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length){
-                rerolls.push(safeStructuredClone(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message).slice(previousLength))
-                rerollid = rerolls.length - 1
-            }
         } catch (error) {
             console.error(error)
             alertError(error)
         }
-        lastCharId = $selectedCharID
         $doingChat = false
         if(DBState.db.playMessage){
             const audio = new Audio(sendSound);
@@ -795,6 +798,7 @@
                 messages={currentChat}
                 loadPages={loadPages}
                 onReroll={reroll}
+                onDeleteSwipe={deleteSwipe}
                 unReroll={unReroll}
                 currentCharacter={currentCharacter}
                 currentUsername={currentUsername}
@@ -813,7 +817,7 @@
                         role='char'
                         img={getCharImage(DBState.db.characters[$selectedCharID].image, 'css')}
                         idx={-1}
-                        altGreeting={DBState.db.characters[$selectedCharID].alternateGreetings.length > 0}
+                        altGreeting={DBState.db.characters[$selectedCharID].alternateGreetings.length > 0 && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length === 0}
                         largePortrait={DBState.db.characters[$selectedCharID].largePortrait}
                         firstMessage={true}
                         onReroll={() => {
