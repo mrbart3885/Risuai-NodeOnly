@@ -620,7 +620,7 @@ export async function registerNanoGPTModelsDynamic() {
                 internalID: model.id,
                 provider: LLMProvider.NanoGPT,
                 format: LLMFormat.OpenAICompatible,
-                flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming, LLMFlags.hasImageInput],
+                flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
                 parameters: ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty'],
                 tokenizer: LLMTokenizer.tiktokenO200Base,
             })
