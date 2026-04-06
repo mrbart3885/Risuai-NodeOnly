@@ -49,7 +49,20 @@ jobs:
 
   portable:
     needs: build
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+            arch: x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -66,7 +79,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -74,7 +86,7 @@ jobs:
           name: app-build
           path: portable/
 
-      - name: Install production dependencies for Windows
+      - name: Install production dependencies
         shell: bash
         run: |
           cd portable
@@ -86,21 +98,68 @@ jobs:
         shell: bash
         run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
-      - name: Download Node.js binary
+      - name: Download Node.js binary (Windows)
+        if: matrix.platform == 'win'
         shell: bash
         run: |
           NODE_VERSION="22.14.0"
           mkdir -p portable/bin
-          URL="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-win-x64.zip"
-          curl -fsSL "$URL" -o node.zip
+          curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-win-x64.zip" -o node.zip
           unzip -q node.zip
           cp "node-v${NODE_VERSION}-win-x64/node.exe" portable/bin/node.exe
 
-      - name: Add launcher scripts
+      - name: Download Node.js binary (Linux)
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          NODE_VERSION="22.14.0"
+          mkdir -p portable/bin
+          curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o node.tar.xz
+          tar -xJf node.tar.xz
+          cp "node-v${NODE_VERSION}-linux-x64/bin/node" portable/bin/node
+          chmod +x portable/bin/node
+
+      - name: Download Node.js binary (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          NODE_VERSION="22.14.0"
+          mkdir -p portable/bin
+          curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-darwin-arm64.tar.gz" -o node.tar.gz
+          tar -xzf node.tar.gz
+          cp "node-v${NODE_VERSION}-darwin-arm64/bin/node" portable/bin/node
+          chmod +x portable/bin/node
+
+      - name: Add launcher scripts (Windows)
+        if: matrix.platform == 'win'
         shell: bash
         run: |
           printf '@echo off\r\nsetlocal\r\ntitle RisuAI NodeOnly\r\nset PORT=6001\r\nstart "" "http://localhost:%%PORT%%"\r\n"%%~dp0bin\\node.exe" "%%~dp0server\\node\\server.cjs"\r\npause\r\n' > portable/RisuAI.bat
           printf '@echo off\r\n"%%~dp0bin\\node.exe" "%%~dp0scripts\\updater.cjs"\r\npause\r\n' > portable/update.bat
+
+      - name: Add launcher scripts (Unix)
+        if: matrix.platform != 'win'
+        shell: bash
+        run: |
+          cat > portable/start.sh << 'EOF'
+          #!/bin/bash
+          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+          cd "$SCRIPT_DIR"
+          PORT="${PORT:-6001}"
+          if command -v xdg-open >/dev/null 2>&1; then
+              xdg-open "http://localhost:$PORT" 2>/dev/null &
+          elif command -v open >/dev/null 2>&1; then
+              open "http://localhost:$PORT" 2>/dev/null &
+          fi
+          bin/node server/node/server.cjs
+          EOF
+          cat > portable/update.sh << 'EOF'
+          #!/bin/bash
+          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+          cd "$SCRIPT_DIR"
+          bin/node scripts/updater.cjs
+          EOF
+          chmod +x portable/start.sh portable/update.sh
 
       - name: Add updater script
         shell: bash
@@ -108,7 +167,8 @@ jobs:
           mkdir -p portable/scripts
           cp scripts/updater.cjs portable/scripts/updater.cjs 2>/dev/null || true
 
-      - name: Package portable
+      - name: Package portable (Windows)
+        if: matrix.platform == 'win'
         shell: bash
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -116,10 +176,20 @@ jobs:
           cd portable
           7z a -tzip "../${NAME}.zip" .
 
+      - name: Package portable (Unix)
+        if: matrix.platform != 'win'
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          NAME="RisuAI-NodeOnly-v${VERSION}-${{ matrix.platform }}-${{ matrix.arch }}"
+          mv portable "$NAME"
+          tar -czf "${NAME}.tar.gz" "$NAME"
+          rm -rf "$NAME"
+
       - name: Upload portable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: portable-win-x64
+          name: portable-${{ matrix.platform }}-${{ matrix.arch }}
           path: RisuAI-NodeOnly-*
           retention-days: 1
 

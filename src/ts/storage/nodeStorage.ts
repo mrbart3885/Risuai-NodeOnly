@@ -18,64 +18,6 @@ export class ConflictError extends Error {
     }
 }
 
-// ── database.bin read cache (IndexedDB) ──────────────────────────────────────
-// Caches the database.bin blob + ETag locally so that subsequent page loads can
-// skip the full download when the server responds 304 Not Modified.
-// Only database.bin is cached — this is not a general-purpose cache layer.
-
-const DB_CACHE_DB_NAME = 'risu-db-cache'
-const DB_CACHE_STORE = 'cache'
-const DB_CACHE_KEY = 'database.bin'
-
-async function dbCacheGet(): Promise<{ blob: Uint8Array, etag: string } | null> {
-    try {
-        const db = await new Promise<IDBDatabase>((resolve, reject) => {
-            const req = indexedDB.open(DB_CACHE_DB_NAME, 1)
-            req.onupgradeneeded = () => req.result.createObjectStore(DB_CACHE_STORE)
-            req.onsuccess = () => resolve(req.result)
-            req.onerror = () => reject(req.error)
-        })
-        const tx = db.transaction(DB_CACHE_STORE, 'readonly')
-        const store = tx.objectStore(DB_CACHE_STORE)
-        const result = await new Promise<any>((resolve, reject) => {
-            const req = store.get(DB_CACHE_KEY)
-            req.onsuccess = () => resolve(req.result)
-            req.onerror = () => reject(req.error)
-        })
-        db.close()
-        if (result && result.blob && result.etag) {
-            return { blob: result.blob, etag: result.etag }
-        }
-        return null
-    } catch {
-        return null
-    }
-}
-
-async function dbCacheSet(blob: Uint8Array, etag: string): Promise<void> {
-    try {
-        const db = await new Promise<IDBDatabase>((resolve, reject) => {
-            const req = indexedDB.open(DB_CACHE_DB_NAME, 1)
-            req.onupgradeneeded = () => req.result.createObjectStore(DB_CACHE_STORE)
-            req.onsuccess = () => resolve(req.result)
-            req.onerror = () => reject(req.error)
-        })
-        const tx = db.transaction(DB_CACHE_STORE, 'readwrite')
-        const store = tx.objectStore(DB_CACHE_STORE)
-        // Atomic: blob + etag written in a single transaction
-        store.put({ blob, etag }, DB_CACHE_KEY)
-        await new Promise<void>((resolve, reject) => {
-            tx.oncomplete = () => resolve()
-            tx.onerror = () => reject(tx.error)
-        })
-        db.close()
-    } catch {
-        // Cache write failure is non-fatal
-    }
-}
-
-export { dbCacheSet }
-
 export class NodeStorage{
     private static readonly BULK_WRITE_CLIENT_BATCH = 20
 
@@ -257,32 +199,6 @@ export class NodeStorage{
             'file-path': Buffer.from(key, 'utf-8').toString('hex')
         }
 
-        // For database.bin, try to use cached version with ETag validation
-        if (key === 'database/database.bin') {
-            const cached = await dbCacheGet()
-            if (cached) {
-                headers['if-none-match'] = cached.etag
-                const da = await this.authFetch('/api/read', { method: "GET", headers })
-                if (da.status === 304) {
-                    this._lastDbEtag = cached.etag
-                    return Buffer.from(cached.blob)
-                }
-                if (da.status < 200 || da.status >= 300) {
-                    throw "getItem Error"
-                }
-                const etag = da.headers.get('x-db-etag')
-                if (etag) {
-                    this._lastDbEtag = etag
-                }
-                const data = Buffer.from(await da.arrayBuffer())
-                if (data.length === 0) return null
-                if (etag) {
-                    void dbCacheSet(new Uint8Array(data), etag)
-                }
-                return data
-            }
-        }
-
         const da = await this.authFetch('/api/read', { method: "GET", headers })
         if(da.status < 200 || da.status >= 300){
             throw "getItem Error"
@@ -297,11 +213,6 @@ export class NodeStorage{
         const data = Buffer.from(await da.arrayBuffer())
         if (data.length === 0){
             return null
-        }
-
-        // Cache database.bin after full download
-        if (key === 'database/database.bin' && etag) {
-            void dbCacheSet(new Uint8Array(data), etag)
         }
 
         return data

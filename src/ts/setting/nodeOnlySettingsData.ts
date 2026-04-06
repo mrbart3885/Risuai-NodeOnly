@@ -7,6 +7,7 @@ export const nodeOnlySettingsItems: SettingItem[] = [
 
     // Sidebar
     { id: 'nodeonly.showModelInSidebar', type: 'check', labelKey: 'showModelInSidebar', bindKey: 'showModelInSidebar', classes: 'mt-4' },
+    { id: 'nodeonly.showPresetInSidebar', type: 'check', labelKey: 'showPresetInSidebar', bindKey: 'showPresetInSidebar', classes: 'mt-4' },
     { id: 'nodeonly.showPersonaInSidebar', type: 'check', labelKey: 'showPersonaInSidebar', bindKey: 'showPersonaInSidebar', classes: 'mt-4' },
     { id: 'nodeonly.disableMobileDragDrop', type: 'check', labelKey: 'disableMobileDragDrop', bindKey: 'disableMobileDragDrop', classes: 'mt-4' },
 

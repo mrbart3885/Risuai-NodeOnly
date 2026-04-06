@@ -106,6 +106,13 @@
 
 
     let groupedToggles = $derived.by(() => {
+        // Track chat/module changes so the toggle list re-derives on chat switch
+        const _char = DBState.db.characters[$selectedCharID]
+        void _char?.chats?.[_char?.chatPage]?.modules
+        void _char?.modules
+        void DBState.db.enabledModules
+        void DBState.db.moduleIntergration
+
         const ungrouped = parseToggleSyntax(DBState.db.customPromptTemplateToggle + getModuleToggles())
 
         let groupOpen = false

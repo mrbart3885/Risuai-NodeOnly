@@ -1450,6 +1450,7 @@ export const languageEnglish = {
     playMessageOnTranslateEnd: "Play Audio on Translate Completion",
     auxModelUnderModelSettings: "Show Separate Aux Models in Model Settings",
     showModelInSidebar: "Show Model Selection in Sidebar",
+    showPresetInSidebar: "Show Preset Selection in Sidebar",
     showPersonaInSidebar: "Show Persona Binding in Sidebar",
     disableMobileDragDrop: "Disable Character Drag & Drop on Mobile",
     seperateModelsForAxModels: "Separate Models for Auxiliary Models",
