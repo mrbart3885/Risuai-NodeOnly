@@ -12,7 +12,7 @@ import { characterURLImport, hubURL } from "./characterCards";
 import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from "./storage/defaultPrompts";
 import { decodeRisuSave, encodeRisuSaveLegacy, RisuSaveEncoder, RisuSavePatcher, type toSaveType } from "./storage/risuSave";
 import { AutoStorage } from "./storage/autoStorage";
-import { ConflictError, dbCacheSet } from "./storage/nodeStorage";
+import { ConflictError } from "./storage/nodeStorage";
 import { supportsPatchSync } from "./platform";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
@@ -310,12 +310,6 @@ export async function saveDb() {
         pluginCustomStorage: false
     }
 
-    // database.bin read cache: trailing throttle + best-effort flush on pagehide
-    let lastCachedDbData: Uint8Array | null = null
-    let lastCachedEtag: string | null = null
-    let dbCacheTimer: ReturnType<typeof setTimeout> | null = null
-    const DB_CACHE_TRAILING_MS = 15 * 1000 // 15 seconds
-
     let encoder = new RisuSaveEncoder()
     await encoder.init(getDatabase(), {
         compression: false
@@ -399,21 +393,12 @@ export async function saveDb() {
                 clearTimeout(saveTimeout);
                 saveTimeout = null;
             }
-            if (dbCacheTimer) {
-                clearTimeout(dbCacheTimer)
-                dbCacheTimer = null
-            }
             changed = true;
             void triggerSave({
                 skipBroadcast: true,
                 skipBackups: true,
             })
             void flushServerDbKeepalive()
-
-            // Best-effort: cache latest known-good state for next 304
-            if (lastCachedDbData && lastCachedEtag) {
-                void dbCacheSet(new Uint8Array(lastCachedDbData), lastCachedEtag)
-            }
         }
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') flushImmediate();
@@ -682,19 +667,6 @@ export async function saveDb() {
             forageStorage.setDbEtag(newEtag)
         }
 
-        // Trailing throttle: reset timer on each save, write cache after 15s of inactivity
-        const cacheEtag = forageStorage.getDbEtag()
-        if (cacheEtag) {
-            lastCachedDbData = dbData
-            lastCachedEtag = cacheEtag
-            if (dbCacheTimer) clearTimeout(dbCacheTimer)
-            dbCacheTimer = setTimeout(() => {
-                if (lastCachedDbData && lastCachedEtag) {
-                    void dbCacheSet(new Uint8Array(lastCachedDbData), lastCachedEtag)
-                }
-                dbCacheTimer = null
-            }, DB_CACHE_TRAILING_MS)
-        }
 
         // NOTE: skipBackups only controls Kei cloud backup here.
         // Internal database backups (dbbackup-*) are now created server-side

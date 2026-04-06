@@ -471,6 +471,7 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
             headers: signed.headers,
             plainFetchForce: true,
             chatId: arg.chatId,
+            abortSignal: arg.abortSignal,
             interceptor: 'anthropic_bedrock'
         })
 
@@ -928,6 +929,7 @@ async function requestClaudeHTTP(replacerURL:string, headers:{[key:string]:strin
         headers: headers,
         method: "POST",
         chatId: arg.chatId,
+        abortSignal: arg.abortSignal,
         interceptor: 'anthropic_http'
     })
 

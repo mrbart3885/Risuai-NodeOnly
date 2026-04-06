@@ -19,12 +19,7 @@ const { applyPatch } = require('fast-json-patch');
 const { decodeRisuSave, encodeRisuSaveLegacy, calculateHash, normalizeJSON } = require('./utils.cjs');
 
 // Configuration flags for patch-based sync
-let enablePatchSync = true;
-const [nodeMajor, nodeMinor, nodePatch_] = process.version.slice(1).split('.').map(Number);
-if (nodeMajor >= 23 || (nodeMajor === 22 && nodeMinor === 7 && nodePatch_ === 0)) {
-    console.log(`[Server] Detected problematic Node.js version ${process.version}. Disabling patch-based sync.`);
-    enablePatchSync = false;
-}
+const enablePatchSync = true;
 
 // In-memory database cache for patch-based sync
 let dbCache = {};
@@ -107,7 +102,7 @@ function shouldCompress(req, res) {
     // Original upstream server has no compression middleware at all,
     // so proxy responses were never compressed in the first place.
     const url = req.originalUrl || req.url;
-    if (url.startsWith('/proxy') || url.startsWith('/hub-proxy')) {
+    if (url.startsWith('/proxy') || url.startsWith('/hub-proxy') || url.startsWith('/api/backup/export')) {
         return false;
     }
 

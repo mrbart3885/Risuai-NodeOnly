@@ -1331,6 +1331,7 @@ export const languageKorean = {
     "playMessageOnTranslateEnd": "번역 완료 시 오디오 재생",
     "auxModelUnderModelSettings": "보조 모델 분리를 모델 설정에 표시",
     "showModelInSidebar": "사이드바에 모델 선택 표시",
+    "showPresetInSidebar": "사이드바에 프리셋 선택 표시",
     "showPersonaInSidebar": "사이드바에 페르소나 바인딩 표시",
     "disableMobileDragDrop": "모바일에서 캐릭터 드래그 앤 드롭 비활성화",
     "seperateModelsForAxModels": "보조 모델 분리",

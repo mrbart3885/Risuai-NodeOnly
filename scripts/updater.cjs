@@ -183,7 +183,8 @@ async function main() {
 
     // Phase 1: move old files to backup (safer than immediate delete)
     log('Replacing files...');
-    const keep = new Set(['save', 'bin', '.installed-version', '.update-tmp', 'scripts']);
+    const keep = new Set(['save', '.installed-version', '.update-tmp', 'scripts']);
+    if (isWin) keep.add('bin');
     const backupDir = path.join(tmpDir, 'backup');
     fs.mkdirSync(backupDir, { recursive: true });
 
@@ -203,7 +204,8 @@ async function main() {
 
     // Phase 2: move new files from extracted to root
     const moved = [];
-    const skipMove = new Set(['save', 'bin', 'scripts']);
+    const skipMove = new Set(['save', 'scripts']);
+    if (isWin) skipMove.add('bin');
     try {
         for (const entry of fs.readdirSync(extractedRoot)) {
             if (skipMove.has(entry)) continue;

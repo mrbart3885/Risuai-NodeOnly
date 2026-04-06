@@ -47,12 +47,16 @@ export function applyLoadout(loadout: Loadout, apply:LoadoutApplyOption[] = [
         loadout.characterIds.push(chaId)
     }
     if(apply.includes('persona')) {
-        const personaIndex = DBState.db.personas.findIndex(p => p.id === loadout.personaId)
-        changeUserPersona(personaIndex >= 0 ? personaIndex : 0)
+        const personaIndex = DBState.db.personas?.findIndex(p => p.id === loadout.personaId)
+        if(personaIndex >= 0){
+            changeUserPersona(personaIndex)
+        }
     }
     if(apply.includes('preset')) {
-        const presetIndex = DBState.db.botPresets.findIndex(p => p.name === loadout.presetName)
-        changeToPreset(presetIndex >= 0 ? presetIndex : 0)
+        const presetIndex = DBState.db.botPresets?.findIndex(p => p.name === loadout.presetName)
+        if(presetIndex >= 0){
+            changeToPreset(presetIndex)
+        }
     }
     if(apply.includes('modules')) {
         DBState.db.enabledModules = safeStructuredClone(loadout.modules)
