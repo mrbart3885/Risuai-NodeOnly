@@ -19,6 +19,8 @@
 
 RisuAI NodeOnly는 원본 [RisuAI](https://github.com/kwaroran/RisuAI)를 **Node.js 로컬 서버** 전용으로 단순화 및 개조한 버전입니다.
 
+프로덕션 자동배포 예시는 [deploy/lightsail/README.md](deploy/lightsail/README.md)를 참고하세요.
+
 PC에서 실행하면 브라우저로 바로 사용하고, 간단한 설정 하나면 스마트폰에서도 접속할 수 있습니다.
 
 ---

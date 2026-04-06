@@ -1,0 +1,40 @@
+name: risuai-nodeonly
+
+services:
+  risuai:
+    container_name: risuai-nodeonly
+    image: ${RISU_IMAGE:-ghcr.io/blissful-y0/risuai-nodeonly:latest}
+    restart: always
+    expose:
+      - "6001"
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    volumes:
+      - risuai-save:/app/save
+
+  cloudflared:
+    container_name: cloudflared
+    image: cloudflare/cloudflared:latest
+    restart: always
+    depends_on:
+      - risuai
+      - watchtower
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN}
+
+  watchtower:
+    container_name: watchtower
+    image: containrrr/watchtower:latest
+    restart: always
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/ec2-user/.docker/config.json:/config.json:ro
+    environment:
+      WATCHTOWER_HTTP_API_TOKEN: ${WATCHTOWER_HTTP_API_TOKEN}
+      WATCHTOWER_NO_STARTUP_MESSAGE: "true"
+    command: --cleanup --label-enable --http-api-update risuai-nodeonly
+
+volumes:
+  risuai-save:
+    external: true

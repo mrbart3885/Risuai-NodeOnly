@@ -1,14 +1,20 @@
-name: Build and publish Docker image
+name: Publish Docker image
 
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: mrbart3885/risuai-nodeonly
+  IMAGE_NAME: ${{ github.repository_owner }}/risuai-nodeonly
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-push-image:
@@ -31,19 +37,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version from tag
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" =~ ^refs/tags/v(.+)$ ]]; then
-            VERSION="${BASH_REMATCH[1]}"
-            MINOR="${VERSION%.*}"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "minor=$MINOR" >> $GITHUB_OUTPUT
-            echo "is_tag=true" >> $GITHUB_OUTPUT
-          else
-            echo "version=$(git rev-parse --short $GITHUB_SHA)" >> $GITHUB_OUTPUT
-            echo "is_tag=false" >> $GITHUB_OUTPUT
-          fi
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+            type=ref,event=tag
+            type=match,pattern=v([0-9]+\.[0-9]+)\.[0-9]+,group=1,prefix=v
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -51,12 +57,60 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ steps.version.outputs.is_tag == 'true' && format('{0}/{1}:latest', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ steps.version.outputs.is_tag == 'true' && format('{0}/{1}:v{2}', env.REGISTRY, env.IMAGE_NAME, steps.version.outputs.version) || format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, steps.version.outputs.version) }}
-            ${{ steps.version.outputs.is_tag == 'true' && format('{0}/{1}:v{2}', env.REGISTRY, env.IMAGE_NAME, steps.version.outputs.minor) || '' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy-production:
+    needs: build-and-push-image
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deploy secrets
+        id: secrets
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          missing=0
+          for name in DEPLOY_WEBHOOK_URL DEPLOY_WEBHOOK_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "::warning title=Deploy skipped::$name is not configured"
+              missing=1
+            fi
+          done
+
+          if [ -z "$CF_ACCESS_CLIENT_ID" ] || [ -z "$CF_ACCESS_CLIENT_SECRET" ]; then
+            echo "::warning title=Deploy without Cloudflare Access::CF_ACCESS_CLIENT_ID/CF_ACCESS_CLIENT_SECRET not configured"
+          fi
+
+          if [ "$missing" -eq 1 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger production deploy
+        if: steps.secrets.outputs.skip != 'true'
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          headers=(-H "Authorization: Bearer $DEPLOY_WEBHOOK_TOKEN")
+
+          if [ -n "$CF_ACCESS_CLIENT_ID" ] && [ -n "$CF_ACCESS_CLIENT_SECRET" ]; then
+            headers+=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID")
+            headers+=(-H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
+          fi
+
+          curl --retry 5 --retry-delay 2 --retry-connrefused \
+            -fsS -X POST "$DEPLOY_WEBHOOK_URL" \
+            "${headers[@]}"
 
   cleanup-old-images:
     needs: build-and-push-image
