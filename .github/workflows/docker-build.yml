@@ -75,6 +75,7 @@ jobs:
           DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
         run: |
           missing=0
           for name in DEPLOY_WEBHOOK_URL DEPLOY_WEBHOOK_TOKEN; do
@@ -92,6 +93,12 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$DISCORD_DEPLOY_WEBHOOK_URL" ]; then
+            echo "has_discord=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_discord=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Trigger production deploy
@@ -114,7 +121,7 @@ jobs:
             "${headers[@]}"
 
       - name: Notify Discord on deploy success
-        if: success() && steps.secrets.outputs.skip != 'true' && secrets.DISCORD_DEPLOY_WEBHOOK_URL != ''
+        if: success() && steps.secrets.outputs.skip != 'true' && steps.secrets.outputs.has_discord == 'true'
         continue-on-error: true
         env:
           DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
@@ -144,7 +151,7 @@ jobs:
             --data @payload.json
 
       - name: Notify Discord on deploy failure
-        if: failure() && steps.secrets.outputs.skip != 'true' && secrets.DISCORD_DEPLOY_WEBHOOK_URL != ''
+        if: failure() && steps.secrets.outputs.skip != 'true' && steps.secrets.outputs.has_discord == 'true'
         continue-on-error: true
         env:
           DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
