@@ -9,9 +9,12 @@ import {
     ClaudeParameters,
     type LLMModel
 } from './types'
+import type { LLMParameter } from '../process/request/shared'
 import { OpenAIModels } from './providers/openai'
 import { AnthropicModels } from './providers/anthropic'
 import { GoogleModels } from './providers/google'
+import { CopilotModels } from './providers/copilot'
+import { NanoGPTModels } from './providers/nanogpt'
 import { fetchNative } from "../globalApi.svelte"
 import { DBState } from "../stores.svelte"
 import { customProviderStore, pluginV2 } from "../plugins/plugins.svelte"
@@ -43,6 +46,8 @@ function makeDeepInfraModels(id:string[]):LLMModel[]{
 export const LLMModels: LLMModel[] = [
     ...OpenAIModels,
     ...AnthropicModels,
+    ...CopilotModels,
+    ...NanoGPTModels,
     // AWS Bedrock Claude models
     {
         name: "Claude 4.6 Opus v1",
@@ -533,6 +538,96 @@ for(let model of LLMModels){
     model.shortName ??= model.name
     model.internalID ??= model.id
     model.fullName ??= model.provider !== LLMProvider.AsIs ? `${ProviderNames.get(model.provider) ?? ''} ${model.name}`.trim() : model.name
+}
+
+export async function registerCopilotModelsDynamic() {
+    try {
+        const tokens = DBState.db.copilot?.githubTokens ?? []
+        if (tokens.length === 0) return
+
+        const { fetchCopilotModels } = await import('../process/request/copilot')
+        const { models } = await fetchCopilotModels(tokens[0])
+
+        for (const model of models) {
+            const dynamicId = `dynamic_copilot_${model.id}`
+            const exists = LLMModels.find((entry) => entry.id === dynamicId || entry.internalID === model.id)
+            if (exists) continue
+
+            const isAnthropic = model.vendor === 'Anthropic'
+            const isResponsesOnly = model.supportedEndpoints.length === 1 && model.supportedEndpoints[0] === '/responses'
+            const usesCompletionTokens = !isAnthropic && model.id.startsWith('gpt-5')
+
+            const format = isAnthropic
+                ? LLMFormat.Anthropic
+                : isResponsesOnly
+                    ? LLMFormat.OpenAIResponseAPI
+                    : LLMFormat.OpenAICompatible
+
+            const flags: LLMFlags[] = [LLMFlags.hasStreaming]
+            if (model.supportsVision) flags.push(LLMFlags.hasImageInput)
+            if (isAnthropic) {
+                flags.push(LLMFlags.hasFirstSystemPrompt)
+                if (model.supportsThinking) {
+                    flags.push(LLMFlags.claudeThinking, LLMFlags.claudeAdaptiveThinking)
+                }
+            } else {
+                flags.push(LLMFlags.hasFullSystemPrompt)
+                if (usesCompletionTokens) {
+                    flags.push(LLMFlags.OAICompletionTokens)
+                }
+            }
+
+            const parameters: LLMParameter[] = isAnthropic
+                ? [...ClaudeParameters, ...(model.supportsThinking ? ['thinking_tokens' as LLMParameter] : [])]
+                : ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty', 'reasoning_effort', 'verbosity']
+
+            LLMModels.push({
+                id: dynamicId,
+                name: model.name,
+                shortName: `GH Copilot ${model.name}`,
+                fullName: `GitHub Copilot ${model.name}`,
+                internalID: model.id,
+                provider: LLMProvider.Copilot,
+                format,
+                flags,
+                parameters,
+                tokenizer: isAnthropic ? LLMTokenizer.Claude : LLMTokenizer.tiktokenO200Base,
+            })
+        }
+    } catch (error) {
+        console.error('Error fetching Copilot models', error)
+    }
+}
+
+export async function registerNanoGPTModelsDynamic() {
+    try {
+        const keys = DBState.db.nanogpt?.apiKeys ?? []
+        if (keys.length === 0) return
+
+        const { fetchNanoGPTModels } = await import('../process/request/nanogpt')
+        const { models } = await fetchNanoGPTModels(keys[0])
+
+        for (const model of models) {
+            const dynamicId = `dynamic_nanogpt_${model.id}`
+            const exists = LLMModels.find((entry) => entry.id === dynamicId || entry.internalID === model.id)
+            if (exists) continue
+
+            LLMModels.push({
+                id: dynamicId,
+                name: model.name,
+                shortName: `NanoGPT ${model.name}`,
+                fullName: `NanoGPT ${model.name}`,
+                internalID: model.id,
+                provider: LLMProvider.NanoGPT,
+                format: LLMFormat.OpenAICompatible,
+                flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
+                parameters: ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty'],
+                tokenizer: LLMTokenizer.tiktokenO200Base,
+            })
+        }
+    } catch (error) {
+        console.error('Error fetching NanoGPT models', error)
+    }
 }
 
 for(let i=0; i<LLMModels.length; i++){

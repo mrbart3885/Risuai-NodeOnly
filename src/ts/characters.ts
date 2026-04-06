@@ -13,6 +13,7 @@ import { translateHTML } from "./translator/translator";
 import { doingChat } from "./process/index.svelte";
 import { importCharacter } from "./characterCards";
 import { PngChunk } from "./pngChunk";
+import { removeUnusedCharacterAssets } from "./assetCleanup";
 
 export function createNewCharacter() {
     let db = getDatabase()
@@ -703,6 +704,7 @@ export async function removeChar(index:number,name:string, type:'normal'|'perman
         }
     }
     let chars = db.characters
+    const removedChar = type === 'normal' ? null : chars[index]
     if(type === 'normal'){
         chars[index].trashTime = Date.now()
     }
@@ -714,6 +716,9 @@ export async function removeChar(index:number,name:string, type:'normal'|'perman
     requiresFullEncoderReload.state = true
     setDatabase(db)
     selectedCharID.set(-1)
+    if (removedChar) {
+        await removeUnusedCharacterAssets(removedChar, getDatabase())
+    }
 }
 
 export async function addCharacter(arg:{

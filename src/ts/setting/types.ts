@@ -77,6 +77,9 @@ export interface SettingOptions {
     
     // segmented control
     segmentOptions?: SegmentOption[];
+    segmentWrap?: boolean;
+    segmentFullWidth?: boolean;
+    segmentSize?: 'sm' | 'md' | 'lg';
     
     // text, textarea
     placeholder?: string;

@@ -2,7 +2,7 @@ import { Sha256 } from "@aws-crypto/sha256-js"
 import { HttpRequest } from "@smithy/protocol-http"
 import { SignatureV4 } from "@smithy/signature-v4"
 import { fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
-import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
+import { LLMFlags, LLMFormat, LLMProvider } from "src/ts/model/modellist"
 import { registerClaudeObserver } from "src/ts/observer.svelte"
 import { getDatabase } from "src/ts/storage/database.svelte"
 import { replaceAsync, simplifySchema, sleep } from "src/ts/util"
@@ -472,7 +472,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
             plainFetchForce: true,
             chatId: arg.chatId,
             abortSignal: arg.abortSignal,
-            interceptor: 'anthropic_bedrock'
+            interceptor: 'anthropic_bedrock',
+            proxyPolicy: arg.proxyPolicy,
         })
 
         if(!res.ok){
@@ -562,6 +563,20 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
         headers['anthropic-dangerous-direct-browser-access'] = 'true'
     }
 
+    if(arg.extraHeaders && arg.modelInfo?.provider === LLMProvider.Copilot){
+        const {
+            'anthropic-beta': _anthropicBeta,
+            'anthropic-version': _anthropicVersion,
+            'anthropic-dangerous-direct-browser-access': _anthropicDangerousDirectBrowserAccess,
+            'x-api-key': _xApiKey,
+            ...cleanHeaders
+        } = headers
+        headers = { ...cleanHeaders, ...arg.extraHeaders }
+    }
+    else if(arg.extraHeaders){
+        headers = { ...headers, ...arg.extraHeaders }
+    }
+
     if(arg.tools && arg.tools.length > 0){
         body.tools = arg.tools.map((v) => {
             return {
@@ -599,7 +614,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
             "method": "POST",
             signal: arg.abortSignal,
             headers: headers,
-            interceptor: 'anthropic_batching'
+            interceptor: 'anthropic_batching',
+            proxyPolicy: arg.proxyPolicy,
         })
 
         if(resp.status !== 200){
@@ -641,7 +657,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                                     "body": "{}",
                                     "method": "POST",
                                     "headers": headers,
-                                    "interceptor": 'anthropic_batching_cancel'
+                                    "interceptor": 'anthropic_batching_cancel',
+                                    "proxyPolicy": arg.proxyPolicy,
                                 })
                             } catch(e) {
                                 // ignore cancel request errors
@@ -656,7 +673,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                             "method": "GET",
                             "headers": headers,
                             "signal": cancelRequested ? undefined : abortSignal,
-                            "interceptor": 'anthropic_batching_status'
+                            "interceptor": 'anthropic_batching_status',
+                            "proxyPolicy": arg.proxyPolicy,
                         })
 
                         if(statusRes.status !== 200){
@@ -674,7 +692,8 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
                             "method": "GET",
                             "headers": headers,
                             "signal": cancelRequested ? undefined : abortSignal,
-                            "interceptor": 'anthropic_batching_results'
+                            "interceptor": 'anthropic_batching_results',
+                            "proxyPolicy": arg.proxyPolicy,
                         })
 
                         if(batchRes.status !== 200){
@@ -785,7 +804,8 @@ async function requestClaudeHTTP(replacerURL:string, headers:{[key:string]:strin
             method: "POST",
             chatId: arg.chatId,
             signal: arg.abortSignal,
-            interceptor: 'anthropic_streaming'
+            interceptor: 'anthropic_streaming',
+            proxyPolicy: arg.proxyPolicy,
         })
 
         if(res.status !== 200){
@@ -883,7 +903,8 @@ async function requestClaudeHTTP(replacerURL:string, headers:{[key:string]:strin
                                         method: "POST",
                                         chatId: arg.chatId,
                                         signal: arg.abortSignal,
-                                        interceptor: 'anthropic_streaming_retry'
+                                        interceptor: 'anthropic_streaming_retry',
+                                        proxyPolicy: arg.proxyPolicy,
                                     })
                             
                                     if(res.status !== 200){
@@ -930,7 +951,9 @@ async function requestClaudeHTTP(replacerURL:string, headers:{[key:string]:strin
         method: "POST",
         chatId: arg.chatId,
         abortSignal: arg.abortSignal,
-        interceptor: 'anthropic_http'
+        interceptor: 'anthropic_http',
+        plainFetchDeforce: !!arg.extraHeaders,
+        proxyPolicy: arg.proxyPolicy,
     })
 
     if(!res.ok){

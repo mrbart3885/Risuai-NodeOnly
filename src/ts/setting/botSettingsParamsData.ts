@@ -7,6 +7,14 @@
 
 import type { SettingItem } from './types';
 import { LLMFlags } from '../model/types';
+import {
+    dbReasoningEffortToUi,
+    dbVerbosityToUi,
+    reasoningEffortSelectOptions,
+    uiReasoningEffortToDb,
+    uiVerbosityToDb,
+    verbositySelectOptions,
+} from '../model/reasoningVerbosity';
 
 /**
  * Basic parameter settings that are always visible
@@ -234,31 +242,40 @@ export const modelSpecificParameterItems: SettingItem[] = [
     },
     {
         id: 'params.reasoningEffort',
-        type: 'slider',
+        type: 'segmented',
         fallbackLabel: 'Reasoning Effort',
-        bindKey: 'reasoningEffort',
         condition: (ctx) => ctx.modelInfo.parameters.includes('reasoning_effort'),
+        getValue: (db) => dbReasoningEffortToUi(db.reasoningEffort),
+        setValue: (db, val) => {
+            db.reasoningEffort = uiReasoningEffortToDb(val)
+        },
         options: {
-            min: -1,
-            max: 2,
-            step: 1,
-            fixed: 0,
-            disableable: true,
+            segmentOptions: reasoningEffortSelectOptions.map((option) => ({
+                value: option.value,
+                label: option.label,
+            })),
+            segmentWrap: true,
+            segmentFullWidth: true,
+            segmentSize: 'sm',
         },
         keywords: ['reasoning', 'effort'],
     },
     {
         id: 'params.verbosity',
-        type: 'slider',
+        type: 'segmented',
         fallbackLabel: 'Verbosity',
-        bindKey: 'verbosity',
         condition: (ctx) => ctx.modelInfo.parameters.includes('verbosity'),
+        getValue: (db) => dbVerbosityToUi(db.verbosity),
+        setValue: (db, val) => {
+            db.verbosity = uiVerbosityToDb(val)
+        },
         options: {
-            min: 0,
-            max: 2,
-            step: 1,
-            fixed: 0,
-            disableable: true,
+            segmentOptions: verbositySelectOptions.map((option) => ({
+                value: option.value,
+                label: option.label,
+            })),
+            segmentFullWidth: true,
+            segmentSize: 'sm',
         },
         keywords: ['verbosity', 'length'],
     },

@@ -18,6 +18,7 @@
     import { onDestroy, onMount } from "svelte";
     import {defaultAutoSuggestPrompt} from "../../../ts/storage/defaultPrompts";
     import AuxModelSelectors from './Model/AuxModelSelectors.svelte'
+    import { AUX_REQUESTS_MODEL_LABEL } from 'src/ts/setting/auxModelCopy'
 
     let sorted = 0
     let warns: string[] = $state([])
@@ -340,7 +341,7 @@
         <Accordion name={"Emotion"} styled>
             {@render fallbackModelList('emotion')}
         </Accordion>
-        <Accordion name={"OtherAx"} styled>
+        <Accordion name={AUX_REQUESTS_MODEL_LABEL} styled>
             {@render fallbackModelList('otherAx')}
         </Accordion>
     </Accordion>

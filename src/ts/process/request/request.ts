@@ -1,7 +1,7 @@
 import { Ollama } from 'ollama/dist/browser.mjs';
 import { language } from "../../../lang";
 import { globalFetch } from "../../globalApi.svelte";
-import { getModelInfo, LLMFlags, LLMFormat, type LLMModel } from "../../model/modellist";
+import { getModelInfo, LLMFlags, LLMFormat, LLMProvider, type LLMModel } from "../../model/modellist";
 import { risuChatParser, risuEscape, risuUnescape } from "../../parser/parser.svelte";
 import { pluginProcess, pluginV2 } from "../../plugins/plugins.svelte";
 import { getCurrentCharacter, getCurrentChat, getDatabase, type character } from "../../storage/database.svelte";
@@ -17,9 +17,13 @@ import { applyChatTemplate } from "../templates/chatTemplate";
 import { runTransformers } from "../transformers";
 import { runTrigger } from "../triggers";
 import { requestClaude } from './anthropic';
+import { requestCopilot } from './copilot';
+import { requestNanoGPT } from './nanogpt';
 import { requestGoogleCloudVertex } from './google';
 import { requestOpenAI, requestOpenAILegacyInstruct, requestOpenAIResponseAPI } from "./openAI/requests";
+import { withTrackedRequestActivity } from './requestActivity';
 import { applyParameters, type ModelModeExtended } from './shared';
+import type { ProxyPolicy } from 'src/ts/network/proxyPolicy';
 
 export type ToolCall = {
     name: string;
@@ -51,6 +55,7 @@ interface requestDataArgument{
     rememberToolUsage?: boolean
     forceStreaming?: boolean
     blockPlugins?: boolean
+    trackRequestActivity?: boolean
 }
 
 export interface RequestDataArgumentExtended extends requestDataArgument{
@@ -63,6 +68,8 @@ export interface RequestDataArgumentExtended extends requestDataArgument{
     key?:string
     additionalOutput?:string
     saveSignatures?:boolean
+    extraHeaders?:Record<string, string>
+    proxyPolicy?: ProxyPolicy
 }
 
 export type requestDataResponse = {
@@ -93,6 +100,7 @@ export type requestDataResponse = {
 export interface StreamResponseChunk{[key:string]:string}
 
 export async function requestChatData(arg:requestDataArgument, model:ModelModeExtended, abortSignal:AbortSignal=null):Promise<requestDataResponse> {
+    return withTrackedRequestActivity(model, async () => {
     const db = getDatabase()
     const fallBackModels:string[] = safeStructuredClone(db?.fallbackModels?.[model] ?? [])
     const tools = arg.tools ?? (await getTools())
@@ -159,6 +167,7 @@ export async function requestChatData(arg:requestDataArgument, model:ModelModeEx
                 ...arg,
                 staticModel: fallBackModels[fallbackIndex],
                 tools: tools,
+                trackRequestActivity: false,
             }, model, abortSignal)
 
             if(abortSignal?.aborted){
@@ -231,6 +240,7 @@ export async function requestChatData(arg:requestDataArgument, model:ModelModeEx
         type: 'fail',
         result: "All models failed"
     }
+    })
 }
 
 export function reformater(formated:OpenAIChat[],modelInfo:LLMModel|LLMFlags[]){
@@ -321,6 +331,19 @@ export function reformater(formated:OpenAIChat[],modelInfo:LLMModel|LLMFlags[]){
 
 
 export async function requestChatDataMain(arg:requestDataArgument, model:ModelModeExtended, abortSignal:AbortSignal=null):Promise<requestDataResponse> {
+    if (arg.trackRequestActivity !== false) {
+        return withTrackedRequestActivity(model, () =>
+            requestChatDataMain(
+                {
+                    ...arg,
+                    trackRequestActivity: false,
+                },
+                model,
+                abortSignal,
+            ),
+        )
+    }
+
     const db = getDatabase()
     const targ:RequestDataArgumentExtended = arg
 
@@ -368,6 +391,14 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
     const format = targ.modelInfo.format
 
     targ.formated = reformater(targ.formated, targ.modelInfo)
+
+    if (targ.modelInfo.provider === LLMProvider.Copilot) {
+        return requestCopilot(targ)
+    }
+
+    if (targ.modelInfo.provider === LLMProvider.NanoGPT) {
+        return requestNanoGPT(targ)
+    }
 
     switch(format){
         case LLMFormat.OpenAICompatible:

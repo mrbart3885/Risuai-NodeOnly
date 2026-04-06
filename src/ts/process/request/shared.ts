@@ -1,4 +1,8 @@
 import { getDatabase } from 'src/ts/storage/database.svelte'
+import {
+    dbReasoningEffortToApi,
+    dbVerbosityToApi,
+} from 'src/ts/model/reasoningVerbosity'
 
 export type LLMParameter =
     | 'temperature'
@@ -42,43 +46,6 @@ export function applyParameters(
 ): Record<string, any> {
     const db = getDatabase()
 
-    function getEffort(effort: number) {
-        switch (effort) {
-            case -1: {
-                return 'minimal'
-            }
-            case 0: {
-                return 'low'
-            }
-            case 1: {
-                return 'medium'
-            }
-            case 2: {
-                return 'high'
-            }
-            default: {
-                return 'medium'
-            }
-        }
-    }
-
-    function getVerbosity(verbosity: number) {
-        switch (verbosity) {
-            case 0: {
-                return 'low'
-            }
-            case 1: {
-                return 'medium'
-            }
-            case 2: {
-                return 'high'
-            }
-            default: {
-                return 'medium'
-            }
-        }
-    }
-
     if (db.seperateParametersEnabled && (modelMode !== 'model' || db.seperateParametersByModel)) {
         let sepParams = db.seperateParameters[modelMode]
         if (db.seperateParametersByModel){
@@ -93,6 +60,16 @@ export function applyParameters(
         }
 
         for (const parameter of parameters) {
+            const rawValue = sepParams[parameter]
+            if (
+                rawValue === -1000 ||
+                rawValue === undefined ||
+                rawValue === null ||
+                (typeof rawValue === 'number' && isNaN(rawValue))
+            ) {
+                continue
+            }
+
             let value: number | string = 0
             if (parameter === 'top_k' && arg.ignoreTopKIfZero && sepParams[parameter] === 0) {
                 continue
@@ -145,11 +122,11 @@ export function applyParameters(
                     break
                 }
                 case 'reasoning_effort': {
-                    value = getEffort(sepParams.reasoning_effort)
+                    value = dbReasoningEffortToApi(sepParams.reasoning_effort)
                     break
                 }
                 case 'verbosity': {
-                    value = getVerbosity(sepParams.verbosity)
+                    value = dbVerbosityToApi(sepParams.verbosity)
                     break
                 }
             }
@@ -199,11 +176,11 @@ export function applyParameters(
                 break
             }
             case 'reasoning_effort': {
-                value = getEffort(db.reasoningEffort)
+                value = dbReasoningEffortToApi(db.reasoningEffort)
                 break
             }
             case 'verbosity': {
-                value = getVerbosity(db.verbosity)
+                value = dbVerbosityToApi(db.verbosity)
                 break
             }
             case 'frequency_penalty': {

@@ -10,7 +10,9 @@
     import { tokenizeAccurate, tokenizerList } from "src/ts/tokenizer";
     import ModelList from "src/lib/UI/ModelList.svelte";
     import DropList from "src/lib/SideBars/DropList.svelte";
-    import { PlusIcon, TrashIcon, HardDriveUploadIcon, DownloadIcon, UploadIcon } from "@lucide/svelte";
+    import { PlusIcon, TrashIcon, HardDriveUploadIcon, DownloadIcon, UploadIcon, CheckCircleIcon, XCircleIcon, LoaderIcon } from "@lucide/svelte";
+    import { validateCopilotToken, fetchCopilotUsage, type CopilotUsageInfo } from "src/ts/process/request/copilot";
+    import { validateNanoGPTKey, fetchNanoGPTBalance, fetchNanoGPTUsage, type NanoGPTBalance, type NanoGPTUsageInfo, type NanoGPTUsageMetric } from "src/ts/process/request/nanogpt";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import NumberInput from "src/lib/UI/GUI/NumberInput.svelte";
     import SliderInput from "src/lib/UI/GUI/SliderInput.svelte";
@@ -27,12 +29,13 @@
     import PromptSettings from "./PromptSettings.svelte";
     import { openPresetList } from "src/ts/stores.svelte";
     import { selectSingleFile } from "src/ts/util";
-    import { getModelInfo, LLMFlags, LLMFormat, LLMProvider } from "src/ts/model/modellist";
+    import { getModelInfo, LLMFlags, LLMFormat, LLMProvider, LLMModels, registerCopilotModelsDynamic, registerNanoGPTModelsDynamic } from "src/ts/model/modellist";
     import RegexList from "src/lib/SideBars/Scripts/RegexList.svelte";
     import SettingRenderer from "../SettingRenderer.svelte";
     import { allBasicParameterItems } from "src/ts/setting/botSettingsParamsData";
     import SeparateParametersSection from "./SeparateParametersSection.svelte";
     import AuxModelSelectors from './Model/AuxModelSelectors.svelte'
+    import { SUBMODEL_PARAMETER_LOCATION_HINT } from "src/ts/setting/auxModelCopy";
     
     let tokens = $state({
         mainPrompt: 0,
@@ -67,6 +70,158 @@
     let submenu = $state(DBState.db.useLegacyGUI ? -1 : 0)
     let modelInfo = $derived(getModelInfo(DBState.db.aiModel))
     let subModelInfo = $derived(getModelInfo(DBState.db.subModel))
+    const dbAny = DBState.db as any
+
+    let copilotModelSyncInFlight = false
+    let nanogptModelSyncInFlight = false
+
+    function ensureCopilotConfig() {
+        if (!DBState.db.copilot) {
+            DBState.db.copilot = {
+                githubTokens: [],
+                keyRotate: 'sequential',
+                machineId: '',
+                vsCodeVersion: '',
+                chatVersion: ''
+            }
+        }
+        DBState.db.copilot.githubTokens ??= []
+        DBState.db.copilot.keyRotate ??= 'sequential'
+        DBState.db.copilot.machineId ??= ''
+        DBState.db.copilot.vsCodeVersion ??= ''
+        DBState.db.copilot.chatVersion ??= ''
+        return DBState.db.copilot
+    }
+
+    function ensureNanoGPTConfig() {
+        if (!DBState.db.nanogpt) {
+            DBState.db.nanogpt = { apiKeys: [], keyRotate: 'sequential' }
+        }
+        DBState.db.nanogpt.apiKeys ??= []
+        DBState.db.nanogpt.keyRotate ??= 'sequential'
+        return DBState.db.nanogpt
+    }
+
+    let copilotTokenStatus: Map<number, 'idle'|'loading'|'valid'|'invalid'> = $state(new Map())
+    let copilotTokenErrors: Map<number, string> = $state(new Map())
+    let copilotUsage: CopilotUsageInfo | null = $state(null)
+    let copilotUsageLoading = $state(false)
+    let copilotUsageError = $state('')
+    let copilotModelSyncStatus: 'idle'|'loading'|'done'|'error' = $state('idle')
+    let copilotModelSyncCount = $state(0)
+
+    async function verifyCopilotToken(index: number) {
+        const token = ensureCopilotConfig().githubTokens[index]
+        if (!token) return
+        copilotTokenStatus = new Map(copilotTokenStatus.set(index, 'loading'))
+        const result = await validateCopilotToken(token)
+        copilotTokenStatus = new Map(copilotTokenStatus.set(index, result.valid ? 'valid' : 'invalid'))
+        if (!result.valid) {
+            copilotTokenErrors = new Map(copilotTokenErrors.set(index, result.error ?? 'Unknown error'))
+        }
+    }
+
+    async function loadCopilotUsage() {
+        if (copilotUsageLoading) return
+        const token = ensureCopilotConfig().githubTokens[0]
+        if (!token) return
+        copilotUsageLoading = true
+        copilotUsageError = ''
+        const result = await fetchCopilotUsage(token)
+        copilotUsage = result.usage
+        copilotUsageError = result.error ?? ''
+        copilotUsageLoading = false
+    }
+
+    async function syncCopilotModels() {
+        if (copilotModelSyncStatus === 'loading' || copilotModelSyncInFlight) return
+        copilotModelSyncStatus = 'loading'
+        copilotModelSyncInFlight = true
+        try {
+            await registerCopilotModelsDynamic()
+            copilotModelSyncCount = LLMModels.filter((model) => model.provider === LLMProvider.Copilot).length
+            copilotModelSyncStatus = 'done'
+        }
+        catch {
+            copilotModelSyncStatus = 'error'
+        }
+        finally {
+            copilotModelSyncInFlight = false
+        }
+    }
+
+    let nanogptKeyStatus: Map<number, 'idle'|'loading'|'valid'|'invalid'> = $state(new Map())
+    let nanogptKeyErrors: Map<number, string> = $state(new Map())
+    let nanogptBalance: NanoGPTBalance | null = $state(null)
+    let nanogptUsage: NanoGPTUsageInfo | null = $state(null)
+    let nanogptInfoLoading = $state(false)
+    let nanogptInfoError = $state('')
+    let nanogptModelSyncStatus: 'idle'|'loading'|'done'|'error' = $state('idle')
+    let nanogptModelSyncCount = $state(0)
+
+    async function verifyNanoGPTKey(index: number) {
+        const key = ensureNanoGPTConfig().apiKeys[index]
+        if (!key) return
+        nanogptKeyStatus = new Map(nanogptKeyStatus.set(index, 'loading'))
+        const result = await validateNanoGPTKey(key)
+        nanogptKeyStatus = new Map(nanogptKeyStatus.set(index, result.valid ? 'valid' : 'invalid'))
+        if (!result.valid) {
+            nanogptKeyErrors = new Map(nanogptKeyErrors.set(index, result.error ?? 'Unknown error'))
+        }
+    }
+
+    async function loadNanoGPTInfo() {
+        if (nanogptInfoLoading) return
+        const key = ensureNanoGPTConfig().apiKeys[0]
+        if (!key) return
+        nanogptInfoLoading = true
+        nanogptInfoError = ''
+        const [balanceResult, usageResult] = await Promise.all([
+            fetchNanoGPTBalance(key),
+            fetchNanoGPTUsage(key),
+        ])
+        nanogptBalance = balanceResult.balance
+        nanogptUsage = usageResult.usage
+        nanogptInfoError = balanceResult.error || usageResult.error || ''
+        nanogptInfoLoading = false
+    }
+
+    async function syncNanoGPTModels() {
+        if (nanogptModelSyncStatus === 'loading' || nanogptModelSyncInFlight) return
+        nanogptModelSyncStatus = 'loading'
+        nanogptModelSyncInFlight = true
+        try {
+            await registerNanoGPTModelsDynamic()
+            nanogptModelSyncCount = LLMModels.filter((model) => model.provider === LLMProvider.NanoGPT).length
+            nanogptModelSyncStatus = 'done'
+        }
+        catch {
+            nanogptModelSyncStatus = 'error'
+        }
+        finally {
+            nanogptModelSyncInFlight = false
+        }
+    }
+
+    function formatUsageCount(value: number | null) {
+        if (value === null) return 'No limit'
+        return new Intl.NumberFormat().format(value)
+    }
+
+    function formatUsagePercent(value: number) {
+        return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}%`
+    }
+
+    function formatUsageReset(value: number | null) {
+        if (value === null) return ''
+        return new Date(value).toLocaleDateString()
+    }
+
+    function usageBarColor(metric: NanoGPTUsageMetric) {
+        if (metric.progress >= 0.9) return 'bg-draculared'
+        if (metric.progress >= 0.7) return 'bg-yellow-500'
+        return 'bg-green-500'
+    }
 </script>
 <h2 class="mb-2 text-2xl font-bold mt-2">{language.chatBot}</h2>
 
@@ -101,6 +256,7 @@
 
     <span class="text-textcolor mt-2">{language.submodel} <Help key="submodel"/></span>
     <ModelList bind:value={DBState.db.subModel}/>
+    <p class="text-xs text-textcolor2 mt-1 mb-2">{SUBMODEL_PARAMETER_LOCATION_HINT}</p>
 
     {#if modelInfo.provider === LLMProvider.GoogleCloud || subModelInfo.provider === LLMProvider.GoogleCloud}
         <span class="text-textcolor">GoogleAI API Key</span>
@@ -141,6 +297,292 @@
             || modelInfo.provider === LLMProvider.AWS || subModelInfo.provider === LLMProvider.AWS }
         <span class="text-textcolor">Claude {language.apiKey}</span>
         <TextInput hideText={DBState.db.hideApiKey} marginBottom={true} size={"sm"} placeholder="..." bind:value={DBState.db.claudeAPIKey}/>
+    {/if}
+    {#if modelInfo.provider === LLMProvider.Copilot || subModelInfo.provider === LLMProvider.Copilot}
+        <Accordion name="GitHub Copilot" styled>
+            <span class="text-textcolor2 text-xs mb-2 block">GitHub Personal Access Token (copilot scope required)</span>
+            {#each dbAny.copilot?.githubTokens ?? [] as token, i}
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="flex-1">
+                        <TextInput hideText={DBState.db.hideApiKey} size={"sm"} placeholder="ghp_xxxxxxxxxxxx" bind:value={dbAny.copilot.githubTokens[i]}/>
+                    </div>
+                    <button class="text-textcolor2 hover:text-green-500 cursor-pointer" title="Verify token" onclick={() => verifyCopilotToken(i)}>
+                        {#if copilotTokenStatus.get(i) === 'loading'}
+                            <LoaderIcon size={16} class="animate-spin"/>
+                        {:else if copilotTokenStatus.get(i) === 'valid'}
+                            <CheckCircleIcon size={16} class="text-green-500"/>
+                        {:else if copilotTokenStatus.get(i) === 'invalid'}
+                            <XCircleIcon size={16} class="text-draculared"/>
+                        {:else}
+                            <CheckCircleIcon size={16}/>
+                        {/if}
+                    </button>
+                    <button class="text-textcolor2 hover:text-draculared cursor-pointer" onclick={() => {
+                        dbAny.copilot.githubTokens = dbAny.copilot.githubTokens.filter((_, idx) => idx !== i)
+                        copilotTokenStatus = new Map([...copilotTokenStatus].filter(([key]) => key !== i))
+                    }}>
+                        <TrashIcon size={16}/>
+                    </button>
+                </div>
+                {#if copilotTokenStatus.get(i) === 'invalid'}
+                    <span class="text-draculared text-xs mb-2 block">{copilotTokenErrors.get(i) ?? 'Invalid token'}</span>
+                {:else if copilotTokenStatus.get(i) === 'valid'}
+                    <span class="text-green-500 text-xs mb-2 block">Token verified</span>
+                {/if}
+            {/each}
+            <button class="flex items-center gap-1 text-textcolor2 hover:text-green-500 cursor-pointer mb-3" onclick={() => {
+                ensureCopilotConfig()
+                dbAny.copilot.githubTokens = [...dbAny.copilot.githubTokens, '']
+            }}>
+                <PlusIcon size={16}/> <span class="text-sm">Add Token</span>
+            </button>
+            {#if (dbAny.copilot?.githubTokens?.length ?? 0) > 1}
+                <span class="text-textcolor text-sm">Key Rotation</span>
+                <SelectInput bind:value={dbAny.copilot.keyRotate}>
+                    <OptionInput value="sequential">Sequential</OptionInput>
+                    <OptionInput value="on-error">On Error</OptionInput>
+                </SelectInput>
+            {/if}
+
+            <Accordion name="Version Override" styled>
+                <span class="text-textcolor2 text-xs mb-2 block">Leave empty for defaults. Check latest versions:</span>
+                <div class="flex gap-2 mb-2 text-xs">
+                    <a href="https://code.visualstudio.com/updates/" target="_blank" rel="noopener" class="text-blue-400 hover:text-blue-300 underline">VS Code Releases</a>
+                    <a href="https://github.com/microsoft/vscode-copilot-chat/releases/latest" target="_blank" rel="noopener" class="text-blue-400 hover:text-blue-300 underline">Copilot Chat Releases</a>
+                </div>
+                <span class="text-textcolor text-sm">VS Code Version</span>
+                <TextInput size={"sm"} placeholder="1.111.0" bind:value={dbAny.copilot.vsCodeVersion}/>
+                <span class="text-textcolor text-sm mt-2">Copilot Chat Version</span>
+                <TextInput size={"sm"} placeholder="0.39.2" bind:value={dbAny.copilot.chatVersion}/>
+            </Accordion>
+
+            {#if (dbAny.copilot?.githubTokens?.length ?? 0) > 0}
+                <div class="border-t border-darkborderc mt-3 pt-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-textcolor text-sm font-semibold">Usage / Quota</span>
+                        <button class="text-xs text-textcolor2 hover:text-green-500 cursor-pointer" onclick={loadCopilotUsage}>
+                            {copilotUsageLoading ? 'Loading...' : 'Refresh'}
+                        </button>
+                    </div>
+                    {#if copilotUsageError}
+                        <span class="text-draculared text-xs block">{copilotUsageError}</span>
+                    {/if}
+                    {#if copilotUsage}
+                        <div class="text-xs text-textcolor2 space-y-2">
+                            <div class="flex gap-3">
+                                <span>Plan: <span class="text-textcolor font-medium">{copilotUsage.planType}</span></span>
+                                <span>Account: <span class="text-textcolor font-medium">{copilotUsage.login}</span></span>
+                            </div>
+                            {#each copilotUsage.quotas as quota}
+                                <div class="border border-darkborderc rounded p-2">
+                                    <div class="flex justify-between mb-1">
+                                        <span class="text-textcolor capitalize">{quota.quotaId.replace(/_/g, ' ')}</span>
+                                        {#if quota.unlimited}
+                                            <span class="text-green-500">Unlimited</span>
+                                        {:else}
+                                            <span class="text-textcolor">{quota.remaining} / {quota.entitlement}</span>
+                                        {/if}
+                                    </div>
+                                    {#if !quota.unlimited}
+                                        <div class="w-full bg-darkborderc rounded-full h-1.5">
+                                            <div
+                                                class="h-1.5 rounded-full transition-all"
+                                                class:bg-green-500={quota.percentRemaining > 30}
+                                                class:bg-yellow-500={quota.percentRemaining <= 30 && quota.percentRemaining > 10}
+                                                class:bg-draculared={quota.percentRemaining <= 10}
+                                                style="width: {100 - quota.percentRemaining}%"
+                                            ></div>
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/each}
+                            {#if copilotUsage.quotaResetDate}
+                                <div>Resets: <span class="text-textcolor">{copilotUsage.quotaResetDate}</span></div>
+                            {/if}
+                        </div>
+                    {:else if !copilotUsageLoading}
+                        <span class="text-textcolor2 text-xs">Click Refresh to load usage info</span>
+                    {/if}
+                </div>
+
+                <div class="border-t border-darkborderc mt-3 pt-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-textcolor text-sm font-semibold">Models</span>
+                        <button class="text-xs text-textcolor2 hover:text-green-500 cursor-pointer" onclick={syncCopilotModels}>
+                            {copilotModelSyncStatus === 'loading' ? 'Syncing...' : 'Sync Models'}
+                        </button>
+                    </div>
+                    {#if copilotModelSyncStatus === 'done'}
+                        <span class="text-green-500 text-xs mt-1 block">{copilotModelSyncCount} models available. Reload model list to see new models.</span>
+                    {:else if copilotModelSyncStatus === 'error'}
+                        <span class="text-draculared text-xs mt-1 block">Failed to sync models</span>
+                    {:else}
+                        <span class="text-textcolor2 text-xs mt-1 block">Fetch available models from Copilot API</span>
+                    {/if}
+                </div>
+            {/if}
+        </Accordion>
+    {/if}
+    {#if modelInfo.provider === LLMProvider.NanoGPT || subModelInfo.provider === LLMProvider.NanoGPT}
+        <Accordion name="NanoGPT" styled>
+            <span class="text-textcolor2 text-xs mb-2 block">NanoGPT API Key</span>
+            {#each dbAny.nanogpt?.apiKeys ?? [] as key, i}
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="flex-1">
+                        <TextInput hideText={DBState.db.hideApiKey} size={"sm"} placeholder="nano-xxxxxxxxxxxxxxxx" bind:value={dbAny.nanogpt.apiKeys[i]}/>
+                    </div>
+                    <button class="text-textcolor2 hover:text-green-500 cursor-pointer" title="Verify key" onclick={() => verifyNanoGPTKey(i)}>
+                        {#if nanogptKeyStatus.get(i) === 'loading'}
+                            <LoaderIcon size={16} class="animate-spin"/>
+                        {:else if nanogptKeyStatus.get(i) === 'valid'}
+                            <CheckCircleIcon size={16} class="text-green-500"/>
+                        {:else if nanogptKeyStatus.get(i) === 'invalid'}
+                            <XCircleIcon size={16} class="text-draculared"/>
+                        {:else}
+                            <CheckCircleIcon size={16}/>
+                        {/if}
+                    </button>
+                    <button class="text-textcolor2 hover:text-draculared cursor-pointer" onclick={() => {
+                        dbAny.nanogpt.apiKeys = dbAny.nanogpt.apiKeys.filter((_, idx) => idx !== i)
+                        nanogptKeyStatus = new Map([...nanogptKeyStatus].filter(([keyIndex]) => keyIndex !== i))
+                    }}>
+                        <TrashIcon size={16}/>
+                    </button>
+                </div>
+                {#if nanogptKeyStatus.get(i) === 'invalid'}
+                    <span class="text-draculared text-xs mb-2 block">{nanogptKeyErrors.get(i) ?? 'Invalid key'}</span>
+                {:else if nanogptKeyStatus.get(i) === 'valid'}
+                    <span class="text-green-500 text-xs mb-2 block">Key verified</span>
+                {/if}
+            {/each}
+            <button class="flex items-center gap-1 text-textcolor2 hover:text-green-500 cursor-pointer mb-3" onclick={() => {
+                ensureNanoGPTConfig()
+                dbAny.nanogpt.apiKeys = [...dbAny.nanogpt.apiKeys, '']
+            }}>
+                <PlusIcon size={16}/> <span class="text-sm">Add Key</span>
+            </button>
+            {#if (dbAny.nanogpt?.apiKeys?.length ?? 0) > 1}
+                <span class="text-textcolor text-sm">Key Rotation</span>
+                <SelectInput bind:value={dbAny.nanogpt.keyRotate}>
+                    <OptionInput value="sequential">Sequential</OptionInput>
+                    <OptionInput value="on-error">On Error</OptionInput>
+                </SelectInput>
+            {/if}
+
+            {#if (dbAny.nanogpt?.apiKeys?.length ?? 0) > 0}
+                <div class="border-t border-darkborderc mt-3 pt-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-textcolor text-sm font-semibold">Balance / Usage</span>
+                        <button class="text-xs text-textcolor2 hover:text-green-500 cursor-pointer" onclick={loadNanoGPTInfo}>
+                            {nanogptInfoLoading ? 'Loading...' : 'Refresh'}
+                        </button>
+                    </div>
+                    {#if nanogptInfoError}
+                        <span class="text-draculared text-xs block">{nanogptInfoError}</span>
+                    {/if}
+                    {#if nanogptBalance}
+                        <div class="text-xs text-textcolor2 space-y-2 mb-2">
+                            <div class="flex gap-3">
+                                <span>USD: <span class="text-textcolor font-medium">${parseFloat(nanogptBalance.usdBalance).toFixed(2)}</span></span>
+                                <span>NANO: <span class="text-textcolor font-medium">{parseFloat(nanogptBalance.nanoBalance).toFixed(4)}</span></span>
+                            </div>
+                        </div>
+                    {/if}
+                    {#if nanogptUsage}
+                        <div class="text-xs text-textcolor2 space-y-2">
+                            <div class="flex gap-3 flex-wrap">
+                                <span>Status: <span class="text-textcolor font-medium capitalize">{nanogptUsage.state}</span></span>
+                                <span>Provider: <span class="text-textcolor font-medium capitalize">{nanogptUsage.provider}</span></span>
+                                {#if nanogptUsage.periodEnd}
+                                    <span>Period ends: <span class="text-textcolor">{new Date(nanogptUsage.periodEnd).toLocaleDateString()}</span></span>
+                                {/if}
+                                {#if nanogptUsage.cancelAt}
+                                    <span>Cancel at: <span class="text-textcolor">{new Date(nanogptUsage.cancelAt).toLocaleDateString()}</span></span>
+                                {/if}
+                            </div>
+                            {#if nanogptUsage.weeklyInputTokens}
+                                <div>
+                                    <div class="flex justify-between mb-1 gap-3">
+                                        <span>Weekly Input Tokens</span>
+                                        <span>{formatUsageCount(nanogptUsage.weeklyInputTokens.used)} / {formatUsageCount(nanogptUsage.weeklyInputTokens.limit)}</span>
+                                    </div>
+                                    <div class="w-full bg-darkborderc rounded-full h-1.5">
+                                        <div
+                                            class={`h-1.5 rounded-full transition-all ${usageBarColor(nanogptUsage.weeklyInputTokens)}`}
+                                            style="width: {Math.min(nanogptUsage.weeklyInputTokens.progress * 100, 100)}%"
+                                        ></div>
+                                    </div>
+                                    <div class="flex justify-between mt-1">
+                                        <span>{formatUsagePercent(nanogptUsage.weeklyInputTokens.percentUsed)} used</span>
+                                        {#if nanogptUsage.weeklyInputTokens.resetAt}
+                                            <span>Resets: {formatUsageReset(nanogptUsage.weeklyInputTokens.resetAt)}</span>
+                                        {/if}
+                                    </div>
+                                </div>
+                            {/if}
+                            {#if nanogptUsage.dailyImages}
+                                <div>
+                                    <div class="flex justify-between mb-1 gap-3">
+                                        <span>Daily Images</span>
+                                        <span>{formatUsageCount(nanogptUsage.dailyImages.used)} / {formatUsageCount(nanogptUsage.dailyImages.limit)}</span>
+                                    </div>
+                                    <div class="w-full bg-darkborderc rounded-full h-1.5">
+                                        <div
+                                            class={`h-1.5 rounded-full transition-all ${usageBarColor(nanogptUsage.dailyImages)}`}
+                                            style="width: {Math.min(nanogptUsage.dailyImages.progress * 100, 100)}%"
+                                        ></div>
+                                    </div>
+                                    <div class="flex justify-between mt-1">
+                                        <span>{formatUsagePercent(nanogptUsage.dailyImages.percentUsed)} used</span>
+                                        {#if nanogptUsage.dailyImages.resetAt}
+                                            <span>Resets: {formatUsageReset(nanogptUsage.dailyImages.resetAt)}</span>
+                                        {/if}
+                                    </div>
+                                </div>
+                            {/if}
+                            {#if nanogptUsage.dailyInputTokens}
+                                <div>
+                                    <div class="flex justify-between mb-1 gap-3">
+                                        <span>Daily Input Tokens</span>
+                                        <span>{formatUsageCount(nanogptUsage.dailyInputTokens.used)} / {formatUsageCount(nanogptUsage.dailyInputTokens.limit)}</span>
+                                    </div>
+                                    <div class="w-full bg-darkborderc rounded-full h-1.5">
+                                        <div
+                                            class={`h-1.5 rounded-full transition-all ${usageBarColor(nanogptUsage.dailyInputTokens)}`}
+                                            style="width: {Math.min(nanogptUsage.dailyInputTokens.progress * 100, 100)}%"
+                                        ></div>
+                                    </div>
+                                    <div class="flex justify-between mt-1">
+                                        <span>{formatUsagePercent(nanogptUsage.dailyInputTokens.percentUsed)} used</span>
+                                        {#if nanogptUsage.dailyInputTokens.resetAt}
+                                            <span>Resets: {formatUsageReset(nanogptUsage.dailyInputTokens.resetAt)}</span>
+                                        {/if}
+                                    </div>
+                                </div>
+                            {/if}
+                        </div>
+                    {:else if !nanogptInfoLoading && !nanogptBalance}
+                        <span class="text-textcolor2 text-xs">Click Refresh to load balance and usage info</span>
+                    {/if}
+                </div>
+
+                <div class="border-t border-darkborderc mt-3 pt-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-textcolor text-sm font-semibold">Models</span>
+                        <button class="text-xs text-textcolor2 hover:text-green-500 cursor-pointer" onclick={syncNanoGPTModels}>
+                            {nanogptModelSyncStatus === 'loading' ? 'Syncing...' : 'Sync Models'}
+                        </button>
+                    </div>
+                    {#if nanogptModelSyncStatus === 'done'}
+                        <span class="text-green-500 text-xs mt-1 block">{nanogptModelSyncCount} models available. Reload model list to see new models.</span>
+                    {:else if nanogptModelSyncStatus === 'error'}
+                        <span class="text-draculared text-xs mt-1 block">Failed to sync models</span>
+                    {:else}
+                        <span class="text-textcolor2 text-xs mt-1 block">Fetch available models from NanoGPT API</span>
+                    {/if}
+                </div>
+            {/if}
+        </Accordion>
     {/if}
     {#if modelInfo.provider === LLMProvider.Mistral || subModelInfo.provider === LLMProvider.Mistral}
         <span class="text-textcolor">Mistral {language.apiKey}</span>

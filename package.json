@@ -1,10 +1,10 @@
 {
   "name": "risuai-nodeonly",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.7.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev-nodeonly.mjs",
     "build": "vite build --sourcemap",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",

@@ -42,7 +42,9 @@ export const LLMProvider = {
     AWS: 11,
     DeepSeek: 12,
     DeepInfra: 13,
-    Echo: 14
+    Echo: 14,
+    Copilot: 15,
+    NanoGPT: 16
 } as const;
 export type LLMProvider = (typeof LLMProvider)[keyof typeof LLMProvider];
 
@@ -119,7 +121,9 @@ export const ProviderNames = new Map<LLMProvider, string>([
     [LLMProvider.AWS, 'AWS'],
     [LLMProvider.DeepSeek, 'DeepSeek'],
     [LLMProvider.DeepInfra, 'DeepInfra'],
-    [LLMProvider.Echo, 'For Developer']
+    [LLMProvider.Echo, 'For Developer'],
+    [LLMProvider.Copilot, 'GitHub Copilot'],
+    [LLMProvider.NanoGPT, 'NanoGPT']
 ])
 
 export const OpenAIParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty']

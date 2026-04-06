@@ -675,6 +675,10 @@ export function setDatabase(data:Database){
     // Because its likely they are power users who would benefit from the features
     data.enableRisuaiProTools ??= data.plugins.length > 0
     data.keepSessionAlive ??= 'off'
+    data.copilot ??= { githubTokens: [], keyRotate: 'sequential', machineId: '', vsCodeVersion: '', chatVersion: '' }
+    data.copilot.vsCodeVersion ??= ''
+    data.copilot.chatVersion ??= ''
+    data.nanogpt ??= { apiKeys: [], keyRotate: 'sequential' }
     data.localNetworkMode ??= false
     if (typeof data.localNetworkMode !== 'boolean') data.localNetworkMode = false
     data.localNetworkTimeoutSec ??= 600
@@ -1338,6 +1342,17 @@ export interface Database{
     disableSeperateParameterChangeOnPresetChange?:boolean
     saveSignatures?:boolean
     keepSessionAlive: 'off' | 'pip' | 'sound'
+    copilot?: {
+        githubTokens: string[]
+        keyRotate: 'sequential' | 'on-error'
+        machineId: string
+        vsCodeVersion: string
+        chatVersion: string
+    }
+    nanogpt?: {
+        apiKeys: string[]
+        keyRotate: 'sequential' | 'on-error'
+    }
 }
 
 export interface SeparateParameters{

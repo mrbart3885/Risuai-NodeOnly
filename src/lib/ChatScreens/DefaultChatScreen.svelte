@@ -27,6 +27,7 @@
     import { postChatFile } from 'src/ts/process/files/multisend';
     import { getInlayAsset } from 'src/ts/process/files/inlays';
     import { quickMenu } from 'src/ts/hotkey';
+    import { getRequestActivityLabel, requestActivityStore } from 'src/ts/process/request/requestActivity';
 
     import { coldStorageHeader, preLoadChat } from 'src/ts/process/coldstorage.svelte';
     import Chats from './Chats.svelte';
@@ -359,6 +360,27 @@
     let inputEle:HTMLTextAreaElement = $state()
     let inputTranslateHeight = $state("44px")
     let inputTranslateEle:HTMLTextAreaElement = $state()
+    let requestActivityLabel = $derived(getRequestActivityLabel($requestActivityStore))
+
+    const parsePixelHeight = (value: string, fallback: number) => {
+        const parsed = Number.parseFloat(value)
+        return Number.isFinite(parsed) ? parsed : fallback
+    }
+
+    let requestActivityBottom = $derived.by(() => {
+        const baseInputHeight = parsePixelHeight(inputHeight, 44) + 28
+        const translateHeight =
+            DBState.db.useAutoTranslateInput && currentCharacter?.chaId !== '§playground'
+                ? parsePixelHeight(inputTranslateHeight, 44) + 28
+                : 0
+        const newMessageOffset =
+            showNewMessageButton &&
+            ['bottom-right', 'floating-circle'].includes(DBState.db.newMessageButtonStyle ?? '')
+                ? 60
+                : 0
+
+        return `calc(${baseInputHeight + translateHeight + newMessageOffset + 16}px + env(safe-area-inset-bottom, 0px))`
+    })
 
     function updateInputSizeAll() {
         updateInputSize()
@@ -542,6 +564,17 @@
     {#if isScrollingToMessage}
         <div class="absolute inset-0 z-50 flex items-center justify-center bg-black/50 text-white text-xl font-bold backdrop-blur-sm">
             Loading...
+        </div>
+    {/if}
+    {#if $selectedCharID >= 0 && $requestActivityStore.activeCount > 0}
+        <div
+            class="pointer-events-none absolute right-4 z-40"
+            style:bottom={requestActivityBottom}
+        >
+            <div class="flex max-w-[min(20rem,calc(100vw-2rem))] items-center gap-3 rounded-full border border-darkborderc bg-darkbg/90 px-4 py-2 text-textcolor shadow-lg backdrop-blur-sm">
+                <RefreshCcwIcon size={14} class="shrink-0 animate-spin text-blue-400" />
+                <span class="truncate text-sm font-medium">{requestActivityLabel}</span>
+            </div>
         </div>
     {/if}
     {#if $selectedCharID < 0}

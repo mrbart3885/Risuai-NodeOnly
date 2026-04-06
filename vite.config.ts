@@ -7,8 +7,14 @@ import { readFileSync } from 'fs';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
+function getBackendPort() {
+  const parsed = Number(process.env.PORT || 6001)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 6001
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({command, mode}) => {
+  const backendTarget = `http://127.0.0.1:${getBackendPort()}`
   return {
     define: {
       '__APP_VERSION__': JSON.stringify(pkg.version),
@@ -37,6 +43,25 @@ export default defineConfig(({command, mode}) => {
       host: '0.0.0.0', // listen on all addresses
       port: 5174,
       strictPort: true,
+      proxy: {
+        '/api': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        '/hub-proxy': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        '/proxy2': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        '/proxy-stream-jobs': {
+          target: backendTarget,
+          changeOrigin: true,
+          ws: true,
+        },
+      },
       // hmr: false,
     },
     // to make use of `TAURI_ENV_DEBUG` and other env variables

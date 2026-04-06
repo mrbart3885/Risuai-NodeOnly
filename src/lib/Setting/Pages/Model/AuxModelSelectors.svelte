@@ -4,6 +4,7 @@
   import Accordion from 'src/lib/UI/Accordion.svelte'
   import { language } from 'src/lang'
   import ModelList from 'src/lib/UI/ModelList.svelte'
+  import { AUX_REQUESTS_MODEL_LABEL } from 'src/ts/setting/auxModelCopy'
 </script>
 
 <div class="flex items-center mt-4">
@@ -22,7 +23,7 @@
 
     <ModelList bind:value={DBState.db.seperateModels.emotion} blankable />
 
-    <span class="text-textcolor mt-4"> OtherAx </span>
+    <span class="text-textcolor mt-4">{AUX_REQUESTS_MODEL_LABEL}</span>
 
     <ModelList bind:value={DBState.db.seperateModels.otherAx} blankable />
   </Accordion>

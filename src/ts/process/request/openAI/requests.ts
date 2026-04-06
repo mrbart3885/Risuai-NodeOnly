@@ -305,7 +305,11 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     
         const mistralUrl = arg.customURL ?? "https://api.mistral.ai/v1/chat/completions"
-        const res = await globalFetch(mistralUrl, { ...targs, ...getLocalNetworkRequestOptions(mistralUrl) })
+        const res = await globalFetch(mistralUrl, {
+            ...targs,
+            proxyPolicy: arg.proxyPolicy,
+            ...getLocalNetworkRequestOptions(mistralUrl),
+        })
 
         const dat = res.data as any
         if(res.ok){
@@ -530,6 +534,9 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     if(risuIdentify){
         headers["X-Proxy-Risu"] = 'RisuAI'
     }
+    if(arg.extraHeaders){
+        headers = { ...headers, ...arg.extraHeaders }
+    }
     if(arg.multiGen){
         // Check if tools are enabled - multiGen with tools is not supported
         if(arg.tools && arg.tools.length > 0){
@@ -627,6 +634,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             signal: arg.abortSignal,
             chatId: arg.chatId,
             interceptor: 'openai_streaming',
+            proxyPolicy: arg.proxyPolicy,
             ...getLocalNetworkRequestOptions(replacerURL),
         })
 
@@ -690,6 +698,8 @@ async function requestHTTPOpenAI(replacerURL:string,body:any, headers:Record<str
         abortSignal: arg.abortSignal,
         chatId: arg.chatId,
         interceptor: 'openai_basic',
+        plainFetchDeforce: !!arg.extraHeaders,
+        proxyPolicy: arg.proxyPolicy,
         ...getLocalNetworkRequestOptions(replacerURL),
     })
 
@@ -961,6 +971,7 @@ export async function requestOpenAILegacyInstruct(arg:RequestDataArgumentExtende
         },
         chatId: arg.chatId,
         abortSignal: arg.abortSignal,
+        proxyPolicy: arg.proxyPolicy,
         ...getLocalNetworkRequestOptions(completionsUrl),
     });
 
@@ -1054,7 +1065,7 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         max_output_tokens: maxTokens,
         tools: [],
         store: false
-    }, ['temperature', 'top_p'], {}, arg.mode, {
+    }, arg.modelInfo.parameters ?? ['temperature', 'top_p'], {}, arg.mode, {
         modelId: arg.modelInfo.id
     })
 
@@ -1114,13 +1125,16 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         }
     }
 
-    const headers = {
+    let headers = {
         "Authorization": "Bearer " + (arg.key ?? db.openAIKey),
         "Content-Type": "application/json"
     }
 
     if(risuIdentify){
         headers["X-Proxy-Risu"] = 'RisuAI'
+    }
+    if(arg.extraHeaders){
+        headers = { ...headers, ...arg.extraHeaders }
     }
 
     if(arg.previewBody){
@@ -1144,6 +1158,8 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         chatId: arg.chatId,
         abortSignal: arg.abortSignal,
         interceptor: 'openai_response_api',
+        plainFetchDeforce: !!arg.extraHeaders,
+        proxyPolicy: arg.proxyPolicy,
         ...getLocalNetworkRequestOptions(requestURL),
     });
 
@@ -1422,6 +1438,7 @@ function wrapToolStream(
                                 signal: arg.abortSignal,
                                 chatId: arg.chatId,
                                 interceptor: 'openai_tool',
+                                proxyPolicy: arg.proxyPolicy,
                                 ...getLocalNetworkRequestOptions(replacerURL),
                             })
                             

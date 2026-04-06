@@ -26,6 +26,7 @@ import { moduleUpdate } from "./process/modules";
 import { makeColdData } from "./process/coldstorage.svelte";
 import { isLocalNetworkUrl } from "./network/localNetwork";
 import { decodeProxyJobWsChunk, formatProxyStreamErrorMessage, parseProxyJobWsEvent } from "./network/proxyJobWs";
+import { getFetchNativeTransport, shouldUseProxyForFetchNative, shouldUseProxyForGlobalFetch, type ProxyPolicy } from "./network/proxyPolicy";
 
 export const forageStorage = new AutoStorage()
 
@@ -814,6 +815,7 @@ const knownHostes = ["localhost", "127.0.0.1", "0.0.0.0"];
 interface GlobalFetchArgs {
     plainFetchForce?: boolean;
     plainFetchDeforce?: boolean;
+    proxyPolicy?: ProxyPolicy;
     body?: any;
     headers?: { [key: string]: string };
     rawResponse?: boolean;
@@ -893,7 +895,14 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
 
         const urlHost = new URL(url).hostname
         const useLocalNetworkRoute = arg.networkRoute === 'local_network' && isLocalNetworkUrl(url)
-        const forcePlainFetch = ((knownHostes.includes(urlHost)) || db.usePlainFetch || arg.plainFetchForce) && !arg.plainFetchDeforce && !useLocalNetworkRoute
+        const shouldUseProxy = shouldUseProxyForGlobalFetch({
+            dbUsePlainFetch: db.usePlainFetch,
+            knownHostMatch: knownHostes.includes(urlHost),
+            plainFetchForce: arg.plainFetchForce,
+            plainFetchDeforce: arg.plainFetchDeforce,
+            useLocalNetworkRoute,
+            proxyPolicy: arg.proxyPolicy,
+        })
 
         if(arg.interceptor){
             for (const interceptor of bodyIntercepterStore) {
@@ -916,11 +925,11 @@ export async function globalFetch(url: string, arg: GlobalFetchArgs = {}): Promi
                 return await fetchWithProxy(url, requestArg);
             }
 
-            if (forcePlainFetch) {
+            if (!shouldUseProxy) {
                 return await fetchWithPlainFetch(url, requestArg);
             }
             //userScriptFetch is provided by userscript
-            if (window.userScriptFetch && !arg.plainFetchDeforce) {
+            if (window.userScriptFetch && !arg.plainFetchDeforce && arg.proxyPolicy !== 'always') {
                 return await fetchWithUSFetch(url, requestArg);
             }
             return await fetchWithProxy(url, requestArg);
@@ -1614,6 +1623,7 @@ export async function fetchNative(url: string, arg: {
     interceptor?: string
     requestTimeoutMs?: number
     networkRoute?: 'auto' | 'local_network'
+    proxyPolicy?: ProxyPolicy
 }): Promise<Response> {
     const useInterceptor = !!arg.interceptor
     if (arg.body === undefined && (arg.method === 'POST' || arg.method === 'PUT')) {
@@ -1665,13 +1675,18 @@ export async function fetchNative(url: string, arg: {
     const timeoutSignal = buildTimeoutSignal(arg.signal, arg.requestTimeoutMs)
     const requestSignal = timeoutSignal.signal
     const db = getDatabase()
-    let throughProxy = !db.usePlainFetch
-    if (useLocalNetworkRoute) {
-        throughProxy = true
-    }
+    const throughProxy = shouldUseProxyForFetchNative({
+        dbUsePlainFetch: db.usePlainFetch,
+        useLocalNetworkRoute,
+        proxyPolicy: arg.proxyPolicy,
+    })
+    const fetchTransport = getFetchNativeTransport({
+        throughProxy,
+        hasUserScriptFetch: !!window.userScriptFetch,
+    })
 
     try {
-        if (window.userScriptFetch && !throughProxy) {
+        if (fetchTransport === 'userscript') {
             return await window.userScriptFetch(url, {
                 body: realBody as any,
                 headers: headers,
@@ -1700,6 +1715,13 @@ export async function fetchNative(url: string, arg: {
 
         // Local network non-streaming or WS fallback: go through /proxy2 directly
         if (useLocalNetworkRoute) {
+            return await fetchViaProxy2(url, headers, realBody, {
+                ...arg,
+                signal: requestSignal
+            })
+        }
+
+        if (fetchTransport === 'proxy') {
             return await fetchViaProxy2(url, headers, realBody, {
                 ...arg,
                 signal: requestSignal

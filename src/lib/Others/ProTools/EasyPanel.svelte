@@ -13,6 +13,11 @@
     import { XIcon } from "@lucide/svelte";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import CustomModelsSettings from "src/lib/Setting/Pages/Advanced/CustomModelsSettings.svelte";
+    import {
+        AUX_PARAMETER_HINT,
+        AUX_PARAMETER_SECTION_LABEL,
+        AUX_REQUESTS_MODEL_LABEL,
+    } from "src/ts/setting/auxModelCopy";
 
     let selectedOption = $state('models');
     let selectedParameterOption = $state('memory')
@@ -98,7 +103,7 @@
                 </div>
 
                 <div class="col-span-1">
-                    <span class="text-textcolor">{language.others}</span>
+                    <span class="text-textcolor">{AUX_REQUESTS_MODEL_LABEL}</span>
                     <ModelList bind:value={DBState.db.seperateModels.otherAx} blankable excludesPrefix="plugin"/>
                 </div>
                 
@@ -123,7 +128,7 @@
                         { label: language.longTermMemory, value: 'memory' },
                         { label: language.translator, value: 'translate' },
                         { label: language.emotionImage, value: 'emotion' },
-                        { label: language.others, value: 'otherAx' },
+                        { label: AUX_PARAMETER_SECTION_LABEL, value: 'otherAx' },
                     ]}
                     bind:value={selectedParameterOption}
                     size="md"
@@ -136,6 +141,7 @@
                     {:else if selectedParameterOption === 'emotion'}
                         <AllSeperateParameters bind:value={DBState.db.seperateParameters.emotion} withImportExport />
                     {:else if selectedParameterOption === 'otherAx'}
+                        <p class="text-xs text-textcolor2 mb-3">{AUX_PARAMETER_HINT}</p>
                         <AllSeperateParameters bind:value={DBState.db.seperateParameters.otherAx} withImportExport />
                     {/if}
                 </div>
