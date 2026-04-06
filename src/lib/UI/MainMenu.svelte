@@ -9,11 +9,16 @@
     import RisuHubIcon from "./Realm/RealmHubIcon.svelte";
     import Title from "./Title.svelte";
     import { updateInfoStore } from "src/ts/update";
+
+    const deploymentMarker = 'SHINYACAL-FORK';
 </script>
 <div class="h-full w-full flex flex-col overflow-y-auto items-center">
     {#if !$OpenRealmStore}
       <Title />
       <h3 class="text-textcolor2 mt-1">📦 NodeOnly v{getVersionString()}</h3>
+      <div class="mt-2 inline-flex items-center rounded-full border border-selected bg-darkbg px-3 py-1 text-xs font-semibold tracking-[0.2em] text-textcolor">
+        Deploy Marker {deploymentMarker}
+      </div>
       {#if $updateInfoStore?.hasUpdate}
         <button
           class="mt-1.5 px-3 py-1 rounded-full text-sm font-medium transition-colors

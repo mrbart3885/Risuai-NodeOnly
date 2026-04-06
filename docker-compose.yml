@@ -3,10 +3,17 @@ name: risuai-nodeonly
 services:
   risuai:
     container_name: risuai-nodeonly
-    image: ghcr.io/mrbart3885/risuai-nodeonly:latest
+    image: ${RISU_IMAGE:-ghcr.io/blissful-y0/risuai-nodeonly:latest}
     restart: always
+    init: true
     ports:
-      - 6001:6001
+      - ${RISU_PORT:-6001}:6001
+    environment:
+      NODE_ENV: production
+      PORT: 6001
+    stop_grace_period: 20s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
     volumes:
       - risuai-save:/app/save
 

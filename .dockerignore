@@ -4,3 +4,9 @@ save
 .github
 .claude
 dist
+.vscode
+deploy
+docs
+README.md
+README.upstream.md
+t.py
