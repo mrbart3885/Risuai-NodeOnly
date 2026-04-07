@@ -920,7 +920,6 @@ async function importCharacterCardSpec(card:CharacterCardV2Risu|CharacterCardV3,
         virtualscript: '', //removed dude to security issue
         extentions: ext ?? {},
         largePortrait: data?.extensions?.risuai?.largePortrait ?? (!data?.extensions?.risuai),
-        lorePlus: data?.extensions?.risuai?.lorePlus ?? false,
         inlayViewScreen: data?.extensions?.risuai?.inlayViewScreen ?? false,
         newGenData: data?.extensions?.risuai?.newGenData ?? undefined,
         vits: vits,
@@ -1139,7 +1138,6 @@ function createBaseV2(char:character) {
                     additionalText: char.additionalText,
                     virtualscript: '', //removed dude to security issue
                     largePortrait: char.largePortrait,
-                    lorePlus: char.lorePlus,
                     inlayViewScreen: char.inlayViewScreen,
                     newGenData: char.newGenData,
                     vits: {}
@@ -1547,7 +1545,6 @@ export function createBaseV3(char:character){
                     additionalText: char.additionalText,
                     virtualscript: '', //removed dude to security issue
                     largePortrait: char.largePortrait,
-                    lorePlus: char.lorePlus,
                     inlayViewScreen: char.inlayViewScreen,
                     newGenData: char.newGenData,
                     vits: {},
@@ -1768,7 +1765,6 @@ type CharacterCardV2Risu = {
                 additionalText?:string
                 virtualscript?:string
                 largePortrait?:boolean
-                lorePlus?:boolean
                 inlayViewScreen?:boolean
                 newGenData?: {
                     prompt: string,

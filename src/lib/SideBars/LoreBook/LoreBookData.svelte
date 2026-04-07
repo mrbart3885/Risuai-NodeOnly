@@ -18,7 +18,6 @@
         onRemove?: () => void;
         onClose?: (isDetail?: boolean) => void;
         onOpen?: (isDetail?: boolean) => void;
-        lorePlus?: boolean;
         idx: number;
         externalLoreBooks?: loreBook[];
         idgroup: string;
@@ -32,7 +31,6 @@
         onRemove = () => {},
         onClose = (isDetail = true) => {},
         onOpen = (isDetail = true) => {},
-        lorePlus = false,
         idx,
         externalLoreBooks = $bindable(),
         idgroup,
@@ -224,36 +222,30 @@
         <div class="border-0 outline-hidden w-full mt-2 flex flex-col mb-2">
             <span class="text-textcolor mt-6">{language.name} <Help key="loreName"/></span>
             <TextInput size="sm" bind:value={value.comment}/>
-            {#if !lorePlus}
-                {#if !value.alwaysActive}
-                    <span class="text-textcolor mt-6">{language.activationKeys} <Help key="loreActivationKey"/></span>
-                    <span class="text-xs text-textcolor2">{language.activationKeysInfo}</span>
-                    <TextInput size="sm" bind:value={value.key}/>
+            {#if !value.alwaysActive}
+                <span class="text-textcolor mt-6">{language.activationKeys} <Help key="loreActivationKey"/></span>
+                <span class="text-xs text-textcolor2">{language.activationKeysInfo}</span>
+                <TextInput size="sm" bind:value={value.key}/>
 
-                    {#if value.selective}
-                        <span class="text-textcolor mt-6">{language.SecondaryKeys}</span>
-                        <span class="text-xs text-textcolor2">{language.activationKeysInfo}</span>
-                        <TextInput size="sm" bind:value={value.secondkey}/>
-                    {/if}
+                {#if value.selective}
+                    <span class="text-textcolor mt-6">{language.SecondaryKeys}</span>
+                    <span class="text-xs text-textcolor2">{language.activationKeysInfo}</span>
+                    <TextInput size="sm" bind:value={value.secondkey}/>
                 {/if}
             {/if}
-            {#if !lorePlus}
-                {#if !(value.activationPercent === undefined || value.activationPercent === null)}
-                    <span class="text-textcolor mt-6">{language.activationProbability}</span>
-                    <NumberInput size="sm" bind:value={value.activationPercent} onChange={() => {
-                        if(isNaN(value.activationPercent) || !value.activationPercent || value.activationPercent < 0){
-                            value.activationPercent = 0
-                        }
-                        if(value.activationPercent > 100){
-                            value.activationPercent = 100
-                        }
-                    }} />
-                {/if}
+            {#if !(value.activationPercent === undefined || value.activationPercent === null)}
+                <span class="text-textcolor mt-6">{language.activationProbability}</span>
+                <NumberInput size="sm" bind:value={value.activationPercent} onChange={() => {
+                    if(isNaN(value.activationPercent) || !value.activationPercent || value.activationPercent < 0){
+                        value.activationPercent = 0
+                    }
+                    if(value.activationPercent > 100){
+                        value.activationPercent = 100
+                    }
+                }} />
             {/if}
-            {#if !lorePlus}
-                <span class="text-textcolor mt-4">{language.insertOrder} <Help key="loreorder"/></span>
-                <NumberInput size="sm" bind:value={value.insertorder} min={0} max={1000}/>
-            {/if}
+            <span class="text-textcolor mt-4">{language.insertOrder} <Help key="loreorder"/></span>
+            <NumberInput size="sm" bind:value={value.insertorder} min={0} max={1000}/>
             <span class="text-textcolor mt-4 mb-2">{language.prompt}</span>
             <TextAreaInput highlight autocomplete="off" bind:value={value.content} />
             {#await getTokens(value.content)}
@@ -269,13 +261,13 @@
                     <Check check={isLocallyActivated(value)} onChange={(check: boolean) => toggleLocalActive(check, value)} name={language.alwaysActiveInChat}/>
                 </div>
             {/if}
-            {#if !lorePlus && !value.useRegex}
+            {#if !value.useRegex}
                 <div class="flex items-center mt-2">
                     <Check bind:check={value.selective} name={language.selective}/>
                     <Help key="loreSelective" name={language.selective}/>
                 </div>
             {/if}
-            {#if !lorePlus && !value.alwaysActive}
+            {#if !value.alwaysActive}
                 <div class="flex items-center mt-2">
                     <Check bind:check={value.useRegex} name={language.useRegexLorebook}/>
                     <Help key="useRegexLorebook" name={language.useRegexLorebook}/>

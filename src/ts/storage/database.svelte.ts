@@ -1484,7 +1484,6 @@ export interface character{
     depth_prompt?: { depth: number, prompt: string }
     extentions?:{[key:string]:any}
     largePortrait?:boolean
-    lorePlus?:boolean
     inlayViewScreen?:boolean
     hfTTS?: {
         model: string
@@ -1559,7 +1558,6 @@ export interface groupChat{
     backgroundCSS?:string
     oneAtTime?:boolean
     virtualscript?:string
-    lorePlus?:boolean
     trashTime?:number
     nickname?:string
     defaultVariables?:string

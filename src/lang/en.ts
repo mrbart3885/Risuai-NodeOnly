@@ -113,7 +113,6 @@ export const languageEnglish = {
         inlayImages: "If enabled, images could be inlayed to the chat and AIs can see it if they support it.",
         metrica:
             "Metric Systemizer is a plugin that converts metrics to imperial units when request, and vice versa on output to show user metric system while using imperial for performace. it is not recommended to use this plugin when using imperial units on chat.",
-        lorePlus: "LoreBook+ is a experimental feature that uses vectordb instead of just string matching for better bot making experience and better matching performace.",
         topP: "Top P is a probability threshold for nucleus sampling. model considers the results of the tokens with top_p probability mass.",
         openAIFixer: "OpenAI Fixer is a plugin that fixes some of the problems of OpenAI.",
         sayNothing: "If enabled, it will input 'say nothing' when no string inputed.",
@@ -1079,7 +1078,6 @@ export const languageEnglish = {
     charjs: "CharacterJS",
     depthPrompt: "Depth Prompt",
     largePortrait: "Portrait",
-    lorePlus: "LoreBook+",
     reverseProxyOobaMode: "Ooba Mode",
     exactTokens: "Exact Tokens",
     fixedTokens: "Approximate Tokens",
