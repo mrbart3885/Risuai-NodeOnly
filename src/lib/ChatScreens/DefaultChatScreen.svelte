@@ -19,7 +19,7 @@
     import { stopTTS } from "src/ts/process/tts";
     import MainMenu from '../UI/MainMenu.svelte';
     import AssetInput from './AssetInput.svelte';
-    import { aiLawApplies, chatFoldedState, chatFoldedStateMessageIndex, downloadFile } from 'src/ts/globalApi.svelte';
+    import { aiLawApplies, chatFoldedState, chatFoldedStateMessageIndex, downloadFile, requestImmediateSave } from 'src/ts/globalApi.svelte';
     import { runTrigger } from 'src/ts/process/triggers';
     import { v4 } from 'uuid';
     import { PreUnreroll, Prereroll } from 'src/ts/process/prereroll';
@@ -208,6 +208,10 @@
         messageInput = ''
         messageInputTranslate = ''
         DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].message = cha
+        await requestImmediateSave({
+            forceFullWrite: true,
+            skipBackups: true,
+        })
         rerolls = []
         await sleep(10)
         updateInputSizeAll()
@@ -319,6 +323,11 @@
         } catch (error) {
             console.error(error)
             alertError(error)
+        } finally {
+            await requestImmediateSave({
+                forceFullWrite: true,
+                skipBackups: true,
+            })
         }
         lastCharId = $selectedCharID
         $doingChat = false

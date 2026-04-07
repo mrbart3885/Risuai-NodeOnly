@@ -27,6 +27,7 @@ import { makeColdData } from "./process/coldstorage.svelte";
 import { isLocalNetworkUrl } from "./network/localNetwork";
 import { decodeProxyJobWsChunk, formatProxyStreamErrorMessage, parseProxyJobWsEvent } from "./network/proxyJobWs";
 import { getFetchNativeTransport, shouldUseProxyForFetchNative, shouldUseProxyForGlobalFetch, type ProxyPolicy } from "./network/proxyPolicy";
+import { consumeSaveRequestOptions, mergeSaveRequestOptions, type SaveRequestOptions } from "./saveRequestQueue";
 
 export const forageStorage = new AutoStorage()
 
@@ -250,16 +251,10 @@ export let requiresFullEncoderReload = $state({
     state: false
 })
 
-let requestImmediateSaveImpl: ((options?: {
-    forceFullWrite?: boolean
-    skipBackups?: boolean
-}) => Promise<void> | void) = () => {}
+let requestImmediateSaveImpl: ((options?: SaveRequestOptions) => Promise<void> | void) = () => {}
 let patchSyncBaseline: Database | null = null
 
-export function requestImmediateSave(options?: {
-    forceFullWrite?: boolean
-    skipBackups?: boolean
-}) {
+export function requestImmediateSave(options?: SaveRequestOptions) {
     return requestImmediateSaveImpl(options)
 }
 
@@ -272,6 +267,7 @@ export async function saveDb() {
     let gotChannel = false
     const sessionID = v4()
     let saveInFlight: Promise<void> | null = null
+    let pendingSaveOptions: SaveRequestOptions | null = null
     let channel: BroadcastChannel
     if (window.BroadcastChannel) {
         channel = new BroadcastChannel('risu-db')
@@ -396,6 +392,7 @@ export async function saveDb() {
             }
             changed = true;
             void triggerSave({
+                forceFullWrite: true,
                 skipBroadcast: true,
                 skipBackups: true,
             })
@@ -598,11 +595,7 @@ export async function saveDb() {
 
     async function persistTrackedChanges(
         toSave: toSaveType,
-        options?: {
-            forceFullWrite?: boolean
-            skipBroadcast?: boolean
-            skipBackups?: boolean
-        }
+        options?: SaveRequestOptions
     ): Promise<'saved' | 'retry' | 'noop'> {
         if (gotChannel) {
             // Data is saved in another tab.
@@ -678,24 +671,24 @@ export async function saveDb() {
         return 'saved'
     }
 
-    async function triggerSave(options?: {
-        forceFullWrite?: boolean
-        skipBroadcast?: boolean
-        skipBackups?: boolean
-    }) {
+    async function triggerSave(options?: SaveRequestOptions) {
         if (saveInFlight) {
-            return saveInFlight
+            pendingSaveOptions = mergeSaveRequestOptions(pendingSaveOptions, options)
+            changed = true
+            return saveInFlight.then(() => triggerSave())
         }
 
+        const { effective: effectiveOptions } = consumeSaveRequestOptions(pendingSaveOptions, options)
+        pendingSaveOptions = null
         const toSave = takeTrackedChanges()
-        if (!hasTrackedChanges(toSave) && !options?.forceFullWrite) {
+        if (!hasTrackedChanges(toSave) && !effectiveOptions?.forceFullWrite) {
             return
         }
 
         saveInFlight = (async () => {
             saving.state = true
             try {
-                const result = await persistTrackedChanges(toSave, options)
+                const result = await persistTrackedChanges(toSave, effectiveOptions ?? undefined)
                 if (result === 'saved') {
                     savetrys = 0
                 } else if (result === 'noop' && hasTrackedChanges(toSave)) {
@@ -725,10 +718,7 @@ export async function saveDb() {
     requestImmediateSaveImpl = async (options) => {
         changed = true
         await tick()
-        await triggerSave({
-            forceFullWrite: options?.forceFullWrite,
-            skipBackups: options?.skipBackups,
-        })
+        await triggerSave(options)
     }
 
     let savetrys = 0
