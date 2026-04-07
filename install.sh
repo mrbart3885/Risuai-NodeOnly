@@ -56,13 +56,16 @@ EXTRACTED_DIR=$(ls -d "$TMP_DIR"/Risuai-NodeOnly-* 2>/dev/null | head -1)
 
 if [ -d "$INSTALL_DIR" ]; then
     warn "$INSTALL_DIR already exists."
-    printf "Overwrite? (existing save/ data will be preserved) [y/N]: "
+    printf "Overwrite? (existing save/ and backups/ data will be preserved) [y/N]: "
     read -r answer
     [ "$answer" = "y" ] || [ "$answer" = "Y" ] || error "Aborted."
 
     # Preserve user data
     if [ -d "$INSTALL_DIR/save" ]; then
         mv "$INSTALL_DIR/save" "$TMP_DIR/_save_backup"
+    fi
+    if [ -d "$INSTALL_DIR/backups" ]; then
+        mv "$INSTALL_DIR/backups" "$TMP_DIR/_backups_backup"
     fi
     rm -rf "$INSTALL_DIR"
 fi
@@ -73,6 +76,10 @@ mv "$EXTRACTED_DIR" "$INSTALL_DIR"
 if [ -d "$TMP_DIR/_save_backup" ]; then
     mv "$TMP_DIR/_save_backup" "$INSTALL_DIR/save"
     info "Restored existing save/ data."
+fi
+if [ -d "$TMP_DIR/_backups_backup" ]; then
+    mv "$TMP_DIR/_backups_backup" "$INSTALL_DIR/backups"
+    info "Restored existing backups/ data."
 fi
 
 cd "$INSTALL_DIR"

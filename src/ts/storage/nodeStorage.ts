@@ -436,6 +436,115 @@ export class NodeStorage{
         })
     }
 
+    // ── Server-side backup ─────────────────────────────────────────────────────
+
+    async saveServerBackup(
+        onProgress?: (current: number, total: number, bytes: number, totalBytes: number) => void
+    ): Promise<{ok: boolean, filename: string, size: number}> {
+        const da = await this.authFetch('/api/backup/server/save', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+            },
+        })
+        if (da.status < 200 || da.status >= 300) {
+            const body = await da.json().catch(() => ({}))
+            throw new Error(body.error || `server backup save error: ${da.status}`)
+        }
+
+        const reader = da.body!.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let result: {ok: boolean, filename: string, size: number} | null = null
+
+        while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop()!
+            for (const line of lines) {
+                if (!line) continue
+                const msg = JSON.parse(line)
+                if (msg.type === 'progress') {
+                    onProgress?.(msg.current, msg.total, msg.bytes, msg.totalBytes)
+                } else if (msg.type === 'done') {
+                    result = msg
+                } else if (msg.type === 'error') {
+                    throw new Error(msg.message)
+                }
+            }
+        }
+        if (!result) throw new Error('Server backup: no result received')
+        return result
+    }
+
+    async listServerBackups(): Promise<{backups: Array<{filename: string, size: number, createdAt: number}>}> {
+        const da = await this.authFetch('/api/backup/server/list')
+        if (da.status < 200 || da.status >= 300) throw new Error(`server backup list error: ${da.status}`)
+        return da.json()
+    }
+
+    async restoreServerBackup(
+        filename: string,
+        onProgress?: (bytes: number, totalBytes: number) => void
+    ): Promise<{ok: boolean, assetsRestored: number}> {
+        const da = await this.authFetch('/api/backup/server/restore', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({ filename }),
+        })
+        if (da.status === 404) throw new Error('Backup file not found')
+        if (da.status === 409) throw new Error('Another import is already in progress')
+        if (da.status < 200 || da.status >= 300) {
+            const body = await da.json().catch(() => ({}))
+            throw new Error(body.error || `server backup restore error: ${da.status}`)
+        }
+
+        const reader = da.body!.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let result: {ok: boolean, assetsRestored: number} | null = null
+
+        while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop()!
+            for (const line of lines) {
+                if (!line) continue
+                const msg = JSON.parse(line)
+                if (msg.type === 'progress') {
+                    onProgress?.(msg.bytes, msg.totalBytes)
+                } else if (msg.type === 'done') {
+                    result = msg
+                } else if (msg.type === 'error') {
+                    throw new Error(msg.message)
+                }
+            }
+        }
+        if (!result) throw new Error('Server backup restore: no result received')
+        return result
+    }
+
+    async deleteServerBackup(filename: string): Promise<void> {
+        const da = await this.authFetch(`/api/backup/server/${encodeURIComponent(filename)}`, {
+            method: 'DELETE',
+        })
+        if (da.status === 404) throw new Error('Backup file not found')
+        if (da.status < 200 || da.status >= 300) throw new Error(`server backup delete error: ${da.status}`)
+    }
+
+    async downloadServerBackup(filename: string): Promise<Response> {
+        const da = await this.authFetch(`/api/backup/server/download/${encodeURIComponent(filename)}`)
+        if (da.status === 404) throw new Error('Backup file not found')
+        if (da.status < 200 || da.status >= 300) throw new Error(`server backup download error: ${da.status}`)
+        return da
+    }
+
     // ── Save-folder migration ─────────────────────────────────────────────────
 
     async scanSaveFolder(folderPath?: string): Promise<{count: number, totalSize: number, hasDatabase: boolean}> {

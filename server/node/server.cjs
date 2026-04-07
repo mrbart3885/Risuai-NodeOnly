@@ -102,7 +102,7 @@ function shouldCompress(req, res) {
     // Original upstream server has no compression middleware at all,
     // so proxy responses were never compressed in the first place.
     const url = req.originalUrl || req.url;
-    if (url.startsWith('/proxy') || url.startsWith('/hub-proxy') || url.startsWith('/api/backup/export')) {
+    if (url.startsWith('/proxy') || url.startsWith('/hub-proxy') || url.startsWith('/api/backup/export') || url.startsWith('/api/backup/server/download/')) {
         return false;
     }
 
@@ -143,6 +143,13 @@ const savePath = path.join(process.cwd(), "save")
 if(!existsSync(savePath)){
     mkdirSync(savePath)
 }
+
+// Server-side backup directory (outside save/ to avoid bloating updater copies)
+const backupsDir = path.join(process.cwd(), "backups")
+if(!existsSync(backupsDir)){
+    mkdirSync(backupsDir)
+}
+const BACKUP_FILENAME_REGEX = /^risu-backup-\d+\.bin$/;
 
 const passwordPath = path.join(process.cwd(), 'save', '__password')
 if(existsSync(passwordPath)){
@@ -1167,6 +1174,214 @@ function parseBackupChunk(buffer, onEntry) {
         offset = dataEnd;
     }
     return buffer.subarray(offset);
+}
+
+// ─── Shared backup import logic ─────────────────────────────────────────────
+// Accepts any async iterable of Buffer chunks (HTTP request body, file stream, etc.)
+async function importBackupFromSource(dataSource, { maxBytes = 0, totalBytes = 0, onProgress = null } = {}) {
+    const BATCH_SIZE = 5000;
+    let remainingBuffer = Buffer.alloc(0);
+    let hasDatabase = false;
+    let assetsRestored = 0;
+    let bytesReceived = 0;
+    let batchCount = 0;
+    const seenEntryNames = new Set();
+    const importedInlayIds = new Set();
+    const importedSidecarIds = new Set();
+    const explicitSidecarMap = new Map();
+    const legacyInlayInfoMap = new Map();
+
+    const stagingDir = path.join(savePath, 'inlays_import_staging');
+    const backupInlayDir = path.join(savePath, 'inlays_import_backup');
+    await fs.rm(stagingDir, { recursive: true, force: true });
+    await fs.rm(backupInlayDir, { recursive: true, force: true });
+    await fs.mkdir(stagingDir, { recursive: true });
+
+    function stagingInlayFilePath(id, ext) {
+        return path.join(stagingDir, `${id}.${normalizeInlayExt(ext)}`);
+    }
+    function stagingSidecarPath(id) {
+        return path.join(stagingDir, `${id}.meta.json`);
+    }
+    function writeStagingInlayFileSync(id, ext, buffer, info) {
+        const normalizedExt = normalizeInlayExt(ext);
+        writeFileSync(stagingInlayFilePath(id, normalizedExt), Buffer.from(buffer));
+        const sidecar = {
+            ext: normalizedExt,
+            name: typeof info?.name === 'string' ? info.name : id,
+            type: typeof info?.type === 'string' ? info.type : 'image',
+            height: typeof info?.height === 'number' ? info.height : undefined,
+            width: typeof info?.width === 'number' ? info.width : undefined,
+        };
+        writeFileSync(stagingSidecarPath(id), JSON.stringify(sidecar));
+    }
+    function writeStagingSidecarSync(id, info) {
+        const sidecar = {
+            ext: normalizeInlayExt(info?.ext),
+            name: typeof info?.name === 'string' ? info.name : id,
+            type: typeof info?.type === 'string' ? info.type : 'image',
+            height: typeof info?.height === 'number' ? info.height : undefined,
+            width: typeof info?.width === 'number' ? info.width : undefined,
+        };
+        writeFileSync(stagingSidecarPath(id), JSON.stringify(sidecar));
+    }
+
+    sqliteDb.pragma('synchronous = OFF');
+
+    sqliteDb.exec('BEGIN');
+    kvDelPrefix('assets/');
+    kvDelPrefix('inlay/');
+    kvDelPrefix('inlay_thumb/');
+    kvDelPrefix('inlay_meta/');
+    kvDelPrefix('inlay_info/');
+    clearEntities();
+    sqliteDb.exec('COMMIT');
+
+    sqliteDb.exec('BEGIN');
+    try {
+        for await (const chunk of dataSource) {
+            bytesReceived += chunk.length;
+            if (maxBytes > 0 && bytesReceived > maxBytes) {
+                throw new Error(`Backup exceeds max allowed size (${maxBytes} bytes)`);
+            }
+            if (onProgress) onProgress(bytesReceived, totalBytes);
+
+            remainingBuffer = remainingBuffer.length === 0
+                ? Buffer.from(chunk)
+                : Buffer.concat([remainingBuffer, Buffer.from(chunk)]);
+            remainingBuffer = parseBackupChunk(remainingBuffer, (name, data) => {
+                if (seenEntryNames.has(name)) {
+                    throw new Error(`Duplicate backup entry: ${name}`);
+                }
+                seenEntryNames.add(name);
+
+                const inlayRaw = parseInlayBackupName(name);
+                const inlaySidecar = parseInlaySidecarBackupName(name);
+
+                if (inlayRaw) {
+                    importedInlayIds.add(inlayRaw.id);
+                    if (inlayRaw.ext) {
+                        writeStagingInlayFileSync(inlayRaw.id, inlayRaw.ext, data, legacyInlayInfoMap.get(inlayRaw.id) || { ext: inlayRaw.ext, name: inlayRaw.id, type: 'image' });
+                    } else if (data.length > 0 && data[0] === 0x7b) {
+                        const parsed = JSON.parse(data.toString('utf-8'));
+                        const type = typeof parsed?.type === 'string' ? parsed.type : 'image';
+                        const ext = normalizeInlayExt(parsed?.ext);
+                        const buffer = type === 'signature'
+                            ? Buffer.from(typeof parsed?.data === 'string' ? parsed.data : '', 'utf-8')
+                            : decodeDataUri(parsed?.data).buffer;
+                        writeStagingInlayFileSync(inlayRaw.id, ext, buffer, legacyInlayInfoMap.get(inlayRaw.id) || {
+                            ext,
+                            name: typeof parsed?.name === 'string' ? parsed.name : inlayRaw.id,
+                            type,
+                            height: typeof parsed?.height === 'number' ? parsed.height : undefined,
+                            width: typeof parsed?.width === 'number' ? parsed.width : undefined,
+                        });
+                    } else {
+                        writeStagingInlayFileSync(inlayRaw.id, 'bin', data, legacyInlayInfoMap.get(inlayRaw.id) || {
+                            ext: 'bin',
+                            name: inlayRaw.id,
+                            type: 'image',
+                        });
+                    }
+                    if (explicitSidecarMap.has(inlayRaw.id)) {
+                        writeStagingSidecarSync(inlayRaw.id, explicitSidecarMap.get(inlayRaw.id));
+                    } else if (!importedSidecarIds.has(inlayRaw.id)) {
+                        const legacyInfo = legacyInlayInfoMap.get(inlayRaw.id);
+                        if (legacyInfo) {
+                            writeStagingSidecarSync(inlayRaw.id, legacyInfo);
+                        }
+                    }
+                    assetsRestored += 1;
+                } else if (inlaySidecar) {
+                    const parsed = JSON.parse(data.toString('utf-8'));
+                    explicitSidecarMap.set(inlaySidecar.id, parsed);
+                    writeStagingSidecarSync(inlaySidecar.id, parsed);
+                    importedSidecarIds.add(inlaySidecar.id);
+                } else if (name.startsWith('inlay_info/')) {
+                    const id = name.slice('inlay_info/'.length);
+                    if (!isSafeInlayId(id)) {
+                        throw new Error(`Invalid legacy inlay info entry name: ${name}`);
+                    }
+                    const parsed = JSON.parse(data.toString('utf-8'));
+                    legacyInlayInfoMap.set(id, {
+                        ext: normalizeInlayExt(parsed?.ext),
+                        name: typeof parsed?.name === 'string' ? parsed.name : id,
+                        type: typeof parsed?.type === 'string' ? parsed.type : 'image',
+                        height: typeof parsed?.height === 'number' ? parsed.height : undefined,
+                        width: typeof parsed?.width === 'number' ? parsed.width : undefined,
+                    });
+                    if (importedInlayIds.has(id) && !importedSidecarIds.has(id)) {
+                        writeStagingSidecarSync(id, legacyInlayInfoMap.get(id));
+                    }
+                } else if (name.startsWith('inlay_thumb/')) {
+                    // Skip deprecated thumbnail entries from legacy backups
+                } else {
+                    const storageKey = resolveBackupStorageKey(name);
+                    kvSet(storageKey, data);
+                    if (storageKey === 'database/database.bin') {
+                        hasDatabase = true;
+                    } else {
+                        assetsRestored += 1;
+                    }
+                }
+
+                batchCount++;
+                if (batchCount >= BATCH_SIZE) {
+                    sqliteDb.exec('COMMIT');
+                    sqliteDb.exec('BEGIN');
+                    batchCount = 0;
+                }
+            });
+        }
+
+        if (remainingBuffer.length > 0) {
+            throw new Error('Backup stream ended with incomplete entry');
+        }
+        if (!hasDatabase) {
+            throw new Error('Backup does not contain database.risudat');
+        }
+        for (const [id, info] of legacyInlayInfoMap.entries()) {
+            if (importedInlayIds.has(id) && !importedSidecarIds.has(id)) {
+                writeStagingSidecarSync(id, info);
+            }
+        }
+        sqliteDb.exec('COMMIT');
+    } catch (error) {
+        try { sqliteDb.exec('ROLLBACK'); } catch (_) {}
+        await fs.rm(stagingDir, { recursive: true, force: true }).catch(() => {});
+        await fs.rm(backupInlayDir, { recursive: true, force: true }).catch(() => {});
+        throw error;
+    } finally {
+        sqliteDb.pragma('synchronous = NORMAL');
+    }
+
+    await ensureInlayDir();
+    try {
+        if (existsSync(inlayDir)) {
+            await fs.rename(inlayDir, backupInlayDir);
+        }
+        await fs.rename(stagingDir, inlayDir);
+        await fs.writeFile(inlayMigrationMarker, new Date().toISOString(), 'utf-8');
+        await fs.rm(backupInlayDir, { recursive: true, force: true }).catch(() => {});
+    } catch (swapError) {
+        if (existsSync(backupInlayDir)) {
+            await fs.rm(inlayDir, { recursive: true, force: true }).catch(() => {});
+            await fs.rename(backupInlayDir, inlayDir).catch(() => {});
+        }
+        await fs.rm(stagingDir, { recursive: true, force: true }).catch(() => {});
+        throw swapError;
+    }
+
+    invalidateDbCache();
+
+    try {
+        checkpointWal('TRUNCATE');
+    } catch (checkpointError) {
+        console.warn('[Backup Import] WAL checkpoint after import failed:', checkpointError);
+    }
+
+    console.log(`[Backup Import] Complete: ${assetsRestored} assets restored, ${(bytesReceived / 1024 / 1024).toFixed(1)}MB processed`);
+    return { assetsRestored, bytesReceived };
 }
 
 app.get('/', async (req, res, next) => {
@@ -2428,7 +2643,6 @@ app.post('/api/backup/import', async (req, res, next) => {
     const prevRequestTimeout = req.socket.server?.requestTimeout;
     req.socket.setTimeout(0);
     req.socket.setKeepAlive(true);
-    // Node 18+ server.requestTimeout (default 5min) aborts long uploads
     if (req.socket.server) req.socket.server.requestTimeout = 0;
 
     try {
@@ -2444,219 +2658,8 @@ app.post('/api/backup/import', async (req, res, next) => {
             return;
         }
 
-        const BATCH_SIZE = 5000;
-        let remainingBuffer = Buffer.alloc(0);
-        let hasDatabase = false;
-        let assetsRestored = 0;
-        let bytesReceived = 0;
-        let batchCount = 0;
-        const seenEntryNames = new Set();
-        const importedInlayIds = new Set();
-        const importedSidecarIds = new Set();
-        const explicitSidecarMap = new Map();
-        const legacyInlayInfoMap = new Map();
-
-        // Stage inlay files in a temp directory, swap on success
-        const stagingDir = path.join(savePath, 'inlays_import_staging');
-        const backupInlayDir = path.join(savePath, 'inlays_import_backup');
-        await fs.rm(stagingDir, { recursive: true, force: true });
-        await fs.rm(backupInlayDir, { recursive: true, force: true });
-        await fs.mkdir(stagingDir, { recursive: true });
-
-        function stagingInlayFilePath(id, ext) {
-            return path.join(stagingDir, `${id}.${normalizeInlayExt(ext)}`);
-        }
-        function stagingSidecarPath(id) {
-            return path.join(stagingDir, `${id}.meta.json`);
-        }
-        function writeStagingInlayFileSync(id, ext, buffer, info) {
-            const normalizedExt = normalizeInlayExt(ext);
-            writeFileSync(stagingInlayFilePath(id, normalizedExt), Buffer.from(buffer));
-            const sidecar = {
-                ext: normalizedExt,
-                name: typeof info?.name === 'string' ? info.name : id,
-                type: typeof info?.type === 'string' ? info.type : 'image',
-                height: typeof info?.height === 'number' ? info.height : undefined,
-                width: typeof info?.width === 'number' ? info.width : undefined,
-            };
-            writeFileSync(stagingSidecarPath(id), JSON.stringify(sidecar));
-        }
-        function writeStagingSidecarSync(id, info) {
-            const sidecar = {
-                ext: normalizeInlayExt(info?.ext),
-                name: typeof info?.name === 'string' ? info.name : id,
-                type: typeof info?.type === 'string' ? info.type : 'image',
-                height: typeof info?.height === 'number' ? info.height : undefined,
-                width: typeof info?.width === 'number' ? info.width : undefined,
-            };
-            writeFileSync(stagingSidecarPath(id), JSON.stringify(sidecar));
-        }
-
-        // Disable fsync during bulk import for speed (safe: backup file is recoverable)
-        sqliteDb.pragma('synchronous = OFF');
-
-        // Clear old SQLite data
-        sqliteDb.exec('BEGIN');
-        kvDelPrefix('assets/');
-        kvDelPrefix('inlay/');
-        kvDelPrefix('inlay_thumb/');
-        kvDelPrefix('inlay_meta/');
-        kvDelPrefix('inlay_info/');
-        clearEntities();
-        sqliteDb.exec('COMMIT');
-
-        // Import in batches to keep WAL bounded
-        sqliteDb.exec('BEGIN');
-        try {
-
-            for await (const chunk of req) {
-                bytesReceived += chunk.length;
-                if (BACKUP_IMPORT_MAX_BYTES > 0 && bytesReceived > BACKUP_IMPORT_MAX_BYTES) {
-                    throw new Error(`Backup exceeds max allowed size (${BACKUP_IMPORT_MAX_BYTES} bytes)`);
-                }
-
-                remainingBuffer = remainingBuffer.length === 0
-                    ? Buffer.from(chunk)
-                    : Buffer.concat([remainingBuffer, Buffer.from(chunk)]);
-                remainingBuffer = parseBackupChunk(remainingBuffer, (name, data) => {
-                    if (seenEntryNames.has(name)) {
-                        throw new Error(`Duplicate backup entry: ${name}`);
-                    }
-                    seenEntryNames.add(name);
-
-                    const inlayRaw = parseInlayBackupName(name);
-                    const inlaySidecar = parseInlaySidecarBackupName(name);
-
-                    if (inlayRaw) {
-                        importedInlayIds.add(inlayRaw.id);
-                        if (inlayRaw.ext) {
-                            writeStagingInlayFileSync(inlayRaw.id, inlayRaw.ext, data, legacyInlayInfoMap.get(inlayRaw.id) || { ext: inlayRaw.ext, name: inlayRaw.id, type: 'image' });
-                        } else if (data.length > 0 && data[0] === 0x7b) {
-                            const parsed = JSON.parse(data.toString('utf-8'));
-                            const type = typeof parsed?.type === 'string' ? parsed.type : 'image';
-                            const ext = normalizeInlayExt(parsed?.ext);
-                            const buffer = type === 'signature'
-                                ? Buffer.from(typeof parsed?.data === 'string' ? parsed.data : '', 'utf-8')
-                                : decodeDataUri(parsed?.data).buffer;
-                            writeStagingInlayFileSync(inlayRaw.id, ext, buffer, legacyInlayInfoMap.get(inlayRaw.id) || {
-                                ext,
-                                name: typeof parsed?.name === 'string' ? parsed.name : inlayRaw.id,
-                                type,
-                                height: typeof parsed?.height === 'number' ? parsed.height : undefined,
-                                width: typeof parsed?.width === 'number' ? parsed.width : undefined,
-                            });
-                        } else {
-                            writeStagingInlayFileSync(inlayRaw.id, 'bin', data, legacyInlayInfoMap.get(inlayRaw.id) || {
-                                ext: 'bin',
-                                name: inlayRaw.id,
-                                type: 'image',
-                            });
-                        }
-                        if (explicitSidecarMap.has(inlayRaw.id)) {
-                            writeStagingSidecarSync(inlayRaw.id, explicitSidecarMap.get(inlayRaw.id));
-                        } else if (!importedSidecarIds.has(inlayRaw.id)) {
-                            const legacyInfo = legacyInlayInfoMap.get(inlayRaw.id);
-                            if (legacyInfo) {
-                                writeStagingSidecarSync(inlayRaw.id, legacyInfo);
-                            }
-                        }
-                        assetsRestored += 1;
-                    } else if (inlaySidecar) {
-                        const parsed = JSON.parse(data.toString('utf-8'));
-                        explicitSidecarMap.set(inlaySidecar.id, parsed);
-                        writeStagingSidecarSync(inlaySidecar.id, parsed);
-                        importedSidecarIds.add(inlaySidecar.id);
-                    } else if (name.startsWith('inlay_info/')) {
-                        const id = name.slice('inlay_info/'.length);
-                        if (!isSafeInlayId(id)) {
-                            throw new Error(`Invalid legacy inlay info entry name: ${name}`);
-                        }
-                        const parsed = JSON.parse(data.toString('utf-8'));
-                        legacyInlayInfoMap.set(id, {
-                            ext: normalizeInlayExt(parsed?.ext),
-                            name: typeof parsed?.name === 'string' ? parsed.name : id,
-                            type: typeof parsed?.type === 'string' ? parsed.type : 'image',
-                            height: typeof parsed?.height === 'number' ? parsed.height : undefined,
-                            width: typeof parsed?.width === 'number' ? parsed.width : undefined,
-                        });
-                        if (importedInlayIds.has(id) && !importedSidecarIds.has(id)) {
-                            writeStagingSidecarSync(id, legacyInlayInfoMap.get(id));
-                        }
-                    } else if (name.startsWith('inlay_thumb/')) {
-                        // Skip deprecated thumbnail entries from legacy backups
-                    } else {
-                        const storageKey = resolveBackupStorageKey(name);
-                        kvSet(storageKey, data);
-                        if (storageKey === 'database/database.bin') {
-                            hasDatabase = true;
-                        } else {
-                            assetsRestored += 1;
-                        }
-                    }
-
-                    batchCount++;
-                    if (batchCount >= BATCH_SIZE) {
-                        sqliteDb.exec('COMMIT');
-                        sqliteDb.exec('BEGIN');
-                        batchCount = 0;
-                    }
-                });
-            }
-
-            if (remainingBuffer.length > 0) {
-                throw new Error('Backup stream ended with incomplete entry');
-            }
-            if (!hasDatabase) {
-                throw new Error('Backup does not contain database.risudat');
-            }
-            for (const [id, info] of legacyInlayInfoMap.entries()) {
-                if (importedInlayIds.has(id) && !importedSidecarIds.has(id)) {
-                    writeStagingSidecarSync(id, info);
-                }
-            }
-            sqliteDb.exec('COMMIT');
-        } catch (error) {
-            try { sqliteDb.exec('ROLLBACK'); } catch (_) {}
-            await fs.rm(stagingDir, { recursive: true, force: true }).catch(() => {});
-            await fs.rm(backupInlayDir, { recursive: true, force: true }).catch(() => {});
-            throw error;
-        } finally {
-            sqliteDb.pragma('synchronous = NORMAL');
-        }
-
-        // Swap inlay directory: staging → live (atomic rename)
-        await ensureInlayDir();
-        try {
-            if (existsSync(inlayDir)) {
-                await fs.rename(inlayDir, backupInlayDir);
-            }
-            await fs.rename(stagingDir, inlayDir);
-            await fs.writeFile(inlayMigrationMarker, new Date().toISOString(), 'utf-8');
-            await fs.rm(backupInlayDir, { recursive: true, force: true }).catch(() => {});
-        } catch (swapError) {
-            // Restore original inlay directory if swap failed
-            if (existsSync(backupInlayDir)) {
-                await fs.rm(inlayDir, { recursive: true, force: true }).catch(() => {});
-                await fs.rename(backupInlayDir, inlayDir).catch(() => {});
-            }
-            await fs.rm(stagingDir, { recursive: true, force: true }).catch(() => {});
-            throw swapError;
-        }
-
-        // Invalidate db cache after import to prevent stale patches
-        invalidateDbCache();
-
-        try {
-            checkpointWal('TRUNCATE');
-        } catch (checkpointError) {
-            console.warn('[Backup Import] WAL checkpoint after import failed:', checkpointError);
-        }
-
-        console.log(`[Backup Import] Complete: ${assetsRestored} assets restored, ${(bytesReceived / 1024 / 1024).toFixed(1)}MB processed`);
-        res.json({
-            ok: true,
-            assetsRestored,
-        });
+        const result = await importBackupFromSource(req, { maxBytes: BACKUP_IMPORT_MAX_BYTES });
+        res.json({ ok: true, assetsRestored: result.assetsRestored });
     } catch (error) {
         next(error);
     } finally {
@@ -2664,6 +2667,258 @@ app.post('/api/backup/import', async (req, res, next) => {
         if (req.socket.server && prevRequestTimeout !== undefined) {
             req.socket.server.requestTimeout = prevRequestTimeout;
         }
+    }
+});
+
+// ── Server-side backup endpoints ────────────────────────────────────────────
+
+// Save current data as a .bin backup file on the server
+app.post('/api/backup/server/save', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    if (!checkActiveSession(req, res)) return;
+    try {
+        flushPendingDb();
+
+        const inlayFiles = await listInlayFiles();
+        const inlayEntries = await Promise.all(inlayFiles.map(async (entry) => {
+            const stat = await fs.stat(entry.filePath);
+            return { kind: 'file', sourcePath: entry.filePath, backupName: `inlay/${entry.id}.${entry.ext}`, size: stat.size };
+        }));
+        const sidecarEntries = (await Promise.all(inlayFiles.map(async (entry) => {
+            const sidecarPath = getInlaySidecarPath(entry.id);
+            try {
+                const stat = await fs.stat(sidecarPath);
+                return { kind: 'sidecar', sourcePath: sidecarPath, backupName: `inlay_sidecar/${entry.id}`, size: stat.size };
+            } catch { return null; }
+        }))).filter(Boolean);
+
+        const namespacedEntries = [
+            ...kvListWithSizes('assets/').map((e) => ({ kind: 'kv', key: e.key, backupName: path.basename(e.key), size: e.size })),
+            ...kvListWithSizes('inlay_meta/').map((e) => ({ kind: 'kv', key: e.key, backupName: e.key, size: e.size })),
+            ...inlayEntries,
+            ...sidecarEntries,
+        ];
+
+        const totalEntries = namespacedEntries.length + 1; // +1 for database
+        const totalBytes = namespacedEntries.reduce((sum, e) => sum + e.size, 0);
+
+        // Stream progress as NDJSON
+        res.setHeader('content-type', 'application/x-ndjson');
+        res.flushHeaders();
+
+        const filename = `risu-backup-${Date.now()}.bin`;
+        const finalPath = path.join(backupsDir, filename);
+        const tmpPath = finalPath + '.tmp';
+        const { createWriteStream: createFsWriteStream } = require('fs');
+        const writeStream = createFsWriteStream(tmpPath);
+
+        let closed = false;
+        let writeComplete = false;
+        res.once('close', () => { closed = true; });
+
+        try {
+            await new Promise((resolve, reject) => {
+                writeStream.on('error', reject);
+
+                (async () => {
+                    let written = 0;
+                    let bytesWritten = 0;
+                    for (const entry of namespacedEntries) {
+                        if (closed) break;
+                        const value = entry.kind === 'kv'
+                            ? kvGet(entry.key)
+                            : await fs.readFile(entry.sourcePath);
+                        if (value) {
+                            const ok = writeStream.write(encodeBackupEntry(entry.backupName, value));
+                            if (!ok) await new Promise(r => writeStream.once('drain', r));
+                            bytesWritten += value.length;
+                        }
+                        written++;
+                        if (written % 50 === 0 || written === namespacedEntries.length) {
+                            res.write(JSON.stringify({ type: 'progress', current: written, total: totalEntries, bytes: bytesWritten, totalBytes }) + '\n');
+                        }
+                    }
+                    if (closed) throw new Error('Client disconnected during backup save');
+                    const dbValue = kvGet('database/database.bin');
+                    if (dbValue) {
+                        const ok = writeStream.write(encodeBackupEntry('database.risudat', dbValue));
+                        if (!ok) await new Promise(r => writeStream.once('drain', r));
+                        bytesWritten += dbValue.length;
+                    }
+                    res.write(JSON.stringify({ type: 'progress', current: totalEntries, total: totalEntries, bytes: bytesWritten, totalBytes }) + '\n');
+                    writeStream.end(resolve);
+                })().catch(reject);
+            });
+
+            // Atomic rename: only expose the file after successful write
+            await fs.rename(tmpPath, finalPath);
+            writeComplete = true;
+
+            const stat = await fs.stat(finalPath);
+            console.log(`[Server Backup] Saved: ${filename} (${(stat.size / 1024 / 1024).toFixed(1)} MB)`);
+            res.write(JSON.stringify({ type: 'done', ok: true, filename, size: stat.size }) + '\n');
+            res.end();
+        } catch (innerError) {
+            // Clean up incomplete temp file
+            if (!writeComplete) {
+                await fs.unlink(tmpPath).catch(() => {});
+            }
+            throw innerError;
+        }
+    } catch (error) {
+        if (!res.headersSent) {
+            next(error);
+        } else {
+            res.write(JSON.stringify({ type: 'error', message: error.message }) + '\n');
+            res.end();
+        }
+    }
+});
+
+// List backup files on the server
+app.get('/api/backup/server/list', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    try {
+        let entries;
+        try {
+            entries = await fs.readdir(backupsDir, { withFileTypes: true });
+        } catch {
+            res.json({ backups: [] });
+            return;
+        }
+        const backups = [];
+        for (const entry of entries) {
+            if (!entry.isFile() || !BACKUP_FILENAME_REGEX.test(entry.name)) continue;
+            const stat = await fs.stat(path.join(backupsDir, entry.name));
+            const tsMatch = entry.name.match(/^risu-backup-(\d+)\.bin$/);
+            backups.push({
+                filename: entry.name,
+                size: stat.size,
+                createdAt: tsMatch ? Number(tsMatch[1]) : stat.mtimeMs,
+            });
+        }
+        backups.sort((a, b) => b.createdAt - a.createdAt);
+        res.json({ backups });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Restore from a server backup file
+app.post('/api/backup/server/restore', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    if (!checkActiveSession(req, res)) return;
+
+    if (importInProgress) {
+        res.status(409).json({ error: 'Another import is already in progress' });
+        return;
+    }
+    importInProgress = true;
+
+    try {
+        const filename = req.body?.filename;
+        if (!filename || !BACKUP_FILENAME_REGEX.test(filename)) {
+            res.status(400).json({ error: 'Invalid backup filename' });
+            return;
+        }
+        const filePath = path.join(backupsDir, filename);
+        let fileStat;
+        try {
+            fileStat = await fs.stat(filePath);
+        } catch {
+            res.status(404).json({ error: 'Backup file not found' });
+            return;
+        }
+
+        const disk = await checkDiskSpace(fileStat.size * BACKUP_DISK_HEADROOM);
+        if (!disk.ok) {
+            res.status(507).json({
+                error: 'Insufficient disk space',
+                available: disk.available,
+                required: fileStat.size * BACKUP_DISK_HEADROOM,
+            });
+            return;
+        }
+
+        res.setHeader('content-type', 'application/x-ndjson');
+        res.flushHeaders();
+
+        let lastProgressWrite = 0;
+        const { createReadStream } = require('fs');
+        const stream = createReadStream(filePath, { highWaterMark: 256 * 1024 });
+        const result = await importBackupFromSource(stream, {
+            totalBytes: fileStat.size,
+            onProgress: (received, total) => {
+                const now = Date.now();
+                if (now - lastProgressWrite < 200) return;
+                lastProgressWrite = now;
+                res.write(JSON.stringify({ type: 'progress', bytes: received, totalBytes: total }) + '\n');
+            },
+        });
+        res.write(JSON.stringify({ type: 'done', ok: true, assetsRestored: result.assetsRestored }) + '\n');
+        res.end();
+    } catch (error) {
+        if (!res.headersSent) {
+            next(error);
+        } else {
+            res.write(JSON.stringify({ type: 'error', message: error.message }) + '\n');
+            res.end();
+        }
+    } finally {
+        importInProgress = false;
+    }
+});
+
+// Delete a server backup file
+app.delete('/api/backup/server/:filename', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    if (!checkActiveSession(req, res)) return;
+    try {
+        const filename = req.params.filename;
+        if (!BACKUP_FILENAME_REGEX.test(filename)) {
+            res.status(400).json({ error: 'Invalid backup filename' });
+            return;
+        }
+        const filePath = path.join(backupsDir, filename);
+        try {
+            await fs.unlink(filePath);
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                res.status(404).json({ error: 'Backup file not found' });
+                return;
+            }
+            throw err;
+        }
+        res.json({ ok: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Download a server backup file
+app.get('/api/backup/server/download/:filename', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    try {
+        const filename = req.params.filename;
+        if (!BACKUP_FILENAME_REGEX.test(filename)) {
+            res.status(400).json({ error: 'Invalid backup filename' });
+            return;
+        }
+        const filePath = path.join(backupsDir, filename);
+        let stat;
+        try {
+            stat = await fs.stat(filePath);
+        } catch {
+            res.status(404).json({ error: 'Backup file not found' });
+            return;
+        }
+        res.setHeader('content-type', 'application/octet-stream');
+        res.setHeader('content-disposition', `attachment; filename="${filename}"`);
+        res.setHeader('content-length', stat.size);
+        const { createReadStream } = require('fs');
+        createReadStream(filePath).pipe(res);
+    } catch (error) {
+        next(error);
     }
 });
 

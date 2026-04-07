@@ -292,3 +292,21 @@ export async function CleanupMigratedFiles() {
         alertError(error instanceof Error ? error.message : 'Cleanup failed')
     }
 }
+
+// ── Server-side backup functions ─────────────────────────────────────────────
+
+export async function SaveServerBackup() {
+    try {
+        alertWait(language.serverBackupSaving)
+        const result = await forageStorage.saveServerBackup((current, total, bytes) => {
+            const pct = total > 0 ? ((current / total) * 100).toFixed(1) : '0'
+            const bytesStr = formatBytes(bytes)
+            alertWait(`${language.serverBackupSaving} (${pct}% - ${bytesStr})`)
+        })
+        alertNormal(language.serverBackupSaveSuccess(result.filename, formatBytes(result.size)))
+    } catch (error) {
+        console.error(error)
+        alertError(error instanceof Error ? error.message : 'Server backup failed')
+    }
+}
+
