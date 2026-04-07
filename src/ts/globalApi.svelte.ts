@@ -29,8 +29,6 @@ import { getFetchNativeTransport, shouldUseProxyForFetchNative, shouldUseProxyFo
 
 export const forageStorage = new AutoStorage()
 
-const appWindow = null
-
 interface fetchLog {
     body: string
     header: string

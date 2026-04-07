@@ -31,8 +31,6 @@ import {
 import { registerModelDynamic } from "./model/modellist";
 import { isNodeServer } from "./platform";
 
-const appWindow = null
-
 /**
  * Loads the application data.
  */
