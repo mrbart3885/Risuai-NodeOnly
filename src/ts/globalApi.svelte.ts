@@ -289,17 +289,6 @@ export async function saveDb() {
             }
         }
     }
-    // Cross-device single-writer lock: mirrors BroadcastChannel behavior
-    // across devices via server-side session check (423 → deactivate)
-    window.addEventListener('risu-session-deactivated', () => {
-        if (!gotChannel) {
-            gotChannel = true
-            alertNormalWait(language.activeTabChange).then(() => {
-                location.reload()
-            })
-        }
-    })
-
     const changeTracker: toSaveType = {
         character: [],
         chat: [],
