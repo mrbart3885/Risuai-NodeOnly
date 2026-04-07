@@ -59,9 +59,7 @@
                             let chats = DBState.db.characters[$selectedCharID].chats
                             chats.splice(i, 1)
                             DBState.db.characters[$selectedCharID].chats = chats
-                            void requestImmediateSave({
-                                skipBackups: true
-                            })
+                            void requestImmediateSave()
                         }
                     }} onkeydown={() => {
                         
@@ -81,9 +79,7 @@
                 chats.unshift(newChat)
                 DBState.db.characters[$selectedCharID].chats = chats
                 changeChatTo(0)
-                void requestImmediateSave({
-                    skipBackups: true
-                })
+                void requestImmediateSave()
                 close()
             }}>
                 <PlusIcon/>

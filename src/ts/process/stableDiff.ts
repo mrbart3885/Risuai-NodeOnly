@@ -6,7 +6,6 @@ import { fetchNative, globalFetch, readImage } from "../globalApi.svelte"
 import { CharEmotion } from "../stores.svelte"
 import type { OpenAIChat } from "./index.svelte"
 import { processZip } from "./processzip"
-import { keiServerURL } from "../kei/kei"
 import random from "lodash/random"
 
 export async function stableDiff(currentChar:character,prompt:string){
@@ -581,35 +580,6 @@ export async function generateAIImage(genPrompt:string, currentChar:character, n
             alertError(error)
             return false
         }
-    }
-    if(db.sdProvider === 'kei'){
-        const db = getDatabase()
-        const auth = db?.account?.token
-        const da = await globalFetch(keiServerURL() + '/imaggen', {
-            body: {
-                "prompt": genPrompt,
-            },
-            headers: {
-                "x-api-key": auth
-            }
-        })
-
-        if(!da.ok || !da.data.success){
-            alertError(Buffer.from(da.data.message || da.data).toString())
-            return false   
-        }
-        if(returnSdData === 'inlay'){
-            return da.data.data
-        }
-        else{
-            let charemotions = get(CharEmotion)
-            const img = da.data.data
-            const emos:[string, string,number][] = [[img, img, Date.now()]]
-            charemotions[currentChar.chaId] = emos
-            CharEmotion.set(charemotions)
-        }
-        return returnSdData
-
     }
     if(db.sdProvider === 'fal'){
         const model = db.falModel

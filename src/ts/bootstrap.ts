@@ -11,7 +11,6 @@ import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from
 import { decodeRisuSave, encodeRisuSaveLegacy } from "./storage/risuSave";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
-import { autoServerBackup } from "./kei/backup";
 import { applyEarlyLanguage, changeLanguage, language } from "src/lang";
 import { startObserveDom } from "./observer.svelte";
 import { updateGuisize } from "./gui/guisize";

@@ -32,10 +32,6 @@ export const advancedSettingsItems: SettingItem[] = [
         helpKey: 'emotionPrompt', options: { placeholder: 'Leave it blank to use default' }
     },
     {
-        id: 'adv.keiUrl', type: 'text', fallbackLabel: 'Kei Server URL', bindKey: 'keiServerURL',
-        options: { placeholder: 'Leave it blank to use default' }
-    },
-    {
         id: 'adv.presetChain', type: 'text', labelKey: 'presetChain', bindKey: 'presetChain',
         helpKey: 'presetChain', options: { placeholder: 'Leave it blank to not use' }
     },

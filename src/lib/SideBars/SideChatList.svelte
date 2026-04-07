@@ -148,9 +148,7 @@
         chats.unshift(newChat)
         chara.chats = chats
         changeChatTo(0)
-        void requestImmediateSave({
-            skipBackups: true
-        })
+        void requestImmediateSave()
         $ReloadGUIPointer += 1
     }}>{language.newChat}</Button>
 
@@ -267,9 +265,7 @@
                                         chara.chats.unshift(newChat)
                                         changeChatTo(0)
                                         chara.chats = chara.chats
-                                        void requestImmediateSave({
-                                            skipBackups: true
-                                        })
+                                        void requestImmediateSave()
                                         break
                                     }
                                     case 1:{
@@ -333,9 +329,7 @@
                                     let chats = chara.chats
                                     chats.splice(chara.chats.indexOf(chat), 1)
                                     chara.chats = chats
-                                    void requestImmediateSave({
-                                        skipBackups: true
-                                    })
+                                    void requestImmediateSave()
                                 }
                             }}>
                                 <TrashIcon size={18}/>
@@ -379,9 +373,7 @@
                                 chara.chats.unshift(newChat)
                                 changeChatTo(0)
                                 chara.chats = chara.chats
-                                void requestImmediateSave({
-                                    skipBackups: true
-                                })
+                                void requestImmediateSave()
                                 break
                             }
                             case 1:{
@@ -446,9 +438,7 @@
                             let chats = chara.chats
                             chats.splice(i, 1)
                             chara.chats = chats
-                            void requestImmediateSave({
-                                skipBackups: true
-                            })
+                            void requestImmediateSave()
                         }
                     }}>
                         <TrashIcon size={18}/>

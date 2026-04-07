@@ -101,9 +101,7 @@
                     plugin.enabled = !plugin.enabled
                     DBState.db.plugins[i] = plugin
                     loadPlugins()
-                    void requestImmediateSave({
-                        skipBackups: true
-                    })
+                    void requestImmediateSave()
                     e.preventDefault()
                 }}
             >
@@ -130,9 +128,7 @@
                         plugins.splice(i, 1);
                         DBState.db.plugins = plugins;
                         loadPlugins()
-                        void requestImmediateSave({
-                            skipBackups: true
-                        })
+                        void requestImmediateSave()
                     }
                 }}
             >
