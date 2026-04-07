@@ -19,7 +19,8 @@
     import { stopTTS } from "src/ts/process/tts";
     import MainMenu from '../UI/MainMenu.svelte';
     import AssetInput from './AssetInput.svelte';
-    import { aiLawApplies, chatFoldedState, chatFoldedStateMessageIndex, downloadFile } from 'src/ts/globalApi.svelte';
+    import { aiLawApplies, chatFoldedState, chatFoldedStateMessageIndex, downloadFile, requestImmediateSave } from 'src/ts/globalApi.svelte';
+    import { clearChatDraft, loadChatDraft, makeChatDraftStorageKey, saveChatDraft } from 'src/ts/chatDraft';
     import { runTrigger } from 'src/ts/process/triggers';
     import { v4 } from 'uuid';
     import { PreUnreroll, Prereroll } from 'src/ts/process/prereroll';
@@ -55,9 +56,88 @@
     let showNewMessageButton = $state(false)
     let chatsInstance: any = $state()
     let isScrollingToMessage = $state(false)
+    let restoredDraftKey = $state<string | null>(null)
+    let lastDraftKey = $state<string | null>(null)
+    let draftRestoreVersion = 0
     let { openModuleList = $bindable(false), openChatList = $bindable(false), customStyle = '' }: Props = $props();
     let currentCharacter = $derived(DBState.db.characters[$selectedCharID])
     let currentChat = $derived(currentCharacter?.chats[currentCharacter.chatPage]?.message ?? [])
+
+    function getDraftStorage() {
+        try {
+            return window.localStorage
+        } catch {
+            return null
+        }
+    }
+
+    function getCurrentDraftContext() {
+        if ($selectedCharID < 0) {
+            return null
+        }
+
+        const character = DBState.db.characters[$selectedCharID]
+        const chat = character?.chats?.[character?.chatPage]
+
+        if (!character?.chaId || !chat?.id) {
+            return null
+        }
+
+        return {
+            characterId: character.chaId,
+            chatId: chat.id,
+            storageKey: makeChatDraftStorageKey(character.chaId, chat.id),
+        }
+    }
+
+    async function restoreDraftForCurrentChat() {
+        const ctx = getCurrentDraftContext()
+        if (!ctx) {
+            restoredDraftKey = null
+            return
+        }
+
+        const restoreVersion = ++draftRestoreVersion
+        const storage = getDraftStorage()
+        const draft = storage ? loadChatDraft(storage, ctx.characterId, ctx.chatId) : null
+
+        messageInput = draft?.messageInput ?? ''
+        messageInputTranslate = draft?.messageInputTranslate ?? ''
+        fileInput = draft?.fileInput ?? []
+
+        await tick()
+
+        if (restoreVersion !== draftRestoreVersion) {
+            return
+        }
+
+        updateInputSizeAll()
+        restoredDraftKey = ctx.storageKey
+    }
+
+    function persistDraftForCurrentChat() {
+        const ctx = getCurrentDraftContext()
+        const storage = getDraftStorage()
+        if (!ctx || !storage) {
+            return
+        }
+
+        saveChatDraft(storage, ctx.characterId, ctx.chatId, {
+            messageInput,
+            messageInputTranslate,
+            fileInput,
+        })
+    }
+
+    function clearDraftForCurrentChat() {
+        const ctx = getCurrentDraftContext()
+        const storage = getDraftStorage()
+        if (!ctx || !storage) {
+            return
+        }
+
+        clearChatDraft(storage, ctx.characterId, ctx.chatId)
+    }
 
     function scrollToBottom() {
         chatsInstance?.scrollToLatestMessage();
@@ -208,6 +288,11 @@
         messageInput = ''
         messageInputTranslate = ''
         DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].message = cha
+        clearDraftForCurrentChat()
+        await requestImmediateSave({
+            forceFullWrite: true,
+            skipBackups: true,
+        })
         rerolls = []
         await sleep(10)
         updateInputSizeAll()
@@ -319,6 +404,11 @@
         } catch (error) {
             console.error(error)
             alertError(error)
+        } finally {
+            await requestImmediateSave({
+                forceFullWrite: true,
+                skipBackups: true,
+            })
         }
         lastCharId = $selectedCharID
         $doingChat = false
@@ -405,6 +495,38 @@
     $effect.pre(() => {
         updateInputSizeAll()
     });
+
+    $effect(() => {
+        const ctx = getCurrentDraftContext()
+        const storageKey = ctx?.storageKey ?? null
+
+        if (storageKey === lastDraftKey) {
+            return
+        }
+
+        lastDraftKey = storageKey
+        restoredDraftKey = null
+
+        if (!ctx) {
+            return
+        }
+
+        void restoreDraftForCurrentChat()
+    })
+
+    $effect(() => {
+        const ctx = getCurrentDraftContext()
+        const storageKey = ctx?.storageKey ?? null
+        messageInput
+        messageInputTranslate
+        $state.snapshot(fileInput)
+
+        if (!storageKey || restoredDraftKey !== storageKey) {
+            return
+        }
+
+        persistDraftForCurrentChat()
+    })
 
     async function updateInputTransateMessage(reverse: boolean) {
         if(!DBState.db.useAutoTranslateInput){

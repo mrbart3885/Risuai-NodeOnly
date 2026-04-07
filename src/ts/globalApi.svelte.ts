@@ -396,6 +396,7 @@ export async function saveDb() {
             }
             changed = true;
             void triggerSave({
+                forceFullWrite: true,
                 skipBroadcast: true,
                 skipBackups: true,
             })
