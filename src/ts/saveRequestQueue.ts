@@ -4,6 +4,9 @@ export type SaveRequestOptions = {
     skipBackups?: boolean
 }
 
+type SaveRequest = (options?: SaveRequestOptions) => Promise<void> | void
+type SaveErrorHandler = (error: unknown) => void
+
 export function mergeSaveRequestOptions(
     pending: SaveRequestOptions | null,
     next?: SaveRequestOptions
@@ -33,5 +36,31 @@ export function consumeSaveRequestOptions(
     return {
         effective: mergeSaveRequestOptions(pending, next),
         pending: null,
+    }
+}
+
+export async function requestSaveBestEffort(
+    requestSave: SaveRequest,
+    options?: SaveRequestOptions,
+    onError: SaveErrorHandler = console.error
+) {
+    try {
+        await requestSave(options)
+    } catch (error) {
+        onError(error)
+    }
+}
+
+export function requestSaveInBackground(
+    requestSave: SaveRequest,
+    options?: SaveRequestOptions,
+    onError: SaveErrorHandler = console.error
+) {
+    try {
+        void Promise.resolve(requestSave(options)).catch((error) => {
+            onError(error)
+        })
+    } catch (error) {
+        onError(error)
     }
 }
