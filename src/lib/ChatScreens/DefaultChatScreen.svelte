@@ -12,7 +12,7 @@
     import { sleep } from "../../ts/util";
     import { language } from "../../lang";
     import { isExpTranslator, translate } from "../../ts/translator/translator";
-    import { alertError, alertNormal, alertWait, showHypaV2Alert } from "../../ts/alert";
+    import { alertError, alertNormal, alertWait } from "../../ts/alert";
     import sendSound from '../../etc/send.mp3'
     import { processScript } from "src/ts/process/scripts";
     import CreatorQuote from "./CreatorQuote.svelte";
@@ -925,24 +925,14 @@
                     {/each}
 
                     {#if DBState.db.showMenuHypaMemoryModal}
-                        {#if (DBState.db.supaModelType !== 'none' && DBState.db.hypav2) || DBState.db.hypaV3}
+                        {#if DBState.db.hypaV3}
                             <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
-                                if (DBState.db.hypav2) {
-                                    DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].hypaV2Data ??= {
-                                        lastMainChunkID: 0,
-                                        mainChunks: [],
-                                        chunks: [],
-                                    }
-                                    showHypaV2Alert();
-                                } else if (DBState.db.hypaV3) {
-                                    $hypaV3ModalOpen = true
-                                }
-
+                                $hypaV3ModalOpen = true
                                 openMenu = false
                             }}>
                                 <BrainIcon />
                                 <span class="ml-2">
-                                    {DBState.db.hypav2 ? language.hypaMemoryV2Modal : language.hypaMemoryV3Modal}
+                                    {language.hypaMemoryV3Modal}
                                 </span>
                             </div>
                         {/if}

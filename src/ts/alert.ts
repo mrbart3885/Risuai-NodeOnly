@@ -7,7 +7,7 @@ import { alertStore as alertStoreImported } from "./stores.svelte"
 export interface alertData{
     type: 'error'|'normal'|'none'|'ask'|'wait'|'selectChar'
             |'input'|'toast'|'wait2'|'markdown'|'select'|'login'
-            |'tos'|'cardexport'|'requestdata'|'addchar'|'hypaV2'|'selectModule'
+            |'tos'|'cardexport'|'requestdata'|'addchar'|'selectModule'
             |'chatOptions'|'pukmakkurit'|'branches'|'progress'|'pluginconfirm'|'requestlogs'
             |'togglePresets',
     msg: string,
@@ -291,13 +291,6 @@ export function alertRequestData(info:AlertGenerationInfoStoreData){
     alertStoreImported.set({
         'type': 'requestdata',
         'msg': info.genInfo.generationId ?? 'none'
-    })
-}
-
-export function showHypaV2Alert(){
-    alertStoreImported.set({
-        'type': 'hypaV2',
-        'msg': ""
     })
 }
 

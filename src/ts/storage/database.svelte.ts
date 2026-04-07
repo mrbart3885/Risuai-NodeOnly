@@ -216,26 +216,17 @@ export function setDatabase(data:Database){
     if(checkNullish(data.voicevoxUrl)){
         data.voicevoxUrl = ''
     }
-    if(checkNullish(data.supaMemoryPrompt)){
-        data.supaMemoryPrompt = ''
-    }
     if(checkNullish(data.showMemoryLimit)){
         data.showMemoryLimit = false
     }
     if(checkNullish(data.showFirstMessagePages)){
         data.showFirstMessagePages = false
     }
-    if(checkNullish(data.supaMemoryKey)){
-        data.supaMemoryKey = ""
-    }
     if(checkNullish(data.voyageApiKey)){
         data.voyageApiKey = ""
     }
-    if(checkNullish(data.hypaMemoryKey)){
-        data.hypaMemoryKey = ""
-    }
-    if(checkNullish(data.supaModelType)){
-        data.supaModelType = "none"
+    if(checkNullish(data.supaMemoryKey)){
+        data.supaMemoryKey = ""
     }
     if(checkNullish(data.askRemoval)){
         data.askRemoval = true
@@ -436,14 +427,12 @@ export function setDatabase(data:Database){
     data.promptSettings.maxThoughtTagDepth ??= -1
     data.openrouterFallback ??= true
     data.openrouterMiddleOut ??= false
-    data.removePunctuationHypa ??= true
     data.memoryLimitThickness ??= 1
     data.modules ??= []
     data.enabledModules ??= []
     data.additionalParams ??= []
     data.heightMode ??= 'normal'
     data.antiClaudeOverload ??= false
-    data.maxSupaChunkSize ??= 1200
     data.ollamaURL ??= ''
     data.ollamaModel ??= ''
     data.autoContinueChat ??= false
@@ -480,9 +469,6 @@ export function setDatabase(data:Database){
         ignore: []
     }
     data.useInstructPrompt ??= false
-    data.hanuraiEnable ??= false
-    data.hanuraiSplit ??= false
-    data.hanuraiTokens ??= 1000
     data.textAreaSize ??= 0
     data.sideBarSize ??= 0
     data.textAreaTextSize ??= 0
@@ -490,8 +476,6 @@ export function setDatabase(data:Database){
     data.customPromptTemplateToggle ??= ''
     data.globalChatVariables ??= {}
     data.templateDefaultVariables ??= ''
-    data.hypaAllocatedTokens ??= 3000
-    data.hypaChunkSize ??= 3000
     data.dallEQuality ??= 'standard'
     data.customTextTheme.FontColorQuote1 ??= '#8BE9FD'
     data.customTextTheme.FontColorQuote2 ??= '#FFB86C'
@@ -553,7 +537,7 @@ export function setDatabase(data:Database){
     data.reasoningEffort ??= 0
     data.hypaV3Presets ??= [
         createHypaV3Preset("Default", {
-            summarizationPrompt: data.supaMemoryPrompt ? data.supaMemoryPrompt : "",
+            summarizationPrompt: (data as any).supaMemoryPrompt || "",
             ...data.hypaV3Settings
         })
     ]
@@ -898,7 +882,6 @@ export interface Database{
         data:loreBook[]
     }[]
     loreBookPage: number
-    supaMemoryPrompt: string
     username: string
     userIcon: string
     userNote: string
@@ -965,10 +948,8 @@ export interface Database{
     showMemoryLimit:boolean
     roundIcons:boolean
     useStreaming:boolean
-    supaMemoryKey:string
     voyageApiKey:string
-    hypaMemoryKey:string
-    supaModelType:string
+    supaMemoryKey:string
     textScreenColor?:string
     textBorder?:boolean
     textScreenRounded?:boolean
@@ -1014,9 +995,7 @@ export interface Database{
     usePlainFetch:boolean
     localNetworkMode:boolean
     localNetworkTimeoutSec:number
-    hypaMemory:boolean
-    hypav2:boolean
-    memoryAlgorithmType:string // To enable new memory module/algorithms 
+    memoryAlgorithmType:string // To enable new memory module/algorithms
     proxyRequestModel:string
     ooba:OobaSettings
     ainconfig: AINsettings
@@ -1091,7 +1070,6 @@ export interface Database{
     top_a:number
     claudeAws:boolean
     lastPatchNoteCheckVersion?:string,
-    removePunctuationHypa?:boolean
     memoryLimitThickness?:number
     modules: RisuModule[]
     enabledModules: string[]
@@ -1101,7 +1079,6 @@ export interface Database{
     heightMode:string
     noWaitForTranslate:boolean
     antiClaudeOverload:boolean
-    maxSupaChunkSize:number
     ollamaURL:string
     ollamaModel:string
     autoContinueChat:boolean
@@ -1116,9 +1093,6 @@ export interface Database{
         ignore: string[]
     }
     useInstructPrompt:boolean
-    hanuraiTokens:number
-    hanuraiSplit:boolean
-    hanuraiEnable:boolean
     textAreaSize:number
     sideBarSize:number
     textAreaTextSize:number
@@ -1128,8 +1102,6 @@ export interface Database{
     customPromptTemplateToggle:string
     globalChatVariables:{[key:string]:string}
     templateDefaultVariables:string
-    hypaAllocatedTokens:number
-    hypaChunkSize:number
     cohereAPIKey:string
     goCharacterOnImport:boolean
     dallEQuality:string
@@ -1913,9 +1885,6 @@ export interface Chat{
     name:string
     localLore: loreBook[]
     sdData?:string
-    supaMemoryData?:string
-    hypaV2Data?:SerializableHypaV2Data
-    lastMemory?:string
     suggestMessages?:string[]
     isStreaming?:boolean
     scriptstate?:{[key:string]:string|number|boolean}
@@ -2633,7 +2602,6 @@ import { encode as encodeMsgpack, decode as decodeMsgpack } from "msgpackr/index
 import * as fflate from "fflate";
 import type { OnnxModelFiles } from '../process/transformers';
 import type { RisuModule } from '../process/modules';
-import type { SerializableHypaV2Data } from '../process/memory/hypav2';
 import { decodeRPack, encodeRPack } from '../rpack/rpack_js';
 import { DBState, selectedCharID } from '../stores.svelte';
 import { LLMFlags, LLMFormat, LLMTokenizer } from '../model/modellist';
