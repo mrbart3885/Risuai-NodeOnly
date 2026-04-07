@@ -9,7 +9,6 @@
     import Check from "../UI/GUI/CheckInput.svelte";
     import { addCharEmotion, addingEmotion, getCharImage, rmCharEmotion, selectCharImg, removeChar, changeCharImage } from "../../ts/characters";
     import LoreBook from "./LoreBook/LoreBookSetting.svelte";
-    import { showHypaV2Alert } from "../../ts/alert";
     import { getAuthorNoteDefaultText, selectMultipleFile, selectSingleFile } from "../../ts/util";
     import Help from "../Others/Help.svelte";
     import { exportChar } from "src/ts/characterCards";
@@ -1155,21 +1154,7 @@
             <Check bind:check={(DBState.db.characters[$selectedCharID] as import('src/ts/storage/database.svelte').character).escapeOutput} name={language.escapeOutput}/>
         </div>
 
-        {#if DBState.db.supaModelType !== 'none' && DBState.db.hypav2}
-            <Button
-                onclick={() => {
-                    DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].hypaV2Data ??= {
-                        lastMainChunkID: 0,
-                        mainChunks: [],
-                        chunks: [],
-                    }
-                    showHypaV2Alert()
-                }}
-                className="mt-4"
-            >
-                {language.hypaMemoryV2Modal}
-            </Button>
-        {:else if DBState.db.hypaV3}
+        {#if DBState.db.hypaV3}
             <Button
                 onclick={() => {
                     $hypaV3ModalOpen = true
@@ -1178,9 +1163,6 @@
             >
                 {language.hypaMemoryV3Modal}
             </Button>
-        {:else if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData.length > 4 || (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemory ?? DBState.db.characters[$selectedCharID].supaMemory)}
-            <span class="text-textcolor mt-4">{language.SuperMemory}</span>
-            <TextAreaInput margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData}></TextAreaInput>
         {/if}
 
         <Button

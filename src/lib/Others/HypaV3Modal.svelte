@@ -583,79 +583,6 @@
     );
   }
 
-  function isHypaV2ConversionPossible(): boolean {
-    const char = DBState.db.characters[$selectedCharID];
-    const chat = char.chats[DBState.db.characters[$selectedCharID].chatPage];
-
-    return chat.hypaV3Data?.summaries?.length === 0 && chat.hypaV2Data != null;
-  }
-
-  function convertHypaV2ToV3(): { success: boolean; error?: string } {
-    try {
-      const char = DBState.db.characters[$selectedCharID];
-      const chat = char.chats[DBState.db.characters[$selectedCharID].chatPage];
-      const hypaV2Data = chat.hypaV2Data;
-
-      if (chat.hypaV3Data?.summaries?.length > 0) {
-        return {
-          success: false,
-          error: "HypaV3 data already exists.",
-        };
-      }
-
-      if (!hypaV2Data) {
-        return {
-          success: false,
-          error: "HypaV2 data not found.",
-        };
-      }
-
-      if (hypaV2Data.mainChunks.length === 0) {
-        return {
-          success: false,
-          error: "No main chunks found.",
-        };
-      }
-
-      for (let i = 0; i < hypaV2Data.mainChunks.length; i++) {
-        const mainChunk = hypaV2Data.mainChunks[i];
-
-        if (!Array.isArray(mainChunk.chatMemos)) {
-          return {
-            success: false,
-            error: `Chunk ${i}'s chatMemos is not an array.`,
-          };
-        }
-
-        if (mainChunk.chatMemos.length === 0) {
-          return {
-            success: false,
-            error: `Chunk ${i}'s chatMemos is empty.`,
-          };
-        }
-      }
-
-      const newHypaV3Data = {
-        summaries: hypaV2Data.mainChunks.map((mainChunk) => ({
-          text: mainChunk.text,
-          chatMemos: [...mainChunk.chatMemos],
-          isImportant: false,
-        })),
-      };
-
-      chat.hypaV3Data = newHypaV3Data;
-
-      return {
-        success: true,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Error occurred: ${error.message}`,
-      };
-    }
-  }
-
   type DualActionParams = {
     onMainAction?: () => void;
     onAlternativeAction?: () => void;
@@ -698,44 +625,9 @@
       <!-- Scrollable Container -->
       <div class="flex flex-col gap-2 overflow-y-auto sm:gap-4" tabindex="-1">
         {#if hypaV3Data.summaries.length === 0}
-          <!-- Conversion Section -->
-          {#if isHypaV2ConversionPossible()}
-            <div
-              class="flex flex-col p-2 border rounded-lg sm:p-4 border-zinc-700 bg-zinc-800/50"
-            >
-              <div class="flex flex-col items-center">
-                <div class="my-1 text-center sm:my-2 text-zinc-300">
-                  {language.hypaV3Modal.convertLabel}
-                </div>
-                <button
-                  class="px-4 py-2 my-1 font-semibold transition-colors rounded-md sm:my-2 text-zinc-300 bg-zinc-700 hover:bg-zinc-500"
-                  tabindex="-1"
-                  onclick={async () => {
-                    const conversionResult = convertHypaV2ToV3();
-
-                    if (conversionResult.success) {
-                      await alertNormalWait(
-                        language.hypaV3Modal.convertSuccessMessage
-                      );
-                    } else {
-                      await alertNormalWait(
-                        language.hypaV3Modal.convertErrorMessage.replace(
-                          "{0}",
-                          conversionResult.error
-                        )
-                      );
-                    }
-                  }}
-                >
-                  {language.hypaV3Modal.convertButton}
-                </button>
-              </div>
-            </div>
-          {:else}
-            <div class="p-4 text-center sm:p-3 md:p-4 text-zinc-400">
-              {language.hypaV3Modal.noSummariesLabel}
-            </div>
-          {/if}
+          <div class="p-4 text-center sm:p-3 md:p-4 text-zinc-400">
+            {language.hypaV3Modal.noSummariesLabel}
+          </div>
 
           <!-- Search Bar -->
         {:else if searchState}
