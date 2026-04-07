@@ -19,7 +19,7 @@
     import { stopTTS } from "src/ts/process/tts";
     import MainMenu from '../UI/MainMenu.svelte';
     import AssetInput from './AssetInput.svelte';
-    import { aiLawApplies, chatFoldedState, chatFoldedStateMessageIndex, downloadFile, requestImmediateSave } from 'src/ts/globalApi.svelte';
+    import { aiLawApplies, chatFoldedState, chatFoldedStateMessageIndex, downloadFile } from 'src/ts/globalApi.svelte';
     import { runTrigger } from 'src/ts/process/triggers';
     import { v4 } from 'uuid';
     import { PreUnreroll, Prereroll } from 'src/ts/process/prereroll';
@@ -28,7 +28,6 @@
     import { getInlayAsset } from 'src/ts/process/files/inlays';
     import { quickMenu } from 'src/ts/hotkey';
     import { getRequestActivityLabel, requestActivityStore } from 'src/ts/process/request/requestActivity';
-    import { requestSaveBestEffort, requestSaveInBackground } from 'src/ts/saveRequestQueue';
 
     import { coldStorageHeader, preLoadChat } from 'src/ts/process/coldstorage.svelte';
     import Chats from './Chats.svelte';
@@ -59,11 +58,6 @@
     let { openModuleList = $bindable(false), openChatList = $bindable(false), customStyle = '' }: Props = $props();
     let currentCharacter = $derived(DBState.db.characters[$selectedCharID])
     let currentChat = $derived(currentCharacter?.chats[currentCharacter.chatPage]?.message ?? [])
-
-    function reportImmediateSaveError(error: unknown) {
-        console.error(error)
-        alertError(error instanceof Error ? error : String(error))
-    }
 
     function scrollToBottom() {
         chatsInstance?.scrollToLatestMessage();
@@ -214,10 +208,6 @@
         messageInput = ''
         messageInputTranslate = ''
         DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].message = cha
-        requestSaveInBackground(requestImmediateSave, {
-            forceFullWrite: true,
-            skipBackups: true,
-        }, reportImmediateSaveError)
         rerolls = []
         await sleep(10)
         updateInputSizeAll()
@@ -329,11 +319,6 @@
         } catch (error) {
             console.error(error)
             alertError(error)
-        } finally {
-            await requestSaveBestEffort(requestImmediateSave, {
-                forceFullWrite: true,
-                skipBackups: true,
-            }, reportImmediateSaveError)
         }
         lastCharId = $selectedCharID
         $doingChat = false

@@ -21,10 +21,6 @@ export class ConflictError extends Error {
 export class NodeStorage{
     private static readonly BULK_WRITE_CLIENT_BATCH = 20
 
-    // Unique per page load — used for cross-device single-writer lock
-    private static sessionId: string =
-        crypto?.randomUUID?.() ?? (Date.now().toString(36) + Math.random().toString(36).slice(2))
-
     _lastDbEtag: string | null = null
     authChecked = false
     private cachedJwt: { token: string; expiresAt: number } | null = null
@@ -56,7 +52,6 @@ export class NodeStorage{
                 method: 'POST',
                 headers: {
                     'risu-auth': await this.createAuth(),
-                    'x-session-id': NodeStorage.sessionId,
                 },
             })
             if (res.ok) {
@@ -144,16 +139,11 @@ export class NodeStorage{
         await this.checkAuth()
         const headers = new Headers(init.headers)
         headers.set('risu-auth', await this.createAuth())
-        headers.set('x-session-id', NodeStorage.sessionId)
 
         const response = await fetch(input, {
             ...init,
             headers
         })
-
-        if (response.status === 423) {
-            window.dispatchEvent(new CustomEvent('risu-session-deactivated'))
-        }
 
         if(retry && await this.shouldRetryAuth(response)){
             this.authChecked = false
@@ -422,7 +412,6 @@ export class NodeStorage{
             xhr.open('POST', '/api/backup/import')
             xhr.setRequestHeader('content-type', 'application/x-risu-backup')
             xhr.setRequestHeader('risu-auth', authHeader)
-            xhr.setRequestHeader('x-session-id', NodeStorage.sessionId)
 
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable) {
@@ -487,7 +476,6 @@ export class NodeStorage{
             xhr.open('POST', '/api/migrate/save-folder/upload')
             xhr.setRequestHeader('content-type', 'application/zip')
             xhr.setRequestHeader('risu-auth', authHeader)
-            xhr.setRequestHeader('x-session-id', NodeStorage.sessionId)
 
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable) {

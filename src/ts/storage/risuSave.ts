@@ -2,7 +2,6 @@ import { Packr, Unpackr, decode } from "msgpackr/index-no-eval";
 import * as fflate from "fflate";
 import { getDatabase, presetTemplate, type Database } from "./database.svelte";
 import { forageStorage } from "../globalApi.svelte";
-import { isTransientCharacterField } from "./saveTracking";
 
 const packr = new Packr({
     useRecords:false
@@ -775,9 +774,6 @@ export function normalizeJSON(value: any, seen?: WeakSet<object>): any {
     const result: Record<string, any> = {};
     for (const key in value) {
         if (Object.prototype.hasOwnProperty.call(value, key)) {
-            if (isTransientCharacterField(key)) {
-                continue
-            }
             const propValue = value[key];
             if (propValue !== undefined) {
                 const normalized = normalizeJSON(propValue, seen);
