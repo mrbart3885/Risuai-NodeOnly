@@ -5,10 +5,11 @@
     import { selectedCharID, PlaygroundStore, createSimpleCharacter, hypaV3ModalOpen, ScrollToMessageStore, additionalChatMenu, additionalFloatingActionButtons, easyPanelStore } from "../../ts/stores.svelte";
     import { tick } from 'svelte';
     import Chat from "./Chat.svelte";
-    import { type Message } from "../../ts/storage/database.svelte";
+    import { type Chat as ChatData, type Message } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import { getCharImage } from "../../ts/characters";
     import { chatProcessStage, doingChat, sendChat } from "../../ts/process/index.svelte";
+    import { ensureCurrentChatReady } from "../../ts/storage/chatStorage";
     import { sleep } from "../../ts/util";
     import { language } from "../../lang";
     import { isExpTranslator, translate } from "../../ts/translator/translator";
@@ -56,7 +57,20 @@
     let isScrollingToMessage = $state(false)
     let { openModuleList = $bindable(false), openChatList = $bindable(false), customStyle = '' }: Props = $props();
     let currentCharacter = $derived(DBState.db.characters[$selectedCharID])
-    let currentChat = $derived(currentCharacter?.chats[currentCharacter.chatPage]?.message ?? [])
+    let currentChatSlot = $derived(currentCharacter?.chats[currentCharacter.chatPage])
+    let currentChatReady = $derived(!!currentChatSlot && !currentChatSlot._placeholder)
+    let currentChat = $derived(currentChatReady ? currentChatSlot.message : [])
+    let currentChatFmIndex = $derived(currentChatReady ? (currentChatSlot.fmIndex ?? -1) : -1)
+
+    /** Await hydration of active chat. Returns full Chat or null on failure. */
+    async function ensureActiveChatReady(selectedChar = $selectedCharID): Promise<ChatData | null> {
+        const char = DBState.db.characters[selectedChar]
+        if (!char) return null
+        const chat = char.chats[char.chatPage]
+        if (!chat) return null
+        if (!chat._placeholder) return chat
+        return await ensureCurrentChatReady(char.chats, char.chatPage, char.chaId)
+    }
 
     function scrollToBottom() {
         chatsInstance?.scrollToLatestMessage();
@@ -150,7 +164,10 @@
             rerollid = -1
         }
 
-        let cha = DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].message
+        const activeChat = await ensureActiveChatReady(selectedChar)
+        if(!activeChat) return
+
+        let cha = activeChat.message
 
         if(messageInput.startsWith('/')){
             const commandProcessed = await processMultiCommand(messageInput)
@@ -183,7 +200,7 @@
         else{
             const char = DBState.db.characters[selectedChar]
             if(char.type === 'character'){
-                let triggerResult = await runTrigger(char,'input', {chat: char.chats[char.chatPage]})
+                let triggerResult = await runTrigger(char,'input', {chat: activeChat})
                 if(triggerResult){
                     cha = triggerResult.chat.message
                 }
@@ -556,7 +573,7 @@
         <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen" onscroll={(e) => {
             //@ts-expect-error scrollHeight/clientHeight/scrollTop don't exist on EventTarget, but target is HTMLElement here
             const scrolled = (e.target.scrollHeight - e.target.clientHeight + e.target.scrollTop)
-            if(scrolled < 100 && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length > loadPages){
+            if(scrolled < 100 && currentChat.length > loadPages){
                 loadPages += 15
             }
             const chatTarget = e.target as HTMLElement;
@@ -769,7 +786,11 @@
                 )} {send}/>
             {/if}
 
-            {#if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message?.[0]?.data?.startsWith(coldStorageHeader)  }
+            {#if !currentChatReady}
+                <div class="w-full flex justify-center text-textcolor2 italic mb-12">
+                    {language.loadingChatData}
+                </div>
+            {:else if currentChat?.[0]?.data?.startsWith(coldStorageHeader)}
                 {#await preLoadChat($selectedCharID, DBState.db.characters[$selectedCharID].chatPage)}
                     <div class="w-full flex justify-center text-textcolor2 italic mb-12">
                         {language.loadingChatData}
@@ -803,13 +824,13 @@
                 bind:hasNewUnreadMessage={showNewMessageButton}
             />
 
-            {#if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length <= loadPages}
+            {#if currentChat.length <= loadPages}
                 {#if DBState.db.characters[$selectedCharID].type !== 'group' }
                     <Chat
                         character={createSimpleCharacter(DBState.db.characters[$selectedCharID])}
                         name={DBState.db.characters[$selectedCharID].name}
-                        message={DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex === -1 ? DBState.db.characters[$selectedCharID].firstMessage :
-                            DBState.db.characters[$selectedCharID].alternateGreetings[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex]}
+                        message={currentChatFmIndex === -1 ? DBState.db.characters[$selectedCharID].firstMessage :
+                            DBState.db.characters[$selectedCharID].alternateGreetings[currentChatFmIndex]}
                         role='char'
                         img={getCharImage(DBState.db.characters[$selectedCharID].image, 'css')}
                         idx={-1}

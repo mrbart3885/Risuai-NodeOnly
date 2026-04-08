@@ -1895,6 +1895,26 @@ export interface Chat{
     bookmarkNames?: { [chatId: string]: string };
     supaMemory?: boolean
     savedToggleValues?: Record<string, string>
+    /** Runtime-only: true while awaiting hydration from server. Never persisted. */
+    _placeholder?: boolean
+}
+
+/**
+ * Minimal stub stored in database.bin — full chat data lives server-side.
+ * Only exists in encoded/decoded data; at runtime stubs are converted to placeholder Chats.
+ */
+export interface ChatStub {
+    id: string
+    name: string
+    lastDate?: number
+    folderId?: string
+    _stub: true
+}
+
+export type ChatOrStub = Chat | ChatStub
+
+export function isChatStub(chat: ChatOrStub): chat is ChatStub {
+    return '_stub' in chat && chat._stub === true
 }
 
 export interface ChatFolder{

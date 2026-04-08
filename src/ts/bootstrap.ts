@@ -28,6 +28,8 @@ import {
     checkCharOrder
 } from "./globalApi.svelte";
 import { registerModelDynamic } from "./model/modellist";
+import { convertStubsToPlaceholders } from "./storage/chatStorage";
+import { isChatStub } from "./storage/database.svelte";
 
 /**
  * Loads the application data.
@@ -111,6 +113,16 @@ export async function loadData() {
             }
             LoadingStatusState.text = "Checking For Format Update..."
             await checkNewFormat()
+
+            // Convert any ChatStubs (from server-stripped database.bin) to placeholder Chats
+            // so runtime code only sees Chat objects
+            {
+                const dbForConvert = getDatabase()
+                for (const char of dbForConvert.characters) {
+                    char.chats = convertStubsToPlaceholders(char.chats)
+                }
+            }
+
             const db = getDatabase();
 
             LoadingStatusState.text = "Updating States..."

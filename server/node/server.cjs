@@ -28,9 +28,12 @@ if (nodeMajor < 24) {
 const enablePatchSync = true;
 
 // In-memory database cache for patch-based sync
+// dbCache stores the STRIPPED (stubs-only) version matching what the client sees.
+// fullChatStore keeps the actual chat data keyed by chaId→chatId.
 let dbCache = {};
 let saveTimers = {};
 const SAVE_INTERVAL = 5000;
+let fullChatStore = null; // Map<chaId, Map<chatId, chatObject>> — lazy-initialized
 
 // ETag for database.bin
 let dbEtag = null;
@@ -82,25 +85,150 @@ function createBackupAndRotate() {
     }
 }
 
-function flushPendingDb() {
+async function flushPendingDb() {
     if (saveTimers[DB_HEX_KEY]) {
         clearTimeout(saveTimers[DB_HEX_KEY]);
         delete saveTimers[DB_HEX_KEY];
         if (dbCache[DB_HEX_KEY]) {
-            const data = Buffer.from(encodeRisuSaveLegacy(dbCache[DB_HEX_KEY]));
-            kvSet('database/database.bin', data);
-            createBackupAndRotate();
+            await persistDbCacheWithChats(DB_HEX_KEY, 'database/database.bin');
+        } else if (fullChatStore && fullChatStore.size > 0) {
+            // No stripped cache but chat store has data — merge and persist directly
+            const raw = kvGet('database/database.bin');
+            if (raw) {
+                const dbObj = normalizeJSON(await decodeRisuSave(raw));
+                const fullDb = reassembleFullDb(stripChatsFromDb(dbObj));
+                kvSet('database/database.bin', Buffer.from(encodeRisuSaveLegacy(fullDb)));
+            }
         }
+        createBackupAndRotate();
     }
 }
 
 function invalidateDbCache() {
     delete dbCache[DB_HEX_KEY];
+    fullChatStore = null;
     if (saveTimers[DB_HEX_KEY]) {
         clearTimeout(saveTimers[DB_HEX_KEY]);
         delete saveTimers[DB_HEX_KEY];
     }
     dbEtag = null;
+}
+
+// ─── Chat runtime lazy load helpers ─────────────────────────────────────────
+
+/**
+ * Convert a full chat to a stub (metadata only).
+ */
+function chatToStub(chat) {
+    if (!chat || chat._stub) return chat;
+    return {
+        id: chat.id || '',
+        name: chat.name,
+        lastDate: chat.lastDate,
+        folderId: chat.folderId,
+        _stub: true,
+    };
+}
+
+/**
+ * Initialize fullChatStore from a decoded full database object.
+ * Extracts all chat payloads into the store keyed by chaId → chatId.
+ */
+function initChatStore(dbObj) {
+    fullChatStore = new Map();
+    if (!dbObj?.characters) return;
+    for (const char of dbObj.characters) {
+        if (!char?.chaId || !char.chats) continue;
+        const charChats = new Map();
+        for (const chat of char.chats) {
+            if (chat && chat.id && !chat._stub) {
+                charChats.set(chat.id, chat);
+            }
+        }
+        if (charChats.size > 0) {
+            fullChatStore.set(char.chaId, charChats);
+        }
+    }
+}
+
+/**
+ * Strip full chat data from a decoded database object, replacing with stubs.
+ * Returns a new object — does not mutate input.
+ */
+function stripChatsFromDb(dbObj) {
+    if (!dbObj?.characters) return dbObj;
+    const stripped = { ...dbObj };
+    stripped.characters = dbObj.characters.map(char => {
+        if (!char?.chats) return char;
+        return { ...char, chats: char.chats.map(chatToStub) };
+    });
+    return stripped;
+}
+
+/**
+ * Reassemble a full database from a stripped DB + fullChatStore.
+ * Replaces stubs with full chats from the store. Returns a new object.
+ */
+function mergeChatStubWithFullChat(stub, fullChat) {
+    if (!fullChat) {
+        return stub;
+    }
+    if (!stub || !stub._stub) {
+        return fullChat;
+    }
+    return {
+        ...fullChat,
+        id: stub.id || fullChat.id || '',
+        name: stub.name,
+        lastDate: stub.lastDate,
+        folderId: stub.folderId,
+    };
+}
+
+function reassembleFullDb(strippedDb) {
+    if (!strippedDb?.characters || !fullChatStore) return strippedDb;
+    const full = { ...strippedDb };
+    full.characters = strippedDb.characters.map(char => {
+        if (!char?.chaId || !char.chats) return char;
+        const charChats = fullChatStore.get(char.chaId);
+        if (!charChats) return char;
+        return {
+            ...char,
+            chats: char.chats.map(chat => {
+                if (chat && chat._stub && chat.id) {
+                    return mergeChatStubWithFullChat(chat, charChats.get(chat.id));
+                }
+                return chat;
+            }),
+        };
+    });
+    return full;
+}
+
+/**
+ * Ensure fullChatStore is initialized. Loads from disk if needed.
+ */
+async function ensureChatStore() {
+    if (fullChatStore) return;
+    const raw = kvGet('database/database.bin');
+    if (!raw) {
+        fullChatStore = new Map();
+        return;
+    }
+    const dbObj = normalizeJSON(await decodeRisuSave(raw));
+    initChatStore(dbObj);
+}
+
+/**
+ * Persist dbCache to disk with full chats merged back in.
+ */
+async function persistDbCacheWithChats(filePath, decodedKey) {
+    const strippedDb = dbCache[filePath];
+    if (!strippedDb) return;
+    await ensureChatStore();
+    const fullDb = reassembleFullDb(strippedDb);
+    const data = Buffer.from(encodeRisuSaveLegacy(fullDb));
+    kvSet(decodedKey, data);
 }
 
 function shouldCompress(req, res) {
@@ -2148,7 +2276,7 @@ app.get('/api/read', async (req, res, next) => {
         const key = Buffer.from(filePath, 'hex').toString('utf-8');
         // Flush pending patches before reading database.bin
         if (key === 'database/database.bin') {
-            flushPendingDb();
+            await flushPendingDb();
         }
         let value = null;
         if (key.startsWith('inlay/')) {
@@ -2162,17 +2290,26 @@ app.get('/api/read', async (req, res, next) => {
         if(value === null){
             res.send();
         } else {
-            res.setHeader('Content-Type', 'application/octet-stream');
-            // Return ETag for database.bin reads, support 304 Not Modified
+            // Strip chat payloads from database.bin — client gets stubs only
             if (key === 'database/database.bin') {
-                if (!dbEtag) {
-                    dbEtag = computeBufferEtag(value);
+                try {
+                    const dbObj = await decodeRisuSave(value);
+                    initChatStore(dbObj);
+                    const stripped = normalizeJSON(stripChatsFromDb(dbObj));
+                    // Populate dbCache so patch endpoint uses the same data
+                    dbCache[filePath] = stripped;
+                    value = Buffer.from(encodeRisuSaveLegacy(stripped));
+                } catch (e) {
+                    console.error('[Read] Failed to strip chats from database.bin:', e.message);
+                    // Fall through with original value
                 }
+                dbEtag = computeBufferEtag(value);
                 if (req.headers['if-none-match'] === dbEtag) {
                     return res.status(304).end();
                 }
                 res.setHeader('x-db-etag', dbEtag);
             }
+            res.setHeader('Content-Type', 'application/octet-stream');
             res.send(value);
         }
     } catch (error) {
@@ -2289,13 +2426,32 @@ app.post('/api/write', async (req, res, next) => {
                 const parsed = JSON.parse(Buffer.from(fileContent).toString('utf-8'));
                 await writeInlaySidecar(id, parsed);
                 kvDel(key);
+            } else if (key === 'database/database.bin') {
+                // Client sends stubs-only DB — merge full chats from server before persisting
+                try {
+                    const incomingDb = await decodeRisuSave(fileContent);
+                    await ensureChatStore();
+                    const fullDb = reassembleFullDb(incomingDb);
+                    const mergedContent = Buffer.from(encodeRisuSaveLegacy(fullDb));
+                    // Re-init chat store from merged result
+                    initChatStore(fullDb);
+                    kvSet(key, mergedContent);
+                } catch (e) {
+                    console.error('[Write] Failed to merge chats into database.bin:', e.message);
+                    kvSet(key, fileContent);
+                }
             } else {
                 kvSet(key, fileContent);
             }
 
             // Update ETag, backup, and invalidate cache after database.bin write
             if (key === 'database/database.bin') {
-                invalidateDbCache();
+                delete dbCache[DB_HEX_KEY];
+                if (saveTimers[DB_HEX_KEY]) {
+                    clearTimeout(saveTimers[DB_HEX_KEY]);
+                    delete saveTimers[DB_HEX_KEY];
+                }
+                // ETag based on stripped version (what client sees)
                 dbEtag = computeBufferEtag(fileContent);
                 createBackupAndRotate();
             }
@@ -2314,7 +2470,7 @@ app.post('/api/db/flush', sessionAuthMiddleware, async (req, res, next) => {
     if (!checkActiveSession(req, res)) return;
     try {
         await queueStorageOperation(async () => {
-            flushPendingDb();
+            await flushPendingDb();
             res.send({
                 success: true,
                 etag: dbEtag ?? undefined
@@ -2353,10 +2509,17 @@ app.post('/api/patch', async (req, res, next) => {
             const decodedKey = Buffer.from(filePath, 'hex').toString('utf-8');
 
             // Load database into memory if not already cached
+            // For database.bin, cache holds the STRIPPED version (stubs only)
             if (!dbCache[filePath]) {
                 const fileContent = kvGet(decodedKey);
                 if (fileContent) {
-                    dbCache[filePath] = normalizeJSON(await decodeRisuSave(fileContent));
+                    const decoded = normalizeJSON(await decodeRisuSave(fileContent));
+                    if (decodedKey === 'database/database.bin') {
+                        initChatStore(decoded);
+                        dbCache[filePath] = stripChatsFromDb(decoded);
+                    } else {
+                        dbCache[filePath] = decoded;
+                    }
                 } else {
                     dbCache[filePath] = {};
                 }
@@ -2368,7 +2531,7 @@ app.post('/api/patch', async (req, res, next) => {
                 console.log(`[Patch] Hash mismatch for ${decodedKey}: expected=${expectedHash}, server=${serverHash}`);
                 let currentEtag = undefined;
                 if (decodedKey === 'database/database.bin') {
-                    currentEtag = computeDatabaseEtagFromObject(dbCache[filePath]);
+                    currentEtag = computeBufferEtag(Buffer.from(encodeRisuSaveLegacy(dbCache[filePath])));
                     dbEtag = currentEtag;
                 }
                 res.status(409).send({
@@ -2390,14 +2553,18 @@ app.post('/api/patch', async (req, res, next) => {
             }
             dbCache[filePath] = snapshot;
 
-            // Schedule save to KV (debounced)
+            // Schedule save to KV (debounced) — merge full chats back for database.bin
             if (saveTimers[filePath]) {
                 clearTimeout(saveTimers[filePath]);
             }
-            saveTimers[filePath] = setTimeout(() => {
+            saveTimers[filePath] = setTimeout(async () => {
                 try {
-                    const data = Buffer.from(encodeRisuSaveLegacy(dbCache[filePath]));
-                    kvSet(decodedKey, data);
+                    if (decodedKey === 'database/database.bin') {
+                        await persistDbCacheWithChats(filePath, decodedKey);
+                    } else {
+                        const data = Buffer.from(encodeRisuSaveLegacy(dbCache[filePath]));
+                        kvSet(decodedKey, data);
+                    }
                     if (decodedKey === 'database/database.bin') {
                         createBackupAndRotate();
                     }
@@ -2408,9 +2575,9 @@ app.post('/api/patch', async (req, res, next) => {
                 }
             }, SAVE_INTERVAL);
 
-            // Update ETag after successful patch
+            // Update ETag after successful patch (based on stripped version)
             if (decodedKey === 'database/database.bin') {
-                dbEtag = computeDatabaseEtagFromObject(dbCache[filePath]);
+                dbEtag = computeBufferEtag(Buffer.from(encodeRisuSaveLegacy(dbCache[filePath])));
             }
 
             res.send({
@@ -2524,7 +2691,7 @@ app.get('/api/backup/export', async (req, res, next) => {
     if(!await checkAuth(req, res)){ return; }
     try {
         // Flush any pending patches to ensure export includes latest data
-        flushPendingDb();
+        await flushPendingDb();
         const inlayFiles = await listInlayFiles();
         const inlayEntries = await Promise.all(inlayFiles.map(async (entry) => {
             const stat = await fs.stat(entry.filePath);
@@ -2707,7 +2874,7 @@ app.post('/api/backup/server/save', async (req, res, next) => {
     if (!await checkAuth(req, res)) { return; }
     if (!checkActiveSession(req, res)) return;
     try {
-        flushPendingDb();
+        await flushPendingDb();
 
         const inlayFiles = await listInlayFiles();
         const inlayEntries = await Promise.all(inlayFiles.map(async (entry) => {
@@ -2952,6 +3119,103 @@ app.get('/api/backup/server/download/:filename', async (req, res, next) => {
     }
 });
 
+// ── Chat content endpoints (runtime lazy load) ─────────────────────────────
+
+// GET /api/chat-content/:chaId/:chatIndex — retrieve full chat from server
+app.get('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    try {
+        const chaId = req.params.chaId;
+        const chatIndex = parseInt(req.params.chatIndex, 10);
+        const expectedChatId = req.headers['x-chat-id'];
+
+        await ensureChatStore();
+        // First try fullChatStore (fast path)
+        const charChats = fullChatStore.get(chaId);
+        if (charChats && expectedChatId) {
+            const chat = charChats.get(expectedChatId);
+            if (chat) {
+                return res.json(chat);
+            }
+        }
+
+        // Fallback: load from disk and find by index
+        const raw = kvGet('database/database.bin');
+        if (!raw) {
+            return res.status(404).json({ error: 'Database not found' });
+        }
+        const dbObj = await decodeRisuSave(raw);
+        const char = dbObj.characters?.find(c => c?.chaId === chaId);
+        if (!char?.chats?.[chatIndex]) {
+            return res.status(404).json({ error: 'Chat not found' });
+        }
+        const chat = char.chats[chatIndex];
+        // Verify chatId matches if provided
+        if (expectedChatId && chat.id !== expectedChatId) {
+            return res.status(409).json({ error: 'Chat ID mismatch — index may have shifted' });
+        }
+        res.json(chat);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// POST /api/chat-content/:chaId/:chatIndex — save chat content to server
+app.post('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    if (!checkActiveSession(req, res)) return;
+    try {
+        await queueStorageOperation(async () => {
+            const chaId = req.params.chaId;
+            const chatIndex = parseInt(req.params.chatIndex, 10);
+            const expectedChatId = req.headers['x-chat-id'];
+            const chatData = req.body;
+
+            if (!chatData || !expectedChatId) {
+                return res.status(400).json({ error: 'Chat data and x-chat-id required' });
+            }
+
+            await ensureChatStore();
+
+            // Update fullChatStore
+            if (!fullChatStore.has(chaId)) {
+                fullChatStore.set(chaId, new Map());
+            }
+            fullChatStore.get(chaId).set(expectedChatId, chatData);
+
+            // Schedule debounced persist (reuses existing timer mechanism)
+            if (saveTimers[DB_HEX_KEY]) {
+                clearTimeout(saveTimers[DB_HEX_KEY]);
+            }
+            saveTimers[DB_HEX_KEY] = setTimeout(async () => {
+                try {
+                    // If dbCache has stripped DB, persist with merged chats
+                    if (dbCache[DB_HEX_KEY]) {
+                        await persistDbCacheWithChats(DB_HEX_KEY, 'database/database.bin');
+                    } else {
+                        // No stripped cache — load, merge, save
+                        const raw = kvGet('database/database.bin');
+                        if (raw) {
+                            const dbObj = normalizeJSON(await decodeRisuSave(raw));
+                            const fullDb = reassembleFullDb(stripChatsFromDb(dbObj));
+                            kvSet('database/database.bin', Buffer.from(encodeRisuSaveLegacy(fullDb)));
+                        }
+                    }
+                    createBackupAndRotate();
+                } catch (error) {
+                    console.error('[ChatContent] Error persisting chat:', error);
+                } finally {
+                    delete saveTimers[DB_HEX_KEY];
+                }
+            }, SAVE_INTERVAL);
+
+            res.json({ success: true });
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // ── Save-folder migration endpoints ──────────────────────────────────────────
 const migrationMarkerPath = path.join(savePath, '.migrated_to_sqlite');
 
@@ -2986,12 +3250,12 @@ function clearExistingData() {
     clearEntities();
 }
 
-function importHexFilesFromDir(dirPath) {
+async function importHexFilesFromDir(dirPath) {
     const { hexFiles, hasDatabase } = scanHexFilesInDir(dirPath);
     if (hexFiles.length === 0) return { imported: 0 };
     if (!hasDatabase) throw new Error('Save folder does not contain database/database.bin');
 
-    flushPendingDb();
+    await flushPendingDb();
     createBackupAndRotate();
     clearExistingData();
     invalidateDbCache();
@@ -3014,12 +3278,12 @@ function importHexFilesFromDir(dirPath) {
     return { imported: hexFiles.length };
 }
 
-function importHexEntries(entries) {
+async function importHexEntries(entries) {
     if (entries.length === 0) return { imported: 0 };
     const hasDb = entries.some(e => e.key === 'database/database.bin');
     if (!hasDb) throw new Error('Data does not contain database/database.bin');
 
-    flushPendingDb();
+    await flushPendingDb();
     createBackupAndRotate();
     clearExistingData();
     invalidateDbCache();
@@ -3084,7 +3348,7 @@ app.post('/api/migrate/save-folder/execute', async (req, res, next) => {
             res.status(400).json({ error: 'Cannot access directory' });
             return;
         }
-        const result = importHexFilesFromDir(resolved);
+        const result = await importHexFilesFromDir(resolved);
         res.json({ ok: true, imported: result.imported });
     } catch (error) {
         res.status(400).json({ error: error.message || 'Import failed' });
@@ -3145,7 +3409,7 @@ app.post('/api/migrate/save-folder/upload', async (req, res, next) => {
             return;
         }
 
-        const result = importHexEntries(entries);
+        const result = await importHexEntries(entries);
         res.json({ ok: true, imported: result.imported });
     } catch (error) {
         res.status(400).json({ error: error.message || 'Import failed' });
@@ -3331,9 +3595,9 @@ async function startServer() {
 
 // Graceful shutdown: flush pending patches and checkpoint WAL before exit
 for (const sig of ['SIGTERM', 'SIGINT']) {
-    process.on(sig, () => {
+    process.on(sig, async () => {
         console.log(`[Server] Received ${sig}, flushing pending data...`);
-        try { flushPendingDb(); } catch (e) { console.error('[Server] Flush error:', e); }
+        try { await flushPendingDb(); } catch (e) { console.error('[Server] Flush error:', e); }
         try { checkpointWal('TRUNCATE'); } catch { /* non-fatal */ }
         process.exit(0);
     });

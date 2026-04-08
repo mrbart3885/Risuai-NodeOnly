@@ -558,6 +558,29 @@ export class NodeStorage{
         return da
     }
 
+    // ── Chat content (runtime lazy load) ────────────────────────────────────
+
+    async fetchChatContent(chaId: string, chatIndex: number, chatId: string): Promise<any | null> {
+        const da = await this.authFetch(`/api/chat-content/${encodeURIComponent(chaId)}/${chatIndex}`, {
+            headers: { 'x-chat-id': chatId },
+        })
+        if (da.status === 404) return null
+        if (da.status < 200 || da.status >= 300) throw new Error(`fetchChatContent error: ${da.status}`)
+        return da.json()
+    }
+
+    async saveChatContent(chaId: string, chatIndex: number, chatId: string, chat: any): Promise<void> {
+        const da = await this.authFetch(`/api/chat-content/${encodeURIComponent(chaId)}/${chatIndex}`, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'x-chat-id': chatId,
+            },
+            body: JSON.stringify(chat),
+        })
+        if (da.status < 200 || da.status >= 300) throw new Error(`saveChatContent error: ${da.status}`)
+    }
+
     // ── Save-folder migration ─────────────────────────────────────────────────
 
     async scanSaveFolder(folderPath?: string): Promise<{count: number, totalSize: number, hasDatabase: boolean}> {
