@@ -2269,14 +2269,15 @@ app.get('/api/read', async (req, res, next) => {
                 try {
                     const dbObj = await decodeRisuSave(value);
                     initChatStore(dbObj);
-                    value = Buffer.from(encodeRisuSaveLegacy(stripChatsFromDb(dbObj)));
+                    const stripped = normalizeJSON(stripChatsFromDb(dbObj));
+                    // Populate dbCache so patch endpoint uses the same data
+                    dbCache[filePath] = stripped;
+                    value = Buffer.from(encodeRisuSaveLegacy(stripped));
                 } catch (e) {
                     console.error('[Read] Failed to strip chats from database.bin:', e.message);
                     // Fall through with original value
                 }
-                if (!dbEtag) {
-                    dbEtag = computeBufferEtag(value);
-                }
+                dbEtag = computeBufferEtag(value);
                 if (req.headers['if-none-match'] === dbEtag) {
                     return res.status(304).end();
                 }
