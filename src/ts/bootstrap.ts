@@ -17,7 +17,6 @@ import { updateGuisize } from "./gui/guisize";
 import { updateLorebooks } from "./characters";
 import { initMobileGesture } from "./hotkey";
 import { moduleUpdate } from "./process/modules";
-import { makeColdData } from "./process/coldstorage.svelte";
 import { removeUnusedCharacterAssets } from "./assetCleanup";
 import {
     forageStorage,
@@ -148,7 +147,6 @@ export async function loadData() {
             selectedCharID.set(-1)
             startObserveDom()
             assignIds()
-            makeColdData()
             registerModelDynamic()
             saveDb()
             moduleUpdate()

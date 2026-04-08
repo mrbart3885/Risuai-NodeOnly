@@ -9,6 +9,7 @@ const htmlparser = require('node-html-parser');
 const { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } = require('fs');
 const fs = require('fs/promises')
 const nodeCrypto = require('crypto')
+const zlib = require('zlib')
 const rateLimit = require('express-rate-limit')
 const { WebSocketServer } = require('ws')
 const sharp = require('sharp')
@@ -3097,6 +3098,40 @@ app.get('/api/backup/server/download/:filename', async (req, res, next) => {
 
 // ── Chat content endpoints (runtime lazy load) ─────────────────────────────
 
+// Cold storage compatibility: restore chat data stored in coldstorage/ KV entries
+const COLD_STORAGE_HEADER = '\uEF01COLDSTORAGE\uEF01';
+
+function isColdStorageChat(chat) {
+    return chat?.message?.[0]?.data?.startsWith(COLD_STORAGE_HEADER);
+}
+
+function restoreColdStorageChat(chat) {
+    if (!isColdStorageChat(chat)) return true;
+    const key = chat.message[0].data.slice(COLD_STORAGE_HEADER.length);
+    const compressed = kvGet('coldstorage/' + key);
+    if (!compressed) {
+        console.error(`[ColdStorage] data not found for key: ${key}`);
+        return false;
+    }
+    try {
+        const decompressed = zlib.gunzipSync(compressed);
+        const coldData = JSON.parse(decompressed.toString('utf-8'));
+        if (Array.isArray(coldData)) {
+            chat.message = coldData;
+        } else if (coldData?.message) {
+            chat.message = coldData.message;
+            if (coldData.hypaV3Data) chat.hypaV3Data = coldData.hypaV3Data;
+            if (coldData.scriptstate) chat.scriptstate = coldData.scriptstate;
+            if (coldData.localLore) chat.localLore = coldData.localLore;
+        }
+        chat.lastDate = Date.now();
+        return true;
+    } catch (err) {
+        console.error(`[ColdStorage] restore failed for key ${key}:`, err.message);
+        return false;
+    }
+}
+
 // GET /api/chat-content/:chaId/:chatIndex — retrieve full chat from server
 app.get('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
     if (!await checkAuth(req, res)) { return; }
@@ -3111,6 +3146,9 @@ app.get('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
         if (charChats && expectedChatId) {
             const chat = charChats.get(expectedChatId);
             if (chat) {
+                if (!restoreColdStorageChat(chat)) {
+                    return res.status(500).json({ error: 'Cold storage restore failed' });
+                }
                 return res.json(chat);
             }
         }
@@ -3129,6 +3167,9 @@ app.get('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
         // Verify chatId matches if provided
         if (expectedChatId && chat.id !== expectedChatId) {
             return res.status(409).json({ error: 'Chat ID mismatch — index may have shifted' });
+        }
+        if (!restoreColdStorageChat(chat)) {
+            return res.status(500).json({ error: 'Cold storage restore failed' });
         }
         res.json(chat);
     } catch (error) {

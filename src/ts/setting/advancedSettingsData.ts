@@ -128,10 +128,6 @@ export const advancedSettingsItems: SettingItem[] = [
         condition: (ctx) => ctx.db.useExperimental, helpKey: 'automaticCachePoint', showExperimental: true, classes: 'mt-4'
     },
     {
-        id: 'adv.exp.chatComp', type: 'check', labelKey: 'experimentalChatCompression', bindKey: 'chatCompression',
-        condition: (ctx) => ctx.db.useExperimental, helpKey: 'experimentalChatCompressionDesc', showExperimental: true, classes: 'mt-4'
-    },
-    {
         id: 'adv.localNetworkMode', type: 'check', fallbackLabel: 'Local Network Mode (Experimental)',
         bindKey: 'localNetworkMode', helpKey: 'localNetworkModeDesc',
         condition: (ctx) => ctx.db.useExperimental, showExperimental: true, classes: 'mt-4'

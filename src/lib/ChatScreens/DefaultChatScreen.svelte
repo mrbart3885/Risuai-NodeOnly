@@ -30,7 +30,6 @@
     import { quickMenu } from 'src/ts/hotkey';
     import { getRequestActivityLabel, requestActivityStore } from 'src/ts/process/request/requestActivity';
 
-    import { coldStorageHeader, preLoadChat } from 'src/ts/process/coldstorage.svelte';
     import Chats from './Chats.svelte';
     import Button from '../UI/GUI/Button.svelte';
     import PluginDefinedIcon from '../Others/PluginDefinedIcon.svelte';
@@ -823,14 +822,6 @@
                 <div class="w-full flex justify-center text-textcolor2 italic mb-12">
                     {language.loadingChatData}
                 </div>
-            {:else if currentChat?.[0]?.data?.startsWith(coldStorageHeader)}
-                {#await preLoadChat($selectedCharID, DBState.db.characters[$selectedCharID].chatPage)}
-                    <div class="w-full flex justify-center text-textcolor2 italic mb-12">
-                        {language.loadingChatData}
-                    </div>
-                {:then a}
-                    <div></div>
-                {/await}
             {:else}
 
             {#if chatFoldedStateMessageIndex.index !== -1}

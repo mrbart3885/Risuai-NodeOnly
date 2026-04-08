@@ -23,7 +23,6 @@ import { updateGuisize } from "./gui/guisize";
 import { updateLorebooks } from "./characters";
 import { initMobileGesture } from "./hotkey";
 import { moduleUpdate } from "./process/modules";
-import { makeColdData } from "./process/coldstorage.svelte";
 import { isLocalNetworkUrl } from "./network/localNetwork";
 import { decodeProxyJobWsChunk, formatProxyStreamErrorMessage, parseProxyJobWsEvent } from "./network/proxyJobWs";
 import { getFetchNativeTransport, shouldUseProxyForFetchNative, shouldUseProxyForGlobalFetch, type ProxyPolicy } from "./network/proxyPolicy";
