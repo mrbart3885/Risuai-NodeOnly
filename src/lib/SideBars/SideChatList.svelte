@@ -5,6 +5,7 @@
     import { DownloadIcon, PencilIcon, HardDriveUploadIcon, MenuIcon, TrashIcon, SplitIcon, FolderPlusIcon, BookmarkCheckIcon } from "@lucide/svelte";
 
     import type { Chat, ChatFolder, character, groupChat } from "src/ts/storage/database.svelte";
+    import { ensureChatHydrated } from "src/ts/storage/chatStorage";
     import { DBState, ReloadGUIPointer } from 'src/ts/stores.svelte';
     import { selectedCharID } from "src/ts/stores.svelte";
 
@@ -259,7 +260,16 @@
                                 const option = await alertChatOptions()
                                 switch(option){
                                     case 0:{
-                                        const newChat = $state.snapshot(chara.chats[chara.chats.indexOf(chat)])
+                                        const chatIdx = chara.chats.indexOf(chat)
+                                        // Hydrate placeholder before copying to ensure full data
+                                        if(chara.chats[chatIdx]?._placeholder){
+                                            await ensureChatHydrated(chara.chats, chatIdx, (chara as character).chaId)
+                                        }
+                                        if(chara.chats[chatIdx]?._placeholder){
+                                            alertError('Failed to load chat data.')
+                                            break
+                                        }
+                                        const newChat = $state.snapshot(chara.chats[chatIdx])
                                         newChat.name = createChatCopyName(newChat.name, 'Copy')
                                         newChat.id = v4()
                                         chara.chats.unshift(newChat)
@@ -367,6 +377,14 @@
                         const option = await alertChatOptions()
                         switch(option){
                             case 0:{
+                                // Hydrate placeholder before copying to ensure full data
+                                if(chara.chats[i]?._placeholder){
+                                    await ensureChatHydrated(chara.chats, i, (chara as character).chaId)
+                                }
+                                if(chara.chats[i]?._placeholder){
+                                    alertError('Failed to load chat data.')
+                                    break
+                                }
                                 const newChat = $state.snapshot(chara.chats[i])
                                 newChat.name = createChatCopyName(newChat.name, 'Copy')
                                 newChat.id = v4()

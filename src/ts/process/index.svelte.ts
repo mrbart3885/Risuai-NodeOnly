@@ -203,6 +203,12 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     const nowChatroom = DBState.db.characters[selectedChar]
     nowChatroom.lastInteraction = Date.now()
     selectedChat = nowChatroom.chatPage
+    // Block send if chat is still a placeholder (hydration not complete)
+    if (nowChatroom.chats[nowChatroom.chatPage]?._placeholder) {
+        alertError('Chat is still loading. Please wait a moment.')
+        doingChat.set(false)
+        return false
+    }
     nowChatroom.chats[nowChatroom.chatPage].message = nowChatroom.chats[nowChatroom.chatPage].message.map((v) => {
         v.chatId = v.chatId ?? v4()
         return v
