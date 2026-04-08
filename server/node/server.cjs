@@ -91,8 +91,16 @@ async function flushPendingDb() {
         delete saveTimers[DB_HEX_KEY];
         if (dbCache[DB_HEX_KEY]) {
             await persistDbCacheWithChats(DB_HEX_KEY, 'database/database.bin');
-            createBackupAndRotate();
+        } else if (fullChatStore && fullChatStore.size > 0) {
+            // No stripped cache but chat store has data — merge and persist directly
+            const raw = kvGet('database/database.bin');
+            if (raw) {
+                const dbObj = normalizeJSON(await decodeRisuSave(raw));
+                const fullDb = reassembleFullDb(stripChatsFromDb(dbObj));
+                kvSet('database/database.bin', Buffer.from(encodeRisuSaveLegacy(fullDb)));
+            }
         }
+        createBackupAndRotate();
     }
 }
 
