@@ -135,7 +135,7 @@ jobs:
         shell: bash
         run: |
           printf '@echo off\r\nsetlocal\r\ntitle RisuAI NodeOnly\r\nset PORT=6001\r\nstart "" "http://localhost:%%PORT%%"\r\n"%%~dp0bin\\node.exe" "%%~dp0server\\node\\server.cjs"\r\npause\r\n' > portable/RisuAI.bat
-          printf '@echo off\r\n"%%~dp0bin\\node.exe" "%%~dp0scripts\\updater.cjs"\r\npause\r\n' > portable/update.bat
+          printf '@echo off\r\n"%%~dp0bin\\node.exe" "%%~dp0scripts\\updater.cjs"\r\nif exist "%%~dp0.update-tmp" rmdir /s /q "%%~dp0.update-tmp" 2>nul\r\npause\r\n' > portable/update.bat
 
       - name: Add launcher scripts (Unix)
         if: matrix.platform != 'win'
@@ -158,6 +158,7 @@ jobs:
           SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
           cd "$SCRIPT_DIR"
           bin/node scripts/updater.cjs
+          rm -rf .update-tmp 2>/dev/null
           EOF
           chmod +x portable/start.sh portable/update.sh
 

@@ -1,7 +1,7 @@
 /**
  * Portable updater — runs with the bundled bin/node, no npm dependencies.
  * Downloads the latest portable zip/tar.gz from GitHub Releases,
- * replaces app files while preserving save/ and bin/.
+ * replaces app files (including bin/) while preserving save/.
  */
 
 const https = require('https');
@@ -184,7 +184,6 @@ async function main() {
     // Phase 1: move old files to backup (safer than immediate delete)
     log('Replacing files...');
     const keep = new Set(['save', '.installed-version', '.update-tmp', 'scripts']);
-    if (isWin) keep.add('bin');
     const backupDir = path.join(tmpDir, 'backup');
     fs.mkdirSync(backupDir, { recursive: true });
 
@@ -205,7 +204,6 @@ async function main() {
     // Phase 2: move new files from extracted to root
     const moved = [];
     const skipMove = new Set(['save', 'scripts']);
-    if (isWin) skipMove.add('bin');
     try {
         for (const entry of fs.readdirSync(extractedRoot)) {
             if (skipMove.has(entry)) continue;
