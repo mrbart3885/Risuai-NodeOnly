@@ -144,7 +144,12 @@ function initChatStore(dbObj) {
         if (!char?.chaId || !char.chats) continue;
         const charChats = new Map();
         for (const chat of char.chats) {
-            if (chat && chat.id && !chat._stub) {
+            if (chat && !chat._stub) {
+                // Assign ID if missing — old versions didn't generate chat IDs.
+                // Persisted to disk shortly after via client saveDb() → PATCH flow.
+                if (!chat.id) {
+                    chat.id = nodeCrypto.randomUUID();
+                }
                 charChats.set(chat.id, chat);
             }
         }

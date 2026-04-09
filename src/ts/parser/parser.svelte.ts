@@ -1703,6 +1703,7 @@ export function risuChatParser(da:string, arg:{
     callStack?:number
     cbsConditions?:CbsConditions
 } = {}):string{
+    if (da == null) return ''
     const chatID = arg.chatID ?? -1
     const db = arg.db ?? DBState.db
     const aChara = arg.chara
