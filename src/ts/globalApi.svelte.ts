@@ -813,12 +813,13 @@ export async function saveDb() {
                 savetrys += 1
                 if (savetrys > 4) {
                     alertError(error)
+                    savetrys = 0
                 }
                 else {
                     console.error(error)
                     await sleep(Math.min(500 * savetrys, 3000))
+                    changed = true
                 }
-                changed = true
             } finally {
                 saving.state = false
                 saveInFlight = null
