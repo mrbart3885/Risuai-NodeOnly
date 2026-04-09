@@ -3177,7 +3177,9 @@ app.get('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
                 if (!restoreColdStorageChat(chat)) {
                     return res.status(500).json({ error: 'Cold storage restore failed' });
                 }
-                return res.json(chat);
+                const encoded = Buffer.from(encodeRisuSaveLegacy(chat));
+                res.setHeader('Content-Type', 'application/octet-stream');
+                return res.send(encoded);
             }
         }
 
@@ -3199,7 +3201,9 @@ app.get('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
         if (!restoreColdStorageChat(chat)) {
             return res.status(500).json({ error: 'Cold storage restore failed' });
         }
-        res.json(chat);
+        const encoded = Buffer.from(encodeRisuSaveLegacy(chat));
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.send(encoded);
     } catch (error) {
         next(error);
     }
@@ -3214,7 +3218,18 @@ app.post('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
             const chaId = req.params.chaId;
             const chatIndex = parseInt(req.params.chatIndex, 10);
             const expectedChatId = req.headers['x-chat-id'];
-            const chatData = req.body;
+            let chatData;
+            if (Buffer.isBuffer(req.body)) {
+                // Binary msgpack body (application/octet-stream)
+                try {
+                    chatData = await decodeRisuSave(req.body);
+                } catch (e) {
+                    return res.status(400).json({ error: 'Invalid binary chat data' });
+                }
+            } else {
+                // JSON body (legacy)
+                chatData = req.body;
+            }
 
             if (!chatData || !expectedChatId) {
                 return res.status(400).json({ error: 'Chat data and x-chat-id required' });

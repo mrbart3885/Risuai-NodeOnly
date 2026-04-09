@@ -7,6 +7,7 @@
 // /api/login, /api/token/refresh)
 import { language } from "src/lang"
 import { alertError, alertInput, waitAlert } from "../alert"
+import { decodeRisuSave, encodeRisuSaveLegacy } from "./risuSave"
 
 // Custom error class for database conflict detection
 export class ConflictError extends Error {
@@ -573,17 +574,19 @@ export class NodeStorage{
         })
         if (da.status === 404) return null
         if (da.status < 200 || da.status >= 300) throw new Error(`fetchChatContent error: ${da.status}`)
-        return da.json()
+        const buffer = new Uint8Array(await da.arrayBuffer())
+        return decodeRisuSave(buffer)
     }
 
     async saveChatContent(chaId: string, chatIndex: number, chatId: string, chat: any): Promise<void> {
+        const encoded = encodeRisuSaveLegacy(chat)
         const da = await this.authFetch(`/api/chat-content/${encodeURIComponent(chaId)}/${chatIndex}`, {
             method: 'POST',
             headers: {
-                'content-type': 'application/json',
+                'content-type': 'application/octet-stream',
                 'x-chat-id': chatId,
             },
-            body: JSON.stringify(chat),
+            body: encoded,
         })
         if (da.status < 200 || da.status >= 300) throw new Error(`saveChatContent error: ${da.status}`)
     }
