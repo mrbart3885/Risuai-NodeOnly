@@ -6,8 +6,6 @@
     import htmlWorkerUrl from 'monaco-editor/esm/vs/language/html/html.worker?url';
     import tsWorkerUrl from 'monaco-editor/esm/vs/language/typescript/ts.worker?url';
     import editorWorkerUrl from 'monaco-editor/esm/vs/editor/editor.worker?url';
-    import { registerCBSMonaco } from 'src/ts/gui/codearea/cbsMonaco';
-
     // Set up workers once globally
     if (!('MonacoEnvironment' in self)) {
         (self as any).MonacoEnvironment = {
@@ -32,9 +30,6 @@
             }
         };
     }
-
-
-    registerCBSMonaco()
 
     interface Props {
         value: string;

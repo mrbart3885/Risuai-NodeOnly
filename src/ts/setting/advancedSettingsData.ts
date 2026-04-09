@@ -32,10 +32,6 @@ export const advancedSettingsItems: SettingItem[] = [
         helpKey: 'emotionPrompt', options: { placeholder: 'Leave it blank to use default' }
     },
     {
-        id: 'adv.keiUrl', type: 'text', fallbackLabel: 'Kei Server URL', bindKey: 'keiServerURL',
-        options: { placeholder: 'Leave it blank to use default' }
-    },
-    {
         id: 'adv.presetChain', type: 'text', labelKey: 'presetChain', bindKey: 'presetChain',
         helpKey: 'presetChain', options: { placeholder: 'Leave it blank to not use' }
     },
@@ -132,10 +128,6 @@ export const advancedSettingsItems: SettingItem[] = [
         condition: (ctx) => ctx.db.useExperimental, helpKey: 'automaticCachePoint', showExperimental: true, classes: 'mt-4'
     },
     {
-        id: 'adv.exp.chatComp', type: 'check', labelKey: 'experimentalChatCompression', bindKey: 'chatCompression',
-        condition: (ctx) => ctx.db.useExperimental, helpKey: 'experimentalChatCompressionDesc', showExperimental: true, classes: 'mt-4'
-    },
-    {
         id: 'adv.localNetworkMode', type: 'check', fallbackLabel: 'Local Network Mode (Experimental)',
         bindKey: 'localNetworkMode', helpKey: 'localNetworkModeDesc',
         condition: (ctx) => ctx.db.useExperimental, showExperimental: true, classes: 'mt-4'
@@ -155,7 +147,6 @@ export const advancedSettingsItems: SettingItem[] = [
     },
 
     // More Toggles
-    { id: 'adv.remPunc', type: 'check', labelKey: 'removePunctuationHypa', bindKey: 'removePunctuationHypa', helpKey: 'removePunctuationHypa', classes: 'mt-4' },
     { id: 'adv.devTools', type: 'check', labelKey: 'enableDevTools', bindKey: 'enableDevTools', classes: 'mt-4' },
     { id: 'adv.scrollToActive', type: 'check', labelKey: 'enableScrollToActiveChar', bindKey: 'enableScrollToActiveChar', helpKey: 'enableScrollToActiveChar', classes: 'mt-4' },
 

@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
@@ -78,7 +78,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -102,7 +102,7 @@ jobs:
         if: matrix.platform == 'win'
         shell: bash
         run: |
-          NODE_VERSION="22.14.0"
+          NODE_VERSION="24.14.1"
           mkdir -p portable/bin
           curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-win-x64.zip" -o node.zip
           unzip -q node.zip
@@ -112,7 +112,7 @@ jobs:
         if: matrix.platform == 'linux'
         shell: bash
         run: |
-          NODE_VERSION="22.14.0"
+          NODE_VERSION="24.14.1"
           mkdir -p portable/bin
           curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o node.tar.xz
           tar -xJf node.tar.xz
@@ -123,7 +123,7 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          NODE_VERSION="22.14.0"
+          NODE_VERSION="24.14.1"
           mkdir -p portable/bin
           curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-darwin-arm64.tar.gz" -o node.tar.gz
           tar -xzf node.tar.gz

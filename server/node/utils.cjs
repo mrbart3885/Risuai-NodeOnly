@@ -229,55 +229,62 @@ class RisuSaveDecoder {
         }
 
         for (const key in this.blocks) {
-            switch (this.blocks[key].type) {
-                case RisuSaveType.ROOT: {
-                    const rootData = JSON.parse(this.blocks[key].content);
-                    for (const rootKey in rootData) {
-                        if (!db[rootKey] && !rootKey.startsWith('__')) {
-                            db[rootKey] = rootData[rootKey];
+            try {
+                switch (this.blocks[key].type) {
+                    case RisuSaveType.ROOT: {
+                        const rootData = JSON.parse(this.blocks[key].content);
+                        for (const rootKey in rootData) {
+                            if (!db[rootKey] && !rootKey.startsWith('__')) {
+                                db[rootKey] = rootData[rootKey];
+                            }
                         }
+                        break;
                     }
-                    break;
+                    case RisuSaveType.CHARACTER_WITH_CHAT:
+                    case RisuSaveType.CHARACTER_WITHOUT_CHAT: {
+                        db.characters ??= [];
+                        const character = JSON.parse(this.blocks[key].content);
+                        db.characters.push(character);
+                        break;
+                    }
+                    case RisuSaveType.BOTPRESET: {
+                        db.botPresets = JSON.parse(this.blocks[key].content);
+                        break;
+                    }
+                    case RisuSaveType.MODULES: {
+                        db.modules = JSON.parse(this.blocks[key].content);
+                        break;
+                    }
+                    case RisuSaveType.PLUGINS: {
+                        db.plugins = JSON.parse(this.blocks[key].content);
+                        break;
+                    }
+                    case RisuSaveType.LOADOUTS: {
+                        db.loadouts = JSON.parse(this.blocks[key].content);
+                        break;
+                    }
+                    case RisuSaveType.PLUGIN_STORAGE: {
+                        db.pluginCustomStorage = JSON.parse(this.blocks[key].content);
+                        break;
+                    }
+                    case RisuSaveType.ROOT_COMPONENT: {
+                        const componentData = JSON.parse(this.blocks[key].content);
+                        db[componentData.key] = componentData.data;
+                        break;
+                    }
+                    case RisuSaveType.REMOTE: {
+                        // On the server side, remote blocks reference local files.
+                        // We cannot resolve them here, so skip.
+                        break;
+                    }
+                    default: {
+                        // Not implemented type, skip
+                    }
                 }
-                case RisuSaveType.CHARACTER_WITH_CHAT:
-                case RisuSaveType.CHARACTER_WITHOUT_CHAT: {
-                    db.characters ??= [];
-                    const character = JSON.parse(this.blocks[key].content);
-                    db.characters.push(character);
-                    break;
-                }
-                case RisuSaveType.BOTPRESET: {
-                    db.botPresets = JSON.parse(this.blocks[key].content);
-                    break;
-                }
-                case RisuSaveType.MODULES: {
-                    db.modules = JSON.parse(this.blocks[key].content);
-                    break;
-                }
-                case RisuSaveType.PLUGINS: {
-                    db.plugins = JSON.parse(this.blocks[key].content);
-                    break;
-                }
-                case RisuSaveType.LOADOUTS: {
-                    db.loadouts = JSON.parse(this.blocks[key].content);
-                    break;
-                }
-                case RisuSaveType.PLUGIN_STORAGE: {
-                    db.pluginCustomStorage = JSON.parse(this.blocks[key].content);
-                    break;
-                }
-                case RisuSaveType.ROOT_COMPONENT: {
-                    const componentData = JSON.parse(this.blocks[key].content);
-                    db[componentData.key] = componentData.data;
-                    break;
-                }
-                case RisuSaveType.REMOTE: {
-                    // On the server side, remote blocks reference local files.
-                    // We cannot resolve them here, so skip.
-                    break;
-                }
-                default: {
-                    // Not implemented type, skip
+            } catch (error) {
+                console.error(`[RisuSaveDecoder] Error processing block ${this.blocks[key].name}:`, error);
+                if (this.blocks[key].type === RisuSaveType.ROOT) {
+                    throw new Error('Failed to decode root block, cannot proceed with decoding RisuSave data');
                 }
             }
         }

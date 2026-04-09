@@ -216,26 +216,17 @@ export function setDatabase(data:Database){
     if(checkNullish(data.voicevoxUrl)){
         data.voicevoxUrl = ''
     }
-    if(checkNullish(data.supaMemoryPrompt)){
-        data.supaMemoryPrompt = ''
-    }
     if(checkNullish(data.showMemoryLimit)){
         data.showMemoryLimit = false
     }
     if(checkNullish(data.showFirstMessagePages)){
         data.showFirstMessagePages = false
     }
-    if(checkNullish(data.supaMemoryKey)){
-        data.supaMemoryKey = ""
-    }
     if(checkNullish(data.voyageApiKey)){
         data.voyageApiKey = ""
     }
-    if(checkNullish(data.hypaMemoryKey)){
-        data.hypaMemoryKey = ""
-    }
-    if(checkNullish(data.supaModelType)){
-        data.supaModelType = "none"
+    if(checkNullish(data.supaMemoryKey)){
+        data.supaMemoryKey = ""
     }
     if(checkNullish(data.askRemoval)){
         data.askRemoval = true
@@ -431,19 +422,17 @@ export function setDatabase(data:Database){
         customChainOfThought: false,
         maxThoughtTagDepth: -1
     }
-    data.keiServerURL ??= ''
+    if (data.sdProvider === 'kei') data.sdProvider = ''
     data.top_k ??= 0
     data.promptSettings.maxThoughtTagDepth ??= -1
     data.openrouterFallback ??= true
     data.openrouterMiddleOut ??= false
-    data.removePunctuationHypa ??= true
     data.memoryLimitThickness ??= 1
     data.modules ??= []
     data.enabledModules ??= []
     data.additionalParams ??= []
     data.heightMode ??= 'normal'
     data.antiClaudeOverload ??= false
-    data.maxSupaChunkSize ??= 1200
     data.ollamaURL ??= ''
     data.ollamaModel ??= ''
     data.autoContinueChat ??= false
@@ -480,9 +469,6 @@ export function setDatabase(data:Database){
         ignore: []
     }
     data.useInstructPrompt ??= false
-    data.hanuraiEnable ??= false
-    data.hanuraiSplit ??= false
-    data.hanuraiTokens ??= 1000
     data.textAreaSize ??= 0
     data.sideBarSize ??= 0
     data.textAreaTextSize ??= 0
@@ -490,8 +476,6 @@ export function setDatabase(data:Database){
     data.customPromptTemplateToggle ??= ''
     data.globalChatVariables ??= {}
     data.templateDefaultVariables ??= ''
-    data.hypaAllocatedTokens ??= 3000
-    data.hypaChunkSize ??= 3000
     data.dallEQuality ??= 'standard'
     data.customTextTheme.FontColorQuote1 ??= '#8BE9FD'
     data.customTextTheme.FontColorQuote2 ??= '#FFB86C'
@@ -553,7 +537,7 @@ export function setDatabase(data:Database){
     data.reasoningEffort ??= 0
     data.hypaV3Presets ??= [
         createHypaV3Preset("Default", {
-            summarizationPrompt: data.supaMemoryPrompt ? data.supaMemoryPrompt : "",
+            summarizationPrompt: (data as any).supaMemoryPrompt || "",
             ...data.hypaV3Settings
         })
     ]
@@ -902,7 +886,6 @@ export interface Database{
         data:loreBook[]
     }[]
     loreBookPage: number
-    supaMemoryPrompt: string
     username: string
     userIcon: string
     userNote: string
@@ -969,10 +952,8 @@ export interface Database{
     showMemoryLimit:boolean
     roundIcons:boolean
     useStreaming:boolean
-    supaMemoryKey:string
     voyageApiKey:string
-    hypaMemoryKey:string
-    supaModelType:string
+    supaMemoryKey:string
     textScreenColor?:string
     textBorder?:boolean
     textScreenRounded?:boolean
@@ -1010,7 +991,6 @@ export interface Database{
             expires_in?: number
         }
         useSync?:boolean
-        kei?:boolean
     },
     classicMaxWidth: boolean,
     useChatSticker:boolean,
@@ -1018,9 +998,7 @@ export interface Database{
     usePlainFetch:boolean
     localNetworkMode:boolean
     localNetworkTimeoutSec:number
-    hypaMemory:boolean
-    hypav2:boolean
-    memoryAlgorithmType:string // To enable new memory module/algorithms 
+    memoryAlgorithmType:string // To enable new memory module/algorithms
     proxyRequestModel:string
     ooba:OobaSettings
     ainconfig: AINsettings
@@ -1088,14 +1066,12 @@ export interface Database{
     chainOfThought?:boolean
     genTime:number
     promptSettings: PromptSettings
-    keiServerURL:string
     top_k:number
     repetition_penalty:number
     min_p:number
     top_a:number
     claudeAws:boolean
     lastPatchNoteCheckVersion?:string,
-    removePunctuationHypa?:boolean
     memoryLimitThickness?:number
     modules: RisuModule[]
     enabledModules: string[]
@@ -1105,7 +1081,6 @@ export interface Database{
     heightMode:string
     noWaitForTranslate:boolean
     antiClaudeOverload:boolean
-    maxSupaChunkSize:number
     ollamaURL:string
     ollamaModel:string
     autoContinueChat:boolean
@@ -1120,9 +1095,6 @@ export interface Database{
         ignore: string[]
     }
     useInstructPrompt:boolean
-    hanuraiTokens:number
-    hanuraiSplit:boolean
-    hanuraiEnable:boolean
     textAreaSize:number
     sideBarSize:number
     textAreaTextSize:number
@@ -1132,8 +1104,6 @@ export interface Database{
     customPromptTemplateToggle:string
     globalChatVariables:{[key:string]:string}
     templateDefaultVariables:string
-    hypaAllocatedTokens:number
-    hypaChunkSize:number
     cohereAPIKey:string
     goCharacterOnImport:boolean
     dallEQuality:string
@@ -1514,7 +1484,6 @@ export interface character{
     depth_prompt?: { depth: number, prompt: string }
     extentions?:{[key:string]:any}
     largePortrait?:boolean
-    lorePlus?:boolean
     inlayViewScreen?:boolean
     hfTTS?: {
         model: string
@@ -1589,7 +1558,6 @@ export interface groupChat{
     backgroundCSS?:string
     oneAtTime?:boolean
     virtualscript?:string
-    lorePlus?:boolean
     trashTime?:number
     nickname?:string
     defaultVariables?:string
@@ -1928,9 +1896,6 @@ export interface Chat{
     name:string
     localLore: loreBook[]
     sdData?:string
-    supaMemoryData?:string
-    hypaV2Data?:SerializableHypaV2Data
-    lastMemory?:string
     suggestMessages?:string[]
     isStreaming?:boolean
     scriptstate?:{[key:string]:string|number|boolean}
@@ -1945,6 +1910,26 @@ export interface Chat{
     bookmarkNames?: { [chatId: string]: string };
     supaMemory?: boolean
     savedToggleValues?: Record<string, string>
+    /** Runtime-only: true while awaiting hydration from server. Never persisted. */
+    _placeholder?: boolean
+}
+
+/**
+ * Minimal stub stored in database.bin — full chat data lives server-side.
+ * Only exists in encoded/decoded data; at runtime stubs are converted to placeholder Chats.
+ */
+export interface ChatStub {
+    id: string
+    name: string
+    lastDate?: number
+    folderId?: string
+    _stub: true
+}
+
+export type ChatOrStub = Chat | ChatStub
+
+export function isChatStub(chat: ChatOrStub): chat is ChatStub {
+    return '_stub' in chat && chat._stub === true
 }
 
 export interface ChatFolder{
@@ -2648,7 +2633,6 @@ import { encode as encodeMsgpack, decode as decodeMsgpack } from "msgpackr/index
 import * as fflate from "fflate";
 import type { OnnxModelFiles } from '../process/transformers';
 import type { RisuModule } from '../process/modules';
-import type { SerializableHypaV2Data } from '../process/memory/hypav2';
 import { decodeRPack, encodeRPack } from '../rpack/rpack_js';
 import { DBState, selectedCharID } from '../stores.svelte';
 import { LLMFlags, LLMFormat, LLMTokenizer } from '../model/modellist';

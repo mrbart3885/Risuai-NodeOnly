@@ -1178,7 +1178,6 @@ function initMatcher(){
         callInternalFunction: function (args: string[]): string {
             return ''
         },
-        isTauri: false,
         isNodeServer: isNodeServer,
         isMobile: false,
         appVer: appVer,

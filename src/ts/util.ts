@@ -4,10 +4,7 @@ import { getDatabase } from "./storage/database.svelte"
 import { selectedCharID } from "./stores.svelte"
 import { createBlankChar, getCharImage } from "./characters"
 import { isIOS } from "src/ts/platform"
-import type { Attachment } from "svelte/attachments"
-import { mount, unmount, type Snippet } from "svelte"
 import PopupList from "src/lib/UI/PopupList.svelte"
-const appWindow = null
 
 export interface Messagec extends Message{
     index: number

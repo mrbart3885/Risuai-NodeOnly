@@ -14,12 +14,11 @@
     interface Props {
         globalMode?: boolean;
         submenu?: number;
-        lorePlus?: boolean;
         externalLoreBooks?: loreBook[];
         showFolder?: string
     }
 
-    let { globalMode = false, submenu = 0, lorePlus = false, externalLoreBooks = null, showFolder = '' }: Props = $props();
+    let { globalMode = false, submenu = 0, externalLoreBooks = null, showFolder = '' }: Props = $props();
     let stb: Sortable = null
     let ele: HTMLDivElement = $state()
     let sorted = $state(0)
@@ -454,7 +453,7 @@
                         }} 
                         onOpen={(isDetail = true) => onOpen(isDetail, book)}
                         onClose={(isDetail = true) => onClose(isDetail, book)}
-                        lorePlus={lorePlus} bind:externalLoreBooks={DBState.db.characters[$selectedCharID].globalLore}/>
+                        bind:externalLoreBooks={DBState.db.characters[$selectedCharID].globalLore}/>
                     {:else}
                         <!-- Hidden marker for filtered items (for SortableJS) -->
                         <div data-risu-idx={i} data-risu-idgroup={idgroup} style="display: none;"></div>
@@ -505,7 +504,7 @@
                         }} 
                         onOpen={(isDetail = true) => onOpen(isDetail, book)}
                         onClose={(isDetail = true) => onClose(isDetail, book)}
-                        lorePlus={lorePlus} bind:externalLoreBooks={DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].localLore}/>
+                        bind:externalLoreBooks={DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].localLore}/>
                     {:else}
                         <!-- Hidden marker for filtered items (for SortableJS) -->
                         <div data-risu-idx={i} data-risu-idgroup={idgroup} style="display: none;"></div>

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { get } from "svelte/store";
 import { setDatabase, defaultSdDataFunc, getDatabase } from "./storage/database.svelte";
 import { checkRisuUpdate } from "./update";
+import { fetchPublicStats } from "./publicStats";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState } from "./stores.svelte";
 import { loadPlugins } from "./plugins/plugins.svelte";
 import { alertError, alertMd, alertTOS, waitAlert, alertConfirm, alertInput } from "./alert";
@@ -11,14 +12,12 @@ import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from
 import { decodeRisuSave, encodeRisuSaveLegacy } from "./storage/risuSave";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
-import { autoServerBackup } from "./kei/backup";
 import { applyEarlyLanguage, changeLanguage, language } from "src/lang";
 import { startObserveDom } from "./observer.svelte";
 import { updateGuisize } from "./gui/guisize";
 import { updateLorebooks } from "./characters";
 import { initMobileGesture } from "./hotkey";
 import { moduleUpdate } from "./process/modules";
-import { makeColdData } from "./process/coldstorage.svelte";
 import { removeUnusedCharacterAssets } from "./assetCleanup";
 import {
     forageStorage,
@@ -31,8 +30,7 @@ import {
 } from "./globalApi.svelte";
 import { registerModelDynamic } from "./model/modellist";
 import { isNodeServer } from "./platform";
-
-const appWindow = null
+import { convertStubsToPlaceholders } from "./storage/chatStorage";
 
 /**
  * Loads the application data.
@@ -116,6 +114,16 @@ export async function loadData() {
             }
             LoadingStatusState.text = "Checking For Format Update..."
             await checkNewFormat()
+
+            // Convert any ChatStubs (from server-stripped database.bin) to placeholder Chats
+            // so runtime code only sees Chat objects
+            {
+                const dbForConvert = getDatabase()
+                for (const char of dbForConvert.characters) {
+                    char.chats = convertStubsToPlaceholders(char.chats)
+                }
+            }
+
             const db = getDatabase();
 
             LoadingStatusState.text = "Updating States..."
@@ -140,7 +148,6 @@ export async function loadData() {
             selectedCharID.set(-1)
             startObserveDom()
             assignIds()
-            makeColdData()
             registerModelDynamic()
             saveDb()
             moduleUpdate()
@@ -149,6 +156,7 @@ export async function loadData() {
                 cleanChunks().catch(console.error)
             }, 5_000)
             checkRisuUpdate()
+            fetchPublicStats()
             if (import.meta.env.VITE_RISU_TOS === 'TRUE') {
                 alertTOS().then((a) => {
                     if (a === false) {

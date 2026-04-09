@@ -2,10 +2,6 @@ import type { OpenAIChat } from "./index.svelte";
 import { getDatabase } from "../storage/database.svelte";
 import { getUserName } from "../util";
 
-export function multiChatReplacer(){
-
-}
-
 export function stringlizeChat(formated:OpenAIChat[], char:string, continued:boolean){
     let resultString:string[] = []
     for(const form of formated){

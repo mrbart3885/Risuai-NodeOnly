@@ -11,10 +11,14 @@ error() { printf '\033[1;31m[ERROR]\033[0m %s\n' "$*"; exit 1; }
 
 # ── Prerequisites ──────────────────────────────────────────────────────────────
 
-command -v node >/dev/null 2>&1 || error "Node.js is not installed. Please install Node.js 20+ first: https://nodejs.org/"
+command -v node >/dev/null 2>&1 || error "Node.js is not installed. Please install Node.js 22.12+ first: https://nodejs.org/"
 
-NODE_MAJOR=$(node -e 'console.log(process.versions.node.split(".")[0])')
-[ "$NODE_MAJOR" -ge 20 ] 2>/dev/null || warn "Node.js v$NODE_MAJOR detected. v20+ is recommended."
+NODE_VER=$(node -e 'console.log(process.versions.node)')
+NODE_MAJOR=$(echo "$NODE_VER" | cut -d. -f1)
+NODE_MINOR=$(echo "$NODE_VER" | cut -d. -f2)
+if [ "$NODE_MAJOR" -lt 22 ] || { [ "$NODE_MAJOR" -eq 22 ] && [ "$NODE_MINOR" -lt 12 ]; }; then
+    error "Node.js v$NODE_VER detected. v22.12.0+ is required."
+fi
 
 if ! command -v pnpm >/dev/null 2>&1; then
     info "Installing pnpm..."
@@ -56,13 +60,16 @@ EXTRACTED_DIR=$(ls -d "$TMP_DIR"/Risuai-NodeOnly-* 2>/dev/null | head -1)
 
 if [ -d "$INSTALL_DIR" ]; then
     warn "$INSTALL_DIR already exists."
-    printf "Overwrite? (existing save/ data will be preserved) [y/N]: "
+    printf "Overwrite? (existing save/ and backups/ data will be preserved) [y/N]: "
     read -r answer
     [ "$answer" = "y" ] || [ "$answer" = "Y" ] || error "Aborted."
 
     # Preserve user data
     if [ -d "$INSTALL_DIR/save" ]; then
         mv "$INSTALL_DIR/save" "$TMP_DIR/_save_backup"
+    fi
+    if [ -d "$INSTALL_DIR/backups" ]; then
+        mv "$INSTALL_DIR/backups" "$TMP_DIR/_backups_backup"
     fi
     rm -rf "$INSTALL_DIR"
 fi
@@ -73,6 +80,10 @@ mv "$EXTRACTED_DIR" "$INSTALL_DIR"
 if [ -d "$TMP_DIR/_save_backup" ]; then
     mv "$TMP_DIR/_save_backup" "$INSTALL_DIR/save"
     info "Restored existing save/ data."
+fi
+if [ -d "$TMP_DIR/_backups_backup" ]; then
+    mv "$TMP_DIR/_backups_backup" "$INSTALL_DIR/backups"
+    info "Restored existing backups/ data."
 fi
 
 cd "$INSTALL_DIR"

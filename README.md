@@ -12,7 +12,7 @@
 
 [![Latest Release](https://img.shields.io/github/v/release/mrbart3885/Risuai-NodeOnly?label=latest)](https://github.com/mrbart3885/Risuai-NodeOnly/releases)
 [![License: GPL-3.0](https://img.shields.io/github/license/mrbart3885/Risuai-NodeOnly)](LICENSE)
-[![Node](https://img.shields.io/badge/node-≥20-brightgreen)](https://nodejs.org/)
+[![Node](https://img.shields.io/badge/node-≥22.12-brightgreen)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/docker-supported-blue)](#2--docker)
 
 **RisuAI의 모든 기능 + 전용 편의기능, Node.js 서버 하나로.**
@@ -106,6 +106,12 @@ JSON 또는 `.risutheme` 형식으로 내보내기/가져오기가 가능하여,
 캐릭터, 채팅, 설정, 에셋 등 모든 데이터를 서버의 SQLite DB 하나에 저장합니다.
 로컬 백업(`.bin`)도 서버에서 직접 처리하며, 스트리밍 방식으로 백업 파일을 생성하므로 브라우저 메모리 제한 없이 대용량 데이터도 백업/복원할 수 있습니다.
 
+#### 📉 채팅 메모리 최적화
+
+활성 채팅 하나만 브라우저 메모리에 올리고, 나머지 채팅은 서버에 두었다가 필요할 때 가져옵니다.
+캐릭터와 채팅이 많아도 브라우저 메모리 사용량이 일정하게 유지되어, 모바일 브라우저에서 탭이 강제 종료되는 문제를 방지합니다.
+저장 파일이나 백업 형식은 변경되지 않으며, 기존 데이터와 완전히 호환됩니다.
+
 #### 🔔 업데이트 알림
 
 새 버전이 출시되면 홈 화면과 팝업으로 자동 알림합니다.
@@ -137,6 +143,7 @@ JSON 또는 `.risutheme` 형식으로 내보내기/가져오기가 가능하여,
 | 백업         | Google Drive + 로컬                   | 서버 주도 로컬 백업 (스트리밍)      |
 | 에셋 로딩    | API → Base64 인코딩                   | 서버 직접 서빙 + HTTP 캐시 + GZIP   |
 | 삽화(인레이) | 브라우저 로컬 저장                    | 서버 통합 + WebP 압축 + 썸네일 생성 |
+| 채팅 메모리  | 전체 채팅 상주                        | 활성 채팅만 로드 (lazy loading)     |
 | 코드 구조    | 멀티 플랫폼 분기                      | 단일 코드 경로                      |
 
 ---
@@ -148,7 +155,7 @@ JSON 또는 `.risutheme` 형식으로 내보내기/가져오기가 가능하여,
 | **CPU**     | 1코어        | 2코어 이상           |
 | **RAM**     | 1GB (실행만) | 4GB 이상 (빌드 포함) |
 | **디스크**  | 1GB          | 2GB 이상             |
-| **Node.js** | 20 이상      | —                    |
+| **Node.js** | 22.12 이상   | —                    |
 
 > 💡 **포터블 패키지**나 **Docker**를 사용하면 빌드 과정이 없으므로, RAM 1GB로도 실행할 수 있습니다.
 > **직접 빌드**하는 경우(Git Clone, 설치 스크립트) 빌드 중 메모리를 많이 사용하므로 4GB 이상을 권장합니다.
@@ -302,12 +309,12 @@ docker compose pull && docker compose up -d
 
 #### 사전 준비
 
-Node.js 20 이상이 설치되어 있어야 합니다.
+Node.js 22.12 이상이 설치되어 있어야 합니다.
 
 ```bash
 # Node.js 버전 확인
 node --version
-# v20.0.0 이상이면 OK
+# v22.12.0 이상이면 OK
 ```
 
 Node.js가 없다면: [Node.js 공식 사이트](https://nodejs.org/)에서 설치하세요.

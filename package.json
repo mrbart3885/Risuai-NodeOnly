@@ -1,7 +1,10 @@
 {
   "name": "risuai-nodeonly",
   "private": true,
-  "version": "0.7.0.4",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-nodeonly.mjs",
@@ -53,7 +56,7 @@
     "mnemonist": "^0.40.3",
     "mobile-drag-drop": "3.0.0-rc.0",
     "monaco-editor": "^0.55.1",
-    "msgpackr": "1.10.1",
+    "msgpackr": "1.11.9",
     "node-html-parser": "^6.1.13",
     "ollama": "^0.5.18",
     "pdfjs-dist": "^4.10.38",

@@ -1,6 +1,8 @@
 import { get, writable } from "svelte/store";
 import { saveImage, setDatabase, type character, type Chat, defaultSdDataFunc, type loreBook, getDatabase, getCharacterByIndex, setCharacterByIndex, getCurrentChat, loadTogglesFromChat } from "./storage/database.svelte";
+import { ensureChatHydrated } from "./storage/chatStorage";
 import { alertAddCharacter, alertConfirm, alertError, alertNormal, alertSelect, alertStore, alertWait } from "./alert";
+import { loadingOverlayStore } from "./stores.svelte";
 import { language } from "../lang";
 import { checkNullish, findCharacterbyId, getUserName, selectMultipleFile, selectSingleFile } from "./util";
 import { v4 as uuidv4, v4 } from 'uuid';
@@ -12,6 +14,7 @@ import { parseMarkdownSafe } from "./parser/parser.svelte";
 import { translateHTML } from "./translator/translator";
 import { doingChat } from "./process/index.svelte";
 import { importCharacter } from "./characterCards";
+import { importCharacterPackage } from "./characterPackage";
 import { PngChunk } from "./pngChunk";
 import { removeUnusedCharacterAssets } from "./assetCleanup";
 
@@ -177,8 +180,16 @@ export async function exportChat(page:number){
         const anonymous = (mode === '2' || mode === '3') ? ((await alertSelect([language.includePersonaName, language.hidePersonaName])) === '1') : false
         const selectedID = get(selectedCharID)
         const db = getDatabase()
-        const chat = db.characters[selectedID].chats[page]
         const char = db.characters[selectedID]
+        // Ensure chat is hydrated before export
+        if(char.chats[page]?._placeholder){
+            await ensureChatHydrated(char.chats, page, char.chaId)
+        }
+        if(char.chats[page]?._placeholder){
+            alertError('Failed to load chat data. Export aborted.')
+            return
+        }
+        const chat = char.chats[page]
         const date = new Date().toJSON();
         const htmlChatParse = async (v:string) => {
             v = parseMarkdownSafe(v)
@@ -741,6 +752,9 @@ export async function addCharacter(arg:{
         case 'importCharacter':
             await importCharacter()
             break
+        case 'importPackage':
+            await importCharacterPackage()
+            break
         default:
             MobileGUIStack.set(1)
             return
@@ -773,6 +787,27 @@ export function changeChar(index: number, arg:{
     selectedCharID.set(index);
     const chat = getCurrentChat()
     if(chat){
-        loadTogglesFromChat(chat)
+        if(chat._placeholder){
+            const db = getDatabase()
+            const char = db.characters[index]
+            const capturedIndex = index
+            const capturedChatId = chat.id
+            if(char){
+                loadingOverlayStore.set({ active: true, text: language.loading ?? '' })
+                void ensureChatHydrated(char.chats, char.chatPage, char.chaId).then((hydrated) => {
+                    const currentChar = getDatabase().characters[capturedIndex]
+                    const activeChatId = currentChar?.chats?.[currentChar.chatPage]?.id
+                    if(hydrated && get(selectedCharID) === capturedIndex && activeChatId === capturedChatId) {
+                        loadTogglesFromChat(hydrated)
+                    }
+                }).catch((e) => {
+                    console.error('[selectCharacter] hydration failed:', e)
+                }).finally(() => {
+                    loadingOverlayStore.set({ active: false, text: '' })
+                })
+            }
+        } else {
+            loadTogglesFromChat(chat)
+        }
     }
 }

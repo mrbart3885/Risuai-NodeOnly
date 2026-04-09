@@ -5,11 +5,10 @@
     import { DBState } from 'src/ts/stores.svelte';
     import { untrack } from 'svelte';
     import { CharConfigSubMenu, MobileGUI, selectedCharID, hypaV3ModalOpen } from "../../ts/stores.svelte";
-    import { PlusIcon, SmileIcon, TrashIcon, UserIcon, ActivityIcon, BookIcon, Braces, Volume2Icon, DownloadIcon, HardDriveUploadIcon, Share2Icon, ImageIcon, ImageOffIcon, ArrowUp, ArrowDown } from '@lucide/svelte'
+    import { PlusIcon, SmileIcon, TrashIcon, UserIcon, ActivityIcon, BookIcon, Braces, Volume2Icon, DownloadIcon, HardDriveUploadIcon, Share2Icon, ImageIcon, ImageOffIcon, ArrowUp, ArrowDown, TriangleAlertIcon } from '@lucide/svelte'
     import Check from "../UI/GUI/CheckInput.svelte";
     import { addCharEmotion, addingEmotion, getCharImage, rmCharEmotion, selectCharImg, removeChar, changeCharImage } from "../../ts/characters";
     import LoreBook from "./LoreBook/LoreBookSetting.svelte";
-    import { showHypaV2Alert } from "../../ts/alert";
     import { getAuthorNoteDefaultText, selectMultipleFile, selectSingleFile } from "../../ts/util";
     import Help from "../Others/Help.svelte";
     import { exportChar } from "src/ts/characterCards";
@@ -28,12 +27,17 @@
     import { registerOnnxModel } from "src/ts/process/transformers";
     import MultiLangInput from "../UI/GUI/MultiLangInput.svelte";
     import { applyModule } from "src/ts/process/modules";
+    import { exportCharacterPackage, importPackageToCharacter } from "src/ts/characterPackage";
     import { exportRegex, importRegex } from "src/ts/process/scripts";
     import SliderInput from "../UI/GUI/SliderInput.svelte";
     import Toggles from "./Toggles.svelte";
     import PersonaBind from "./PersonaBind.svelte";
 
     let iconRemoveMode = $state(false)
+    let pkgIncludeCharacter = $state(true)
+    let pkgIncludeChats = $state(true)
+    let pkgIncludePersona = $state(true)
+    let pkgIncludeInlays = $state(false)
     let viewSubMenu = $state(0)
     let emos:[string, string][] = $state([])
     let iconButtonSize = window.innerWidth > 360 ? 24 as const : 20 as const
@@ -78,6 +82,7 @@
     $effect.pre(() => {
         emos = DBState.db.characters[$selectedCharID].emotionImages
     });
+
 
     $effect.pre(() => {
         const chara = DBState.db.characters[$selectedCharID]
@@ -635,21 +640,66 @@
         {/if}
     {/if}
 {:else if $CharConfigSubMenu === 6}
+    {@const licenseRestricted =
+        DBState.db.characters[$selectedCharID].license === 'CC BY-NC-SA 4.0'
+        || DBState.db.characters[$selectedCharID].license === 'CC BY-SA 4.0'
+        || DBState.db.characters[$selectedCharID].license === 'CC BY-ND 4.0'
+        || DBState.db.characters[$selectedCharID].license === 'CC BY-NC-ND 4.0'
+    }
 
-    {#if DBState.db.characters[$selectedCharID].license !== 'CC BY-NC-SA 4.0'
-        && DBState.db.characters[$selectedCharID].license !== 'CC BY-SA 4.0'
-        && DBState.db.characters[$selectedCharID].license !== 'CC BY-ND 4.0'
-        && DBState.db.characters[$selectedCharID].license !== 'CC BY-NC-ND 4.0'
-        }
-        <Button size="sm" onclick={async () => {
+    {#if licenseRestricted}
+        <div class="flex items-center gap-2 text-red-400 text-sm mt-2 mb-2">
+            <TriangleAlertIcon size={16} class="shrink-0" />
+            <span>{language.characterPackageLicenseWarning} ({DBState.db.characters[$selectedCharID].license})</span>
+        </div>
+    {/if}
+
+    {#if !licenseRestricted}
+        <Button size="md" onclick={async () => {
             const res = await exportChar($selectedCharID)
         }} className="mt-2">{language.exportCharacter}</Button>
     {/if}
 
     <Button onclick={async () => {
         removeChar($selectedCharID, DBState.db.characters[$selectedCharID].name)
-    }} className="mt-2" size="sm">{language.removeCharacter}</Button>
-    
+    }} className="mt-2" size="md">{language.removeCharacter}</Button>
+
+    {#if DBState.db.characters[$selectedCharID].type === 'character'}
+        {@const char = DBState.db.characters[$selectedCharID] as character}
+        <div class="mt-6 border-t border-darkborderc pt-4">
+            <h3 class="text-lg font-bold mb-3">{language.characterPackage}</h3>
+            {#key $selectedCharID}
+                <div class="flex items-center justify-between py-1">
+                    <CheckInput check={licenseRestricted ? false : pkgIncludeCharacter} name={language.characterPackageCharacter + ' (charx)'} margin={false}
+                        onChange={(v) => { pkgIncludeCharacter = v }}
+                        className={licenseRestricted ? "opacity-50 pointer-events-none" : ""} />
+                    <span class="text-textcolor2 text-sm ml-2 truncate shrink-0">{char.name}</span>
+                </div>
+                <div class="flex items-center justify-between py-1">
+                    <CheckInput bind:check={pkgIncludeChats} name={language.characterPackageChats + ' (json)'} margin={false} />
+                    <span class="text-textcolor2 text-sm ml-2 shrink-0">{char.chats.length}{language.characterPackageChatCount}</span>
+                </div>
+                <div class="flex items-center py-1">
+                    <CheckInput bind:check={pkgIncludePersona} name={language.characterPackagePersona} margin={false} />
+                </div>
+                <div class="flex items-center py-1">
+                    <CheckInput bind:check={pkgIncludeInlays} name={language.characterPackageInlays} margin={false} />
+                </div>
+            {/key}
+            <Button size="md" className="mt-2 w-full" onclick={async () => {
+                await exportCharacterPackage($selectedCharID, {
+                    includeCharacter: licenseRestricted ? false : pkgIncludeCharacter,
+                    includeChats: pkgIncludeChats,
+                    includePersona: pkgIncludePersona,
+                    includeInlays: pkgIncludeInlays
+                })
+            }}>{language.characterPackageExport}</Button>
+            <Button size="md" className="mt-2 w-full" onclick={async () => {
+                await importPackageToCharacter($selectedCharID)
+            }}>{language.characterPackageImportToChar}</Button>
+        </div>
+    {/if}
+
 {:else if $CharConfigSubMenu === 5}
     {#if DBState.db.characters[$selectedCharID].type === 'character'}
         {#if !$MobileGUI}
@@ -1081,21 +1131,7 @@
             <Check bind:check={(DBState.db.characters[$selectedCharID] as import('src/ts/storage/database.svelte').character).escapeOutput} name={language.escapeOutput}/>
         </div>
 
-        {#if DBState.db.supaModelType !== 'none' && DBState.db.hypav2}
-            <Button
-                onclick={() => {
-                    DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].hypaV2Data ??= {
-                        lastMainChunkID: 0,
-                        mainChunks: [],
-                        chunks: [],
-                    }
-                    showHypaV2Alert()
-                }}
-                className="mt-4"
-            >
-                {language.hypaMemoryV2Modal}
-            </Button>
-        {:else if DBState.db.hypaV3}
+        {#if DBState.db.hypaV3}
             <Button
                 onclick={() => {
                     $hypaV3ModalOpen = true
@@ -1104,9 +1140,6 @@
             >
                 {language.hypaMemoryV3Modal}
             </Button>
-        {:else if DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData.length > 4 || (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemory ?? DBState.db.characters[$selectedCharID].supaMemory)}
-            <span class="text-textcolor mt-4">{language.SuperMemory}</span>
-            <TextAreaInput margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].supaMemoryData}></TextAreaInput>
         {/if}
 
         <Button

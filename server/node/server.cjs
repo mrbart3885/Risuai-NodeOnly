@@ -9,6 +9,7 @@ const htmlparser = require('node-html-parser');
 const { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } = require('fs');
 const fs = require('fs/promises')
 const nodeCrypto = require('crypto')
+const zlib = require('zlib')
 const rateLimit = require('express-rate-limit')
 const { WebSocketServer } = require('ws')
 const sharp = require('sharp')
@@ -18,13 +19,22 @@ const { kvGet, kvSet, kvDel, kvList,
 const { applyPatch } = require('fast-json-patch');
 const { decodeRisuSave, encodeRisuSaveLegacy, calculateHash, normalizeJSON } = require('./utils.cjs');
 
+// Node.js version check
+const [nodeMajor] = process.version.slice(1).split('.').map(Number);
+if (nodeMajor < 24) {
+    console.warn(`[Server] Node.js ${process.version} is below the recommended version (v24.x). Consider upgrading for best compatibility.`);
+}
+
 // Configuration flags for patch-based sync
 const enablePatchSync = true;
 
 // In-memory database cache for patch-based sync
+// dbCache stores the STRIPPED (stubs-only) version matching what the client sees.
+// fullChatStore keeps the actual chat data keyed by chaId→chatId.
 let dbCache = {};
 let saveTimers = {};
 const SAVE_INTERVAL = 5000;
+let fullChatStore = null; // Map<chaId, Map<chatId, chatObject>> — lazy-initialized
 
 // ETag for database.bin
 let dbEtag = null;
@@ -76,20 +86,28 @@ function createBackupAndRotate() {
     }
 }
 
-function flushPendingDb() {
+async function flushPendingDb() {
     if (saveTimers[DB_HEX_KEY]) {
         clearTimeout(saveTimers[DB_HEX_KEY]);
         delete saveTimers[DB_HEX_KEY];
         if (dbCache[DB_HEX_KEY]) {
-            const data = Buffer.from(encodeRisuSaveLegacy(dbCache[DB_HEX_KEY]));
-            kvSet('database/database.bin', data);
-            createBackupAndRotate();
+            await persistDbCacheWithChats(DB_HEX_KEY, 'database/database.bin');
+        } else if (fullChatStore && fullChatStore.size > 0) {
+            // No stripped cache but chat store has data — merge and persist directly
+            const raw = kvGet('database/database.bin');
+            if (raw) {
+                const dbObj = normalizeJSON(await decodeRisuSave(raw));
+                const fullDb = reassembleFullDb(stripChatsFromDb(dbObj));
+                kvSet('database/database.bin', Buffer.from(encodeRisuSaveLegacy(fullDb)));
+            }
         }
+        createBackupAndRotate();
     }
 }
 
 function invalidateDbCache() {
     delete dbCache[DB_HEX_KEY];
+    fullChatStore = null;
     if (saveTimers[DB_HEX_KEY]) {
         clearTimeout(saveTimers[DB_HEX_KEY]);
         delete saveTimers[DB_HEX_KEY];
@@ -97,12 +115,131 @@ function invalidateDbCache() {
     dbEtag = null;
 }
 
+// ─── Chat runtime lazy load helpers ─────────────────────────────────────────
+
+/**
+ * Convert a full chat to a stub (metadata only).
+ */
+function chatToStub(chat) {
+    if (!chat || chat._stub) return chat;
+    const stub = {
+        id: chat.id || '',
+        name: chat.name ?? '',
+        _stub: true,
+    };
+    if (chat.lastDate != null) stub.lastDate = chat.lastDate;
+    if (chat.folderId != null) stub.folderId = chat.folderId;
+    return stub;
+}
+
+/**
+ * Initialize fullChatStore from a decoded full database object.
+ * Extracts all chat payloads into the store keyed by chaId → chatId.
+ */
+function initChatStore(dbObj) {
+    fullChatStore = new Map();
+    if (!dbObj?.characters) return;
+    for (const char of dbObj.characters) {
+        if (!char?.chaId || !char.chats) continue;
+        const charChats = new Map();
+        for (const chat of char.chats) {
+            if (chat && chat.id && !chat._stub) {
+                charChats.set(chat.id, chat);
+            }
+        }
+        if (charChats.size > 0) {
+            fullChatStore.set(char.chaId, charChats);
+        }
+    }
+}
+
+/**
+ * Strip full chat data from a decoded database object, replacing with stubs.
+ * Returns a new object — does not mutate input.
+ */
+function stripChatsFromDb(dbObj) {
+    if (!dbObj?.characters) return dbObj;
+    const stripped = { ...dbObj };
+    stripped.characters = dbObj.characters.map(char => {
+        if (!char?.chats) return char;
+        return { ...char, chats: char.chats.map(chatToStub) };
+    });
+    return stripped;
+}
+
+/**
+ * Reassemble a full database from a stripped DB + fullChatStore.
+ * Replaces stubs with full chats from the store. Returns a new object.
+ */
+function mergeChatStubWithFullChat(stub, fullChat) {
+    if (!fullChat) {
+        return stub;
+    }
+    if (!stub || !stub._stub) {
+        return fullChat;
+    }
+    const merged = {
+        ...fullChat,
+        id: stub.id || fullChat.id || '',
+        name: stub.name,
+    };
+    if (stub.lastDate != null) merged.lastDate = stub.lastDate;
+    if (stub.folderId != null) merged.folderId = stub.folderId;
+    return merged;
+}
+
+function reassembleFullDb(strippedDb) {
+    if (!strippedDb?.characters || !fullChatStore) return strippedDb;
+    const full = { ...strippedDb };
+    full.characters = strippedDb.characters.map(char => {
+        if (!char?.chaId || !char.chats) return char;
+        const charChats = fullChatStore.get(char.chaId);
+        if (!charChats) return char;
+        return {
+            ...char,
+            chats: char.chats.map(chat => {
+                if (chat && chat._stub && chat.id) {
+                    return mergeChatStubWithFullChat(chat, charChats.get(chat.id));
+                }
+                return chat;
+            }),
+        };
+    });
+    return full;
+}
+
+/**
+ * Ensure fullChatStore is initialized. Loads from disk if needed.
+ */
+async function ensureChatStore() {
+    if (fullChatStore) return;
+    const raw = kvGet('database/database.bin');
+    if (!raw) {
+        fullChatStore = new Map();
+        return;
+    }
+    const dbObj = normalizeJSON(await decodeRisuSave(raw));
+    initChatStore(dbObj);
+}
+
+/**
+ * Persist dbCache to disk with full chats merged back in.
+ */
+async function persistDbCacheWithChats(filePath, decodedKey) {
+    const strippedDb = dbCache[filePath];
+    if (!strippedDb) return;
+    await ensureChatStore();
+    const fullDb = reassembleFullDb(strippedDb);
+    const data = Buffer.from(encodeRisuSaveLegacy(fullDb));
+    kvSet(decodedKey, data);
+}
+
 function shouldCompress(req, res) {
     // Proxy/hub-proxy: pass through external responses without compression.
     // Original upstream server has no compression middleware at all,
     // so proxy responses were never compressed in the first place.
     const url = req.originalUrl || req.url;
-    if (url.startsWith('/proxy') || url.startsWith('/hub-proxy') || url.startsWith('/api/backup/export')) {
+    if (url.startsWith('/proxy') || url.startsWith('/hub-proxy') || url.startsWith('/api/backup/export') || url.startsWith('/api/backup/server/download/')) {
         return false;
     }
 
@@ -144,6 +281,13 @@ if(!existsSync(savePath)){
     mkdirSync(savePath)
 }
 
+// Server-side backup directory (outside save/ to avoid bloating updater copies)
+const backupsDir = path.join(process.cwd(), "backups")
+if(!existsSync(backupsDir)){
+    mkdirSync(backupsDir)
+}
+const BACKUP_FILENAME_REGEX = /^risu-backup-\d+\.bin$/;
+
 const passwordPath = path.join(process.cwd(), 'save', '__password')
 if(existsSync(passwordPath)){
     password = readFileSync(passwordPath, 'utf-8')
@@ -178,6 +322,7 @@ let importInProgress = false;
 // ── Update check ─────────────────────────────────────────────────────────────
 const UPDATE_CHECK_DISABLED = process.env.RISU_UPDATE_CHECK === 'false';
 const UPDATE_CHECK_URL = process.env.RISU_UPDATE_URL || 'https://risu-update-worker.nodridan.workers.dev/check';
+const PUBLIC_STATS_URL = (process.env.RISU_UPDATE_URL || 'https://risu-update-worker.nodridan.workers.dev/check').replace(/\/check$/, '/api/public-stats');
 
 const currentVersion = (() => {
     try {
@@ -1169,6 +1314,215 @@ function parseBackupChunk(buffer, onEntry) {
     return buffer.subarray(offset);
 }
 
+// ─── Shared backup import logic ─────────────────────────────────────────────
+// Accepts any async iterable of Buffer chunks (HTTP request body, file stream, etc.)
+async function importBackupFromSource(dataSource, { maxBytes = 0, totalBytes = 0, onProgress = null } = {}) {
+    const BATCH_SIZE = 5000;
+    let remainingBuffer = Buffer.alloc(0);
+    let hasDatabase = false;
+    let assetsRestored = 0;
+    let bytesReceived = 0;
+    let batchCount = 0;
+    const seenEntryNames = new Set();
+    const importedInlayIds = new Set();
+    const importedSidecarIds = new Set();
+    const explicitSidecarMap = new Map();
+    const legacyInlayInfoMap = new Map();
+
+    const stagingDir = path.join(savePath, 'inlays_import_staging');
+    const backupInlayDir = path.join(savePath, 'inlays_import_backup');
+    await fs.rm(stagingDir, { recursive: true, force: true });
+    await fs.rm(backupInlayDir, { recursive: true, force: true });
+    await fs.mkdir(stagingDir, { recursive: true });
+
+    function stagingInlayFilePath(id, ext) {
+        return path.join(stagingDir, `${id}.${normalizeInlayExt(ext)}`);
+    }
+    function stagingSidecarPath(id) {
+        return path.join(stagingDir, `${id}.meta.json`);
+    }
+    function writeStagingInlayFileSync(id, ext, buffer, info) {
+        const normalizedExt = normalizeInlayExt(ext);
+        writeFileSync(stagingInlayFilePath(id, normalizedExt), Buffer.from(buffer));
+        const sidecar = {
+            ext: normalizedExt,
+            name: typeof info?.name === 'string' ? info.name : id,
+            type: typeof info?.type === 'string' ? info.type : 'image',
+            height: typeof info?.height === 'number' ? info.height : undefined,
+            width: typeof info?.width === 'number' ? info.width : undefined,
+        };
+        writeFileSync(stagingSidecarPath(id), JSON.stringify(sidecar));
+    }
+    function writeStagingSidecarSync(id, info) {
+        const sidecar = {
+            ext: normalizeInlayExt(info?.ext),
+            name: typeof info?.name === 'string' ? info.name : id,
+            type: typeof info?.type === 'string' ? info.type : 'image',
+            height: typeof info?.height === 'number' ? info.height : undefined,
+            width: typeof info?.width === 'number' ? info.width : undefined,
+        };
+        writeFileSync(stagingSidecarPath(id), JSON.stringify(sidecar));
+    }
+
+    await flushPendingDb();
+    createBackupAndRotate();
+
+    sqliteDb.pragma('synchronous = OFF');
+
+    sqliteDb.exec('BEGIN');
+    kvDelPrefix('assets/');
+    kvDelPrefix('inlay/');
+    kvDelPrefix('inlay_thumb/');
+    kvDelPrefix('inlay_meta/');
+    kvDelPrefix('inlay_info/');
+    clearEntities();
+
+    try {
+        for await (const chunk of dataSource) {
+            bytesReceived += chunk.length;
+            if (maxBytes > 0 && bytesReceived > maxBytes) {
+                throw new Error(`Backup exceeds max allowed size (${maxBytes} bytes)`);
+            }
+            if (onProgress) onProgress(bytesReceived, totalBytes);
+
+            remainingBuffer = remainingBuffer.length === 0
+                ? Buffer.from(chunk)
+                : Buffer.concat([remainingBuffer, Buffer.from(chunk)]);
+            remainingBuffer = parseBackupChunk(remainingBuffer, (name, data) => {
+                if (seenEntryNames.has(name)) {
+                    throw new Error(`Duplicate backup entry: ${name}`);
+                }
+                seenEntryNames.add(name);
+
+                const inlayRaw = parseInlayBackupName(name);
+                const inlaySidecar = parseInlaySidecarBackupName(name);
+
+                if (inlayRaw) {
+                    importedInlayIds.add(inlayRaw.id);
+                    if (inlayRaw.ext) {
+                        writeStagingInlayFileSync(inlayRaw.id, inlayRaw.ext, data, legacyInlayInfoMap.get(inlayRaw.id) || { ext: inlayRaw.ext, name: inlayRaw.id, type: 'image' });
+                    } else if (data.length > 0 && data[0] === 0x7b) {
+                        const parsed = JSON.parse(data.toString('utf-8'));
+                        const type = typeof parsed?.type === 'string' ? parsed.type : 'image';
+                        const ext = normalizeInlayExt(parsed?.ext);
+                        const buffer = type === 'signature'
+                            ? Buffer.from(typeof parsed?.data === 'string' ? parsed.data : '', 'utf-8')
+                            : decodeDataUri(parsed?.data).buffer;
+                        writeStagingInlayFileSync(inlayRaw.id, ext, buffer, legacyInlayInfoMap.get(inlayRaw.id) || {
+                            ext,
+                            name: typeof parsed?.name === 'string' ? parsed.name : inlayRaw.id,
+                            type,
+                            height: typeof parsed?.height === 'number' ? parsed.height : undefined,
+                            width: typeof parsed?.width === 'number' ? parsed.width : undefined,
+                        });
+                    } else {
+                        writeStagingInlayFileSync(inlayRaw.id, 'bin', data, legacyInlayInfoMap.get(inlayRaw.id) || {
+                            ext: 'bin',
+                            name: inlayRaw.id,
+                            type: 'image',
+                        });
+                    }
+                    if (explicitSidecarMap.has(inlayRaw.id)) {
+                        writeStagingSidecarSync(inlayRaw.id, explicitSidecarMap.get(inlayRaw.id));
+                    } else if (!importedSidecarIds.has(inlayRaw.id)) {
+                        const legacyInfo = legacyInlayInfoMap.get(inlayRaw.id);
+                        if (legacyInfo) {
+                            writeStagingSidecarSync(inlayRaw.id, legacyInfo);
+                        }
+                    }
+                    assetsRestored += 1;
+                } else if (inlaySidecar) {
+                    const parsed = JSON.parse(data.toString('utf-8'));
+                    explicitSidecarMap.set(inlaySidecar.id, parsed);
+                    writeStagingSidecarSync(inlaySidecar.id, parsed);
+                    importedSidecarIds.add(inlaySidecar.id);
+                } else if (name.startsWith('inlay_info/')) {
+                    const id = name.slice('inlay_info/'.length);
+                    if (!isSafeInlayId(id)) {
+                        throw new Error(`Invalid legacy inlay info entry name: ${name}`);
+                    }
+                    const parsed = JSON.parse(data.toString('utf-8'));
+                    legacyInlayInfoMap.set(id, {
+                        ext: normalizeInlayExt(parsed?.ext),
+                        name: typeof parsed?.name === 'string' ? parsed.name : id,
+                        type: typeof parsed?.type === 'string' ? parsed.type : 'image',
+                        height: typeof parsed?.height === 'number' ? parsed.height : undefined,
+                        width: typeof parsed?.width === 'number' ? parsed.width : undefined,
+                    });
+                    if (importedInlayIds.has(id) && !importedSidecarIds.has(id)) {
+                        writeStagingSidecarSync(id, legacyInlayInfoMap.get(id));
+                    }
+                } else if (name.startsWith('inlay_thumb/')) {
+                    // Skip deprecated thumbnail entries from legacy backups
+                } else {
+                    const storageKey = resolveBackupStorageKey(name);
+                    kvSet(storageKey, data);
+                    if (storageKey === 'database/database.bin') {
+                        hasDatabase = true;
+                    } else {
+                        assetsRestored += 1;
+                    }
+                }
+
+                batchCount++;
+                if (batchCount >= BATCH_SIZE) {
+                    sqliteDb.exec('COMMIT');
+                    sqliteDb.exec('BEGIN');
+                    batchCount = 0;
+                }
+            });
+        }
+
+        if (remainingBuffer.length > 0) {
+            throw new Error('Backup stream ended with incomplete entry');
+        }
+        if (!hasDatabase) {
+            throw new Error('Backup does not contain database.risudat');
+        }
+        for (const [id, info] of legacyInlayInfoMap.entries()) {
+            if (importedInlayIds.has(id) && !importedSidecarIds.has(id)) {
+                writeStagingSidecarSync(id, info);
+            }
+        }
+        sqliteDb.exec('COMMIT');
+    } catch (error) {
+        try { sqliteDb.exec('ROLLBACK'); } catch (_) {}
+        await fs.rm(stagingDir, { recursive: true, force: true }).catch(() => {});
+        await fs.rm(backupInlayDir, { recursive: true, force: true }).catch(() => {});
+        throw error;
+    } finally {
+        sqliteDb.pragma('synchronous = NORMAL');
+    }
+
+    await ensureInlayDir();
+    try {
+        if (existsSync(inlayDir)) {
+            await fs.rename(inlayDir, backupInlayDir);
+        }
+        await fs.rename(stagingDir, inlayDir);
+        await fs.writeFile(inlayMigrationMarker, new Date().toISOString(), 'utf-8');
+        await fs.rm(backupInlayDir, { recursive: true, force: true }).catch(() => {});
+    } catch (swapError) {
+        if (existsSync(backupInlayDir)) {
+            await fs.rm(inlayDir, { recursive: true, force: true }).catch(() => {});
+            await fs.rename(backupInlayDir, inlayDir).catch(() => {});
+        }
+        await fs.rm(stagingDir, { recursive: true, force: true }).catch(() => {});
+        throw swapError;
+    }
+
+    invalidateDbCache();
+
+    try {
+        checkpointWal('TRUNCATE');
+    } catch (checkpointError) {
+        console.warn('[Backup Import] WAL checkpoint after import failed:', checkpointError);
+    }
+
+    console.log(`[Backup Import] Complete: ${assetsRestored} assets restored, ${(bytesReceived / 1024 / 1024).toFixed(1)}MB processed`);
+    return { assetsRestored, bytesReceived };
+}
+
 app.get('/', async (req, res, next) => {
 
     const clientIP = req.ip || 'Unknown IP';
@@ -1811,16 +2165,16 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
             if (file) {
                 const etag = `"${Math.floor(file.mtimeMs)}"`
                 if (req.headers['if-none-match'] === etag) {
-                    return res.status(304).end()
+                    return res.status(304).set('Cache-Control', 'public, max-age=31536000, immutable').end()
                 }
                 res.set({
                     'Content-Type': file.mime,
-                    'Cache-Control': 'public, max-age=86400',
+                    'Cache-Control': 'public, max-age=31536000, immutable',
                     'ETag': etag,
                 })
                 return res.send(file.buffer)
             }
-            return res.status(404).end()
+            return res.status(404).set('Cache-Control', 'no-store').end()
         }
 
         if (key.startsWith('inlay_thumb/')) {
@@ -1830,15 +2184,15 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
                 return res.status(404).end()
             }
             const file = await readInlayFile(id)
-            if (!file) return res.status(404).end()
+            if (!file) return res.status(404).set('Cache-Control', 'no-store').end()
             const etag = `"thumb-${Math.floor(file.mtimeMs)}"`
             if (req.headers['if-none-match'] === etag) {
-                return res.status(304).end()
+                return res.status(304).set('Cache-Control', 'public, max-age=31536000, immutable').end()
             }
             const thumb = await generateThumbnail(file.buffer)
             res.set({
                 'Content-Type': 'image/webp',
-                'Cache-Control': 'public, max-age=86400, must-revalidate',
+                'Cache-Control': 'public, max-age=31536000, immutable',
                 'ETag': etag,
             })
             return res.send(thumb)
@@ -1846,20 +2200,20 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
 
         // Fast-path 304: check updated_at BEFORE loading the blob.
         const updatedAt = kvGetUpdatedAt(key)
-        if (updatedAt === null) return res.status(404).end()
+        if (updatedAt === null) return res.status(404).set('Cache-Control', 'no-store').end()
 
         const etag = `"${updatedAt}"`
         if (req.headers['if-none-match'] === etag) {
-            return res.status(304).end()
+            return res.status(304).set('Cache-Control', 'public, max-age=31536000, immutable').end()
         }
 
         const data = kvGet(key)
-        if (!data) return res.status(404).end()
+        if (!data) return res.status(404).set('Cache-Control', 'no-store').end()
 
         const { binary, contentType } = resolveAssetPayload(key, data)
         res.set({
             'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=0, must-revalidate',
+            'Cache-Control': 'public, max-age=31536000, immutable',
             'ETag': etag,
         })
         res.send(binary)
@@ -1909,7 +2263,7 @@ app.get('/api/read', async (req, res, next) => {
         const key = Buffer.from(filePath, 'hex').toString('utf-8');
         // Flush pending patches before reading database.bin
         if (key === 'database/database.bin') {
-            flushPendingDb();
+            await flushPendingDb();
         }
         let value = null;
         if (key.startsWith('inlay/')) {
@@ -1923,17 +2277,26 @@ app.get('/api/read', async (req, res, next) => {
         if(value === null){
             res.send();
         } else {
-            res.setHeader('Content-Type', 'application/octet-stream');
-            // Return ETag for database.bin reads, support 304 Not Modified
+            // Strip chat payloads from database.bin — client gets stubs only
             if (key === 'database/database.bin') {
-                if (!dbEtag) {
-                    dbEtag = computeBufferEtag(value);
+                try {
+                    const dbObj = await decodeRisuSave(value);
+                    initChatStore(dbObj);
+                    const stripped = normalizeJSON(stripChatsFromDb(dbObj));
+                    // Populate dbCache so patch endpoint uses the same data
+                    dbCache[filePath] = stripped;
+                    value = Buffer.from(encodeRisuSaveLegacy(stripped));
+                } catch (e) {
+                    console.error('[Read] Failed to strip chats from database.bin:', e.message);
+                    // Fall through with original value
                 }
+                dbEtag = computeBufferEtag(value);
                 if (req.headers['if-none-match'] === dbEtag) {
                     return res.status(304).end();
                 }
                 res.setHeader('x-db-etag', dbEtag);
             }
+            res.setHeader('Content-Type', 'application/octet-stream');
             res.send(value);
         }
     } catch (error) {
@@ -2049,13 +2412,32 @@ app.post('/api/write', async (req, res, next) => {
                 const parsed = JSON.parse(Buffer.from(fileContent).toString('utf-8'));
                 await writeInlaySidecar(id, parsed);
                 kvDel(key);
+            } else if (key === 'database/database.bin') {
+                // Client sends stubs-only DB — merge full chats from server before persisting
+                try {
+                    const incomingDb = await decodeRisuSave(fileContent);
+                    await ensureChatStore();
+                    const fullDb = reassembleFullDb(incomingDb);
+                    const mergedContent = Buffer.from(encodeRisuSaveLegacy(fullDb));
+                    // Re-init chat store from merged result
+                    initChatStore(fullDb);
+                    kvSet(key, mergedContent);
+                } catch (e) {
+                    console.error('[Write] Failed to merge chats into database.bin:', e.message);
+                    kvSet(key, fileContent);
+                }
             } else {
                 kvSet(key, fileContent);
             }
 
             // Update ETag, backup, and invalidate cache after database.bin write
             if (key === 'database/database.bin') {
-                invalidateDbCache();
+                delete dbCache[DB_HEX_KEY];
+                if (saveTimers[DB_HEX_KEY]) {
+                    clearTimeout(saveTimers[DB_HEX_KEY]);
+                    delete saveTimers[DB_HEX_KEY];
+                }
+                // ETag based on stripped version (what client sees)
                 dbEtag = computeBufferEtag(fileContent);
                 createBackupAndRotate();
             }
@@ -2073,7 +2455,7 @@ app.post('/api/write', async (req, res, next) => {
 app.post('/api/db/flush', sessionAuthMiddleware, async (req, res, next) => {
     try {
         await queueStorageOperation(async () => {
-            flushPendingDb();
+            await flushPendingDb();
             res.send({
                 success: true,
                 etag: dbEtag ?? undefined
@@ -2111,10 +2493,17 @@ app.post('/api/patch', async (req, res, next) => {
             const decodedKey = Buffer.from(filePath, 'hex').toString('utf-8');
 
             // Load database into memory if not already cached
+            // For database.bin, cache holds the STRIPPED version (stubs only)
             if (!dbCache[filePath]) {
                 const fileContent = kvGet(decodedKey);
                 if (fileContent) {
-                    dbCache[filePath] = normalizeJSON(await decodeRisuSave(fileContent));
+                    const decoded = normalizeJSON(await decodeRisuSave(fileContent));
+                    if (decodedKey === 'database/database.bin') {
+                        initChatStore(decoded);
+                        dbCache[filePath] = normalizeJSON(stripChatsFromDb(decoded));
+                    } else {
+                        dbCache[filePath] = decoded;
+                    }
                 } else {
                     dbCache[filePath] = {};
                 }
@@ -2126,7 +2515,7 @@ app.post('/api/patch', async (req, res, next) => {
                 console.log(`[Patch] Hash mismatch for ${decodedKey}: expected=${expectedHash}, server=${serverHash}`);
                 let currentEtag = undefined;
                 if (decodedKey === 'database/database.bin') {
-                    currentEtag = computeDatabaseEtagFromObject(dbCache[filePath]);
+                    currentEtag = computeBufferEtag(Buffer.from(encodeRisuSaveLegacy(dbCache[filePath])));
                     dbEtag = currentEtag;
                 }
                 res.status(409).send({
@@ -2148,14 +2537,18 @@ app.post('/api/patch', async (req, res, next) => {
             }
             dbCache[filePath] = snapshot;
 
-            // Schedule save to KV (debounced)
+            // Schedule save to KV (debounced) — merge full chats back for database.bin
             if (saveTimers[filePath]) {
                 clearTimeout(saveTimers[filePath]);
             }
-            saveTimers[filePath] = setTimeout(() => {
+            saveTimers[filePath] = setTimeout(async () => {
                 try {
-                    const data = Buffer.from(encodeRisuSaveLegacy(dbCache[filePath]));
-                    kvSet(decodedKey, data);
+                    if (decodedKey === 'database/database.bin') {
+                        await persistDbCacheWithChats(filePath, decodedKey);
+                    } else {
+                        const data = Buffer.from(encodeRisuSaveLegacy(dbCache[filePath]));
+                        kvSet(decodedKey, data);
+                    }
                     if (decodedKey === 'database/database.bin') {
                         createBackupAndRotate();
                     }
@@ -2166,9 +2559,9 @@ app.post('/api/patch', async (req, res, next) => {
                 }
             }, SAVE_INTERVAL);
 
-            // Update ETag after successful patch
+            // Update ETag after successful patch (based on stripped version)
             if (decodedKey === 'database/database.bin') {
-                dbEtag = computeDatabaseEtagFromObject(dbCache[filePath]);
+                dbEtag = computeBufferEtag(Buffer.from(encodeRisuSaveLegacy(dbCache[filePath])));
             }
 
             res.send({
@@ -2281,7 +2674,7 @@ app.get('/api/backup/export', async (req, res, next) => {
     if(!await checkAuth(req, res)){ return; }
     try {
         // Flush any pending patches to ensure export includes latest data
-        flushPendingDb();
+        await flushPendingDb();
         const inlayFiles = await listInlayFiles();
         const inlayEntries = await Promise.all(inlayFiles.map(async (entry) => {
             const stat = await fs.stat(entry.filePath);
@@ -2428,7 +2821,6 @@ app.post('/api/backup/import', async (req, res, next) => {
     const prevRequestTimeout = req.socket.server?.requestTimeout;
     req.socket.setTimeout(0);
     req.socket.setKeepAlive(true);
-    // Node 18+ server.requestTimeout (default 5min) aborts long uploads
     if (req.socket.server) req.socket.server.requestTimeout = 0;
 
     try {
@@ -2444,219 +2836,8 @@ app.post('/api/backup/import', async (req, res, next) => {
             return;
         }
 
-        const BATCH_SIZE = 5000;
-        let remainingBuffer = Buffer.alloc(0);
-        let hasDatabase = false;
-        let assetsRestored = 0;
-        let bytesReceived = 0;
-        let batchCount = 0;
-        const seenEntryNames = new Set();
-        const importedInlayIds = new Set();
-        const importedSidecarIds = new Set();
-        const explicitSidecarMap = new Map();
-        const legacyInlayInfoMap = new Map();
-
-        // Stage inlay files in a temp directory, swap on success
-        const stagingDir = path.join(savePath, 'inlays_import_staging');
-        const backupInlayDir = path.join(savePath, 'inlays_import_backup');
-        await fs.rm(stagingDir, { recursive: true, force: true });
-        await fs.rm(backupInlayDir, { recursive: true, force: true });
-        await fs.mkdir(stagingDir, { recursive: true });
-
-        function stagingInlayFilePath(id, ext) {
-            return path.join(stagingDir, `${id}.${normalizeInlayExt(ext)}`);
-        }
-        function stagingSidecarPath(id) {
-            return path.join(stagingDir, `${id}.meta.json`);
-        }
-        function writeStagingInlayFileSync(id, ext, buffer, info) {
-            const normalizedExt = normalizeInlayExt(ext);
-            writeFileSync(stagingInlayFilePath(id, normalizedExt), Buffer.from(buffer));
-            const sidecar = {
-                ext: normalizedExt,
-                name: typeof info?.name === 'string' ? info.name : id,
-                type: typeof info?.type === 'string' ? info.type : 'image',
-                height: typeof info?.height === 'number' ? info.height : undefined,
-                width: typeof info?.width === 'number' ? info.width : undefined,
-            };
-            writeFileSync(stagingSidecarPath(id), JSON.stringify(sidecar));
-        }
-        function writeStagingSidecarSync(id, info) {
-            const sidecar = {
-                ext: normalizeInlayExt(info?.ext),
-                name: typeof info?.name === 'string' ? info.name : id,
-                type: typeof info?.type === 'string' ? info.type : 'image',
-                height: typeof info?.height === 'number' ? info.height : undefined,
-                width: typeof info?.width === 'number' ? info.width : undefined,
-            };
-            writeFileSync(stagingSidecarPath(id), JSON.stringify(sidecar));
-        }
-
-        // Disable fsync during bulk import for speed (safe: backup file is recoverable)
-        sqliteDb.pragma('synchronous = OFF');
-
-        // Clear old SQLite data
-        sqliteDb.exec('BEGIN');
-        kvDelPrefix('assets/');
-        kvDelPrefix('inlay/');
-        kvDelPrefix('inlay_thumb/');
-        kvDelPrefix('inlay_meta/');
-        kvDelPrefix('inlay_info/');
-        clearEntities();
-        sqliteDb.exec('COMMIT');
-
-        // Import in batches to keep WAL bounded
-        sqliteDb.exec('BEGIN');
-        try {
-
-            for await (const chunk of req) {
-                bytesReceived += chunk.length;
-                if (BACKUP_IMPORT_MAX_BYTES > 0 && bytesReceived > BACKUP_IMPORT_MAX_BYTES) {
-                    throw new Error(`Backup exceeds max allowed size (${BACKUP_IMPORT_MAX_BYTES} bytes)`);
-                }
-
-                remainingBuffer = remainingBuffer.length === 0
-                    ? Buffer.from(chunk)
-                    : Buffer.concat([remainingBuffer, Buffer.from(chunk)]);
-                remainingBuffer = parseBackupChunk(remainingBuffer, (name, data) => {
-                    if (seenEntryNames.has(name)) {
-                        throw new Error(`Duplicate backup entry: ${name}`);
-                    }
-                    seenEntryNames.add(name);
-
-                    const inlayRaw = parseInlayBackupName(name);
-                    const inlaySidecar = parseInlaySidecarBackupName(name);
-
-                    if (inlayRaw) {
-                        importedInlayIds.add(inlayRaw.id);
-                        if (inlayRaw.ext) {
-                            writeStagingInlayFileSync(inlayRaw.id, inlayRaw.ext, data, legacyInlayInfoMap.get(inlayRaw.id) || { ext: inlayRaw.ext, name: inlayRaw.id, type: 'image' });
-                        } else if (data.length > 0 && data[0] === 0x7b) {
-                            const parsed = JSON.parse(data.toString('utf-8'));
-                            const type = typeof parsed?.type === 'string' ? parsed.type : 'image';
-                            const ext = normalizeInlayExt(parsed?.ext);
-                            const buffer = type === 'signature'
-                                ? Buffer.from(typeof parsed?.data === 'string' ? parsed.data : '', 'utf-8')
-                                : decodeDataUri(parsed?.data).buffer;
-                            writeStagingInlayFileSync(inlayRaw.id, ext, buffer, legacyInlayInfoMap.get(inlayRaw.id) || {
-                                ext,
-                                name: typeof parsed?.name === 'string' ? parsed.name : inlayRaw.id,
-                                type,
-                                height: typeof parsed?.height === 'number' ? parsed.height : undefined,
-                                width: typeof parsed?.width === 'number' ? parsed.width : undefined,
-                            });
-                        } else {
-                            writeStagingInlayFileSync(inlayRaw.id, 'bin', data, legacyInlayInfoMap.get(inlayRaw.id) || {
-                                ext: 'bin',
-                                name: inlayRaw.id,
-                                type: 'image',
-                            });
-                        }
-                        if (explicitSidecarMap.has(inlayRaw.id)) {
-                            writeStagingSidecarSync(inlayRaw.id, explicitSidecarMap.get(inlayRaw.id));
-                        } else if (!importedSidecarIds.has(inlayRaw.id)) {
-                            const legacyInfo = legacyInlayInfoMap.get(inlayRaw.id);
-                            if (legacyInfo) {
-                                writeStagingSidecarSync(inlayRaw.id, legacyInfo);
-                            }
-                        }
-                        assetsRestored += 1;
-                    } else if (inlaySidecar) {
-                        const parsed = JSON.parse(data.toString('utf-8'));
-                        explicitSidecarMap.set(inlaySidecar.id, parsed);
-                        writeStagingSidecarSync(inlaySidecar.id, parsed);
-                        importedSidecarIds.add(inlaySidecar.id);
-                    } else if (name.startsWith('inlay_info/')) {
-                        const id = name.slice('inlay_info/'.length);
-                        if (!isSafeInlayId(id)) {
-                            throw new Error(`Invalid legacy inlay info entry name: ${name}`);
-                        }
-                        const parsed = JSON.parse(data.toString('utf-8'));
-                        legacyInlayInfoMap.set(id, {
-                            ext: normalizeInlayExt(parsed?.ext),
-                            name: typeof parsed?.name === 'string' ? parsed.name : id,
-                            type: typeof parsed?.type === 'string' ? parsed.type : 'image',
-                            height: typeof parsed?.height === 'number' ? parsed.height : undefined,
-                            width: typeof parsed?.width === 'number' ? parsed.width : undefined,
-                        });
-                        if (importedInlayIds.has(id) && !importedSidecarIds.has(id)) {
-                            writeStagingSidecarSync(id, legacyInlayInfoMap.get(id));
-                        }
-                    } else if (name.startsWith('inlay_thumb/')) {
-                        // Skip deprecated thumbnail entries from legacy backups
-                    } else {
-                        const storageKey = resolveBackupStorageKey(name);
-                        kvSet(storageKey, data);
-                        if (storageKey === 'database/database.bin') {
-                            hasDatabase = true;
-                        } else {
-                            assetsRestored += 1;
-                        }
-                    }
-
-                    batchCount++;
-                    if (batchCount >= BATCH_SIZE) {
-                        sqliteDb.exec('COMMIT');
-                        sqliteDb.exec('BEGIN');
-                        batchCount = 0;
-                    }
-                });
-            }
-
-            if (remainingBuffer.length > 0) {
-                throw new Error('Backup stream ended with incomplete entry');
-            }
-            if (!hasDatabase) {
-                throw new Error('Backup does not contain database.risudat');
-            }
-            for (const [id, info] of legacyInlayInfoMap.entries()) {
-                if (importedInlayIds.has(id) && !importedSidecarIds.has(id)) {
-                    writeStagingSidecarSync(id, info);
-                }
-            }
-            sqliteDb.exec('COMMIT');
-        } catch (error) {
-            try { sqliteDb.exec('ROLLBACK'); } catch (_) {}
-            await fs.rm(stagingDir, { recursive: true, force: true }).catch(() => {});
-            await fs.rm(backupInlayDir, { recursive: true, force: true }).catch(() => {});
-            throw error;
-        } finally {
-            sqliteDb.pragma('synchronous = NORMAL');
-        }
-
-        // Swap inlay directory: staging → live (atomic rename)
-        await ensureInlayDir();
-        try {
-            if (existsSync(inlayDir)) {
-                await fs.rename(inlayDir, backupInlayDir);
-            }
-            await fs.rename(stagingDir, inlayDir);
-            await fs.writeFile(inlayMigrationMarker, new Date().toISOString(), 'utf-8');
-            await fs.rm(backupInlayDir, { recursive: true, force: true }).catch(() => {});
-        } catch (swapError) {
-            // Restore original inlay directory if swap failed
-            if (existsSync(backupInlayDir)) {
-                await fs.rm(inlayDir, { recursive: true, force: true }).catch(() => {});
-                await fs.rename(backupInlayDir, inlayDir).catch(() => {});
-            }
-            await fs.rm(stagingDir, { recursive: true, force: true }).catch(() => {});
-            throw swapError;
-        }
-
-        // Invalidate db cache after import to prevent stale patches
-        invalidateDbCache();
-
-        try {
-            checkpointWal('TRUNCATE');
-        } catch (checkpointError) {
-            console.warn('[Backup Import] WAL checkpoint after import failed:', checkpointError);
-        }
-
-        console.log(`[Backup Import] Complete: ${assetsRestored} assets restored, ${(bytesReceived / 1024 / 1024).toFixed(1)}MB processed`);
-        res.json({
-            ok: true,
-            assetsRestored,
-        });
+        const result = await importBackupFromSource(req, { maxBytes: BACKUP_IMPORT_MAX_BYTES });
+        res.json({ ok: true, assetsRestored: result.assetsRestored });
     } catch (error) {
         next(error);
     } finally {
@@ -2664,6 +2845,395 @@ app.post('/api/backup/import', async (req, res, next) => {
         if (req.socket.server && prevRequestTimeout !== undefined) {
             req.socket.server.requestTimeout = prevRequestTimeout;
         }
+    }
+});
+
+// ── Server-side backup endpoints ────────────────────────────────────────────
+
+// Save current data as a .bin backup file on the server
+app.post('/api/backup/server/save', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    if (!checkActiveSession(req, res)) return;
+    try {
+        await flushPendingDb();
+
+        const inlayFiles = await listInlayFiles();
+        const inlayEntries = await Promise.all(inlayFiles.map(async (entry) => {
+            const stat = await fs.stat(entry.filePath);
+            return { kind: 'file', sourcePath: entry.filePath, backupName: `inlay/${entry.id}.${entry.ext}`, size: stat.size };
+        }));
+        const sidecarEntries = (await Promise.all(inlayFiles.map(async (entry) => {
+            const sidecarPath = getInlaySidecarPath(entry.id);
+            try {
+                const stat = await fs.stat(sidecarPath);
+                return { kind: 'sidecar', sourcePath: sidecarPath, backupName: `inlay_sidecar/${entry.id}`, size: stat.size };
+            } catch { return null; }
+        }))).filter(Boolean);
+
+        const namespacedEntries = [
+            ...kvListWithSizes('assets/').map((e) => ({ kind: 'kv', key: e.key, backupName: path.basename(e.key), size: e.size })),
+            ...kvListWithSizes('inlay_meta/').map((e) => ({ kind: 'kv', key: e.key, backupName: e.key, size: e.size })),
+            ...inlayEntries,
+            ...sidecarEntries,
+        ];
+
+        const totalEntries = namespacedEntries.length + 1; // +1 for database
+        const totalBytes = namespacedEntries.reduce((sum, e) => sum + e.size, 0);
+
+        // Stream progress as NDJSON
+        res.setHeader('content-type', 'application/x-ndjson');
+        res.flushHeaders();
+
+        const filename = `risu-backup-${Date.now()}.bin`;
+        const finalPath = path.join(backupsDir, filename);
+        const tmpPath = finalPath + '.tmp';
+        const { createWriteStream: createFsWriteStream } = require('fs');
+        const writeStream = createFsWriteStream(tmpPath);
+
+        let closed = false;
+        let writeComplete = false;
+        res.once('close', () => { closed = true; });
+
+        try {
+            await new Promise((resolve, reject) => {
+                writeStream.on('error', reject);
+
+                (async () => {
+                    let written = 0;
+                    let bytesWritten = 0;
+                    for (const entry of namespacedEntries) {
+                        if (closed) break;
+                        const value = entry.kind === 'kv'
+                            ? kvGet(entry.key)
+                            : await fs.readFile(entry.sourcePath);
+                        if (value) {
+                            const ok = writeStream.write(encodeBackupEntry(entry.backupName, value));
+                            if (!ok) await new Promise(r => writeStream.once('drain', r));
+                            bytesWritten += value.length;
+                        }
+                        written++;
+                        if (written % 50 === 0 || written === namespacedEntries.length) {
+                            res.write(JSON.stringify({ type: 'progress', current: written, total: totalEntries, bytes: bytesWritten, totalBytes }) + '\n');
+                        }
+                    }
+                    if (closed) throw new Error('Client disconnected during backup save');
+                    const dbValue = kvGet('database/database.bin');
+                    if (dbValue) {
+                        const ok = writeStream.write(encodeBackupEntry('database.risudat', dbValue));
+                        if (!ok) await new Promise(r => writeStream.once('drain', r));
+                        bytesWritten += dbValue.length;
+                    }
+                    res.write(JSON.stringify({ type: 'progress', current: totalEntries, total: totalEntries, bytes: bytesWritten, totalBytes }) + '\n');
+                    writeStream.end(resolve);
+                })().catch(reject);
+            });
+
+            // Atomic rename: only expose the file after successful write
+            await fs.rename(tmpPath, finalPath);
+            writeComplete = true;
+
+            const stat = await fs.stat(finalPath);
+            console.log(`[Server Backup] Saved: ${filename} (${(stat.size / 1024 / 1024).toFixed(1)} MB)`);
+            res.write(JSON.stringify({ type: 'done', ok: true, filename, size: stat.size }) + '\n');
+            res.end();
+        } catch (innerError) {
+            // Clean up incomplete temp file
+            if (!writeComplete) {
+                await fs.unlink(tmpPath).catch(() => {});
+            }
+            throw innerError;
+        }
+    } catch (error) {
+        if (!res.headersSent) {
+            next(error);
+        } else {
+            res.write(JSON.stringify({ type: 'error', message: error.message }) + '\n');
+            res.end();
+        }
+    }
+});
+
+// List backup files on the server
+app.get('/api/backup/server/list', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    try {
+        let entries;
+        try {
+            entries = await fs.readdir(backupsDir, { withFileTypes: true });
+        } catch {
+            res.json({ backups: [] });
+            return;
+        }
+        const backups = [];
+        for (const entry of entries) {
+            if (!entry.isFile() || !BACKUP_FILENAME_REGEX.test(entry.name)) continue;
+            const stat = await fs.stat(path.join(backupsDir, entry.name));
+            const tsMatch = entry.name.match(/^risu-backup-(\d+)\.bin$/);
+            backups.push({
+                filename: entry.name,
+                size: stat.size,
+                createdAt: tsMatch ? Number(tsMatch[1]) : stat.mtimeMs,
+            });
+        }
+        backups.sort((a, b) => b.createdAt - a.createdAt);
+        res.json({ backups });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Restore from a server backup file
+app.post('/api/backup/server/restore', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    if (!checkActiveSession(req, res)) return;
+
+    if (importInProgress) {
+        res.status(409).json({ error: 'Another import is already in progress' });
+        return;
+    }
+    importInProgress = true;
+
+    try {
+        const filename = req.body?.filename;
+        if (!filename || !BACKUP_FILENAME_REGEX.test(filename)) {
+            res.status(400).json({ error: 'Invalid backup filename' });
+            return;
+        }
+        const filePath = path.join(backupsDir, filename);
+        let fileStat;
+        try {
+            fileStat = await fs.stat(filePath);
+        } catch {
+            res.status(404).json({ error: 'Backup file not found' });
+            return;
+        }
+
+        const disk = await checkDiskSpace(fileStat.size * BACKUP_DISK_HEADROOM);
+        if (!disk.ok) {
+            res.status(507).json({
+                error: 'Insufficient disk space',
+                available: disk.available,
+                required: fileStat.size * BACKUP_DISK_HEADROOM,
+            });
+            return;
+        }
+
+        res.setHeader('content-type', 'application/x-ndjson');
+        res.flushHeaders();
+
+        let lastProgressWrite = 0;
+        const { createReadStream } = require('fs');
+        const stream = createReadStream(filePath, { highWaterMark: 256 * 1024 });
+        const result = await importBackupFromSource(stream, {
+            totalBytes: fileStat.size,
+            onProgress: (received, total) => {
+                const now = Date.now();
+                if (now - lastProgressWrite < 200) return;
+                lastProgressWrite = now;
+                res.write(JSON.stringify({ type: 'progress', bytes: received, totalBytes: total }) + '\n');
+            },
+        });
+        res.write(JSON.stringify({ type: 'done', ok: true, assetsRestored: result.assetsRestored }) + '\n');
+        res.end();
+    } catch (error) {
+        if (!res.headersSent) {
+            next(error);
+        } else {
+            res.write(JSON.stringify({ type: 'error', message: error.message }) + '\n');
+            res.end();
+        }
+    } finally {
+        importInProgress = false;
+    }
+});
+
+// Delete a server backup file
+app.delete('/api/backup/server/:filename', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    if (!checkActiveSession(req, res)) return;
+    try {
+        const filename = req.params.filename;
+        if (!BACKUP_FILENAME_REGEX.test(filename)) {
+            res.status(400).json({ error: 'Invalid backup filename' });
+            return;
+        }
+        const filePath = path.join(backupsDir, filename);
+        try {
+            await fs.unlink(filePath);
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                res.status(404).json({ error: 'Backup file not found' });
+                return;
+            }
+            throw err;
+        }
+        res.json({ ok: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Download a server backup file
+app.get('/api/backup/server/download/:filename', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    try {
+        const filename = req.params.filename;
+        if (!BACKUP_FILENAME_REGEX.test(filename)) {
+            res.status(400).json({ error: 'Invalid backup filename' });
+            return;
+        }
+        const filePath = path.join(backupsDir, filename);
+        let stat;
+        try {
+            stat = await fs.stat(filePath);
+        } catch {
+            res.status(404).json({ error: 'Backup file not found' });
+            return;
+        }
+        res.setHeader('content-type', 'application/octet-stream');
+        res.setHeader('content-disposition', `attachment; filename="${filename}"`);
+        res.setHeader('content-length', stat.size);
+        const { createReadStream } = require('fs');
+        createReadStream(filePath).pipe(res);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ── Chat content endpoints (runtime lazy load) ─────────────────────────────
+
+// Cold storage compatibility: restore chat data stored in coldstorage/ KV entries
+const COLD_STORAGE_HEADER = '\uEF01COLDSTORAGE\uEF01';
+
+function isColdStorageChat(chat) {
+    return chat?.message?.[0]?.data?.startsWith(COLD_STORAGE_HEADER);
+}
+
+function restoreColdStorageChat(chat) {
+    if (!isColdStorageChat(chat)) return true;
+    const key = chat.message[0].data.slice(COLD_STORAGE_HEADER.length);
+    const compressed = kvGet('coldstorage/' + key);
+    if (!compressed) {
+        console.error(`[ColdStorage] data not found for key: ${key}`);
+        return false;
+    }
+    try {
+        const decompressed = zlib.gunzipSync(compressed);
+        const coldData = JSON.parse(decompressed.toString('utf-8'));
+        if (Array.isArray(coldData)) {
+            chat.message = coldData;
+        } else if (coldData?.message) {
+            chat.message = coldData.message;
+            if (coldData.hypaV3Data) chat.hypaV3Data = coldData.hypaV3Data;
+            if (coldData.scriptstate) chat.scriptstate = coldData.scriptstate;
+            if (coldData.localLore) chat.localLore = coldData.localLore;
+        }
+        chat.lastDate = Date.now();
+        return true;
+    } catch (err) {
+        console.error(`[ColdStorage] restore failed for key ${key}:`, err.message);
+        return false;
+    }
+}
+
+// GET /api/chat-content/:chaId/:chatIndex — retrieve full chat from server
+app.get('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    try {
+        const chaId = req.params.chaId;
+        const chatIndex = parseInt(req.params.chatIndex, 10);
+        const expectedChatId = req.headers['x-chat-id'];
+
+        await ensureChatStore();
+        // First try fullChatStore (fast path)
+        const charChats = fullChatStore.get(chaId);
+        if (charChats && expectedChatId) {
+            const chat = charChats.get(expectedChatId);
+            if (chat) {
+                if (!restoreColdStorageChat(chat)) {
+                    return res.status(500).json({ error: 'Cold storage restore failed' });
+                }
+                return res.json(chat);
+            }
+        }
+
+        // Fallback: load from disk and find by index
+        const raw = kvGet('database/database.bin');
+        if (!raw) {
+            return res.status(404).json({ error: 'Database not found' });
+        }
+        const dbObj = await decodeRisuSave(raw);
+        const char = dbObj.characters?.find(c => c?.chaId === chaId);
+        if (!char?.chats?.[chatIndex]) {
+            return res.status(404).json({ error: 'Chat not found' });
+        }
+        const chat = char.chats[chatIndex];
+        // Verify chatId matches if provided
+        if (expectedChatId && chat.id !== expectedChatId) {
+            return res.status(409).json({ error: 'Chat ID mismatch — index may have shifted' });
+        }
+        if (!restoreColdStorageChat(chat)) {
+            return res.status(500).json({ error: 'Cold storage restore failed' });
+        }
+        res.json(chat);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// POST /api/chat-content/:chaId/:chatIndex — save chat content to server
+app.post('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
+    if (!await checkAuth(req, res)) { return; }
+    if (!checkActiveSession(req, res)) return;
+    try {
+        await queueStorageOperation(async () => {
+            const chaId = req.params.chaId;
+            const chatIndex = parseInt(req.params.chatIndex, 10);
+            const expectedChatId = req.headers['x-chat-id'];
+            const chatData = req.body;
+
+            if (!chatData || !expectedChatId) {
+                return res.status(400).json({ error: 'Chat data and x-chat-id required' });
+            }
+
+            await ensureChatStore();
+
+            // Update fullChatStore
+            if (!fullChatStore.has(chaId)) {
+                fullChatStore.set(chaId, new Map());
+            }
+            fullChatStore.get(chaId).set(expectedChatId, chatData);
+
+            // Schedule debounced persist (reuses existing timer mechanism)
+            if (saveTimers[DB_HEX_KEY]) {
+                clearTimeout(saveTimers[DB_HEX_KEY]);
+            }
+            saveTimers[DB_HEX_KEY] = setTimeout(async () => {
+                try {
+                    // If dbCache has stripped DB, persist with merged chats
+                    if (dbCache[DB_HEX_KEY]) {
+                        await persistDbCacheWithChats(DB_HEX_KEY, 'database/database.bin');
+                    } else {
+                        // No stripped cache — load, merge, save
+                        const raw = kvGet('database/database.bin');
+                        if (raw) {
+                            const dbObj = normalizeJSON(await decodeRisuSave(raw));
+                            const fullDb = reassembleFullDb(stripChatsFromDb(dbObj));
+                            kvSet('database/database.bin', Buffer.from(encodeRisuSaveLegacy(fullDb)));
+                        }
+                    }
+                    createBackupAndRotate();
+                } catch (error) {
+                    console.error('[ChatContent] Error persisting chat:', error);
+                } finally {
+                    delete saveTimers[DB_HEX_KEY];
+                }
+            }, SAVE_INTERVAL);
+
+            res.json({ success: true });
+        });
+    } catch (error) {
+        next(error);
     }
 });
 
@@ -2701,14 +3271,13 @@ function clearExistingData() {
     clearEntities();
 }
 
-function importHexFilesFromDir(dirPath) {
+async function importHexFilesFromDir(dirPath) {
     const { hexFiles, hasDatabase } = scanHexFilesInDir(dirPath);
     if (hexFiles.length === 0) return { imported: 0 };
     if (!hasDatabase) throw new Error('Save folder does not contain database/database.bin');
 
-    flushPendingDb();
+    await flushPendingDb();
     createBackupAndRotate();
-    clearExistingData();
     invalidateDbCache();
 
     const insert = sqliteDb.prepare(
@@ -2717,6 +3286,7 @@ function importHexFilesFromDir(dirPath) {
     const now = Date.now();
 
     const run = sqliteDb.transaction(() => {
+        clearExistingData();
         for (const hexFile of hexFiles) {
             const key = Buffer.from(hexFile, 'hex').toString('utf-8');
             const value = readFileSync(path.join(dirPath, hexFile));
@@ -2729,14 +3299,13 @@ function importHexFilesFromDir(dirPath) {
     return { imported: hexFiles.length };
 }
 
-function importHexEntries(entries) {
+async function importHexEntries(entries) {
     if (entries.length === 0) return { imported: 0 };
     const hasDb = entries.some(e => e.key === 'database/database.bin');
     if (!hasDb) throw new Error('Data does not contain database/database.bin');
 
-    flushPendingDb();
+    await flushPendingDb();
     createBackupAndRotate();
-    clearExistingData();
     invalidateDbCache();
 
     const insert = sqliteDb.prepare(
@@ -2745,6 +3314,7 @@ function importHexEntries(entries) {
     const now = Date.now();
 
     const run = sqliteDb.transaction(() => {
+        clearExistingData();
         for (const { key, value } of entries) {
             insert.run(key, value, now);
         }
@@ -2797,7 +3367,7 @@ app.post('/api/migrate/save-folder/execute', async (req, res, next) => {
             res.status(400).json({ error: 'Cannot access directory' });
             return;
         }
-        const result = importHexFilesFromDir(resolved);
+        const result = await importHexFilesFromDir(resolved);
         res.json({ ok: true, imported: result.imported });
     } catch (error) {
         res.status(400).json({ error: error.message || 'Import failed' });
@@ -2857,7 +3427,7 @@ app.post('/api/migrate/save-folder/upload', async (req, res, next) => {
             return;
         }
 
-        const result = importHexEntries(entries);
+        const result = await importHexEntries(entries);
         res.json({ ok: true, imported: result.imported });
     } catch (error) {
         res.status(400).json({ error: error.message || 'Import failed' });
@@ -2973,6 +3543,18 @@ app.post('/api/inlays/compress', sessionAuthMiddleware, async (req, res) => {
     res.end();
 });
 
+// ── Public stats proxy ───────────────────────────────────────────────────────
+app.get('/api/public-stats', async (req, res) => {
+    try {
+        const r = await fetch(PUBLIC_STATS_URL);
+        if (!r.ok) { res.status(r.status).json({ error: 'upstream error' }); return; }
+        const data = await r.json();
+        res.json(data);
+    } catch {
+        res.status(502).json({ error: 'fetch failed' });
+    }
+});
+
 // ── Update check endpoint ────────────────────────────────────────────────────
 app.get('/api/update-check', async (req, res) => {
     if (UPDATE_CHECK_DISABLED) {
@@ -3040,9 +3622,9 @@ async function startServer() {
 
 // Graceful shutdown: flush pending patches and checkpoint WAL before exit
 for (const sig of ['SIGTERM', 'SIGINT']) {
-    process.on(sig, () => {
+    process.on(sig, async () => {
         console.log(`[Server] Received ${sig}, flushing pending data...`);
-        try { flushPendingDb(); } catch (e) { console.error('[Server] Flush error:', e); }
+        try { await flushPendingDb(); } catch (e) { console.error('[Server] Flush error:', e); }
         try { checkpointWal('TRUNCATE'); } catch { /* non-fatal */ }
         process.exit(0);
     });

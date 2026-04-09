@@ -4,33 +4,30 @@ import { tick } from "svelte";
 import { get } from "svelte/store";
 import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, nodeOnlyVer, getCurrentCharacter, loadTogglesFromChat } from "./storage/database.svelte";
 import { checkRisuUpdate } from "./update";
-import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore } from "./stores.svelte";
+import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore, loadingOverlayStore } from "./stores.svelte";
 import { loadPlugins } from "./plugins/plugins.svelte";
 import { alertConfirm, alertError, alertMd, alertNormal, alertNormalWait, alertSelect, alertTOS, waitAlert } from "./alert";
 import { hasher } from "./parser/parser.svelte";
 import { characterURLImport, hubURL } from "./characterCards";
 import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from "./storage/defaultPrompts";
 import { decodeRisuSave, encodeRisuSaveLegacy, RisuSaveEncoder, RisuSavePatcher, type toSaveType } from "./storage/risuSave";
+import { isHydrating, saveChatToServer, ensureChatHydrated } from "./storage/chatStorage";
 import { AutoStorage } from "./storage/autoStorage";
 import { ConflictError } from "./storage/nodeStorage";
 import { supportsPatchSync } from "./platform";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
-import { autoServerBackup, saveDbKei } from "./kei/backup";
 import { language } from "src/lang";
 import { startObserveDom } from "./observer.svelte";
 import { updateGuisize } from "./gui/guisize";
 import { updateLorebooks } from "./characters";
 import { initMobileGesture } from "./hotkey";
 import { moduleUpdate } from "./process/modules";
-import { makeColdData } from "./process/coldstorage.svelte";
 import { isLocalNetworkUrl } from "./network/localNetwork";
 import { decodeProxyJobWsChunk, formatProxyStreamErrorMessage, parseProxyJobWsEvent } from "./network/proxyJobWs";
 import { getFetchNativeTransport, shouldUseProxyForFetchNative, shouldUseProxyForGlobalFetch, type ProxyPolicy } from "./network/proxyPolicy";
 
 export const forageStorage = new AutoStorage()
-
-const appWindow = null
 
 interface fetchLog {
     body: string
@@ -252,13 +249,11 @@ export let requiresFullEncoderReload = $state({
 
 let requestImmediateSaveImpl: ((options?: {
     forceFullWrite?: boolean
-    skipBackups?: boolean
 }) => Promise<void> | void) = () => {}
 let patchSyncBaseline: Database | null = null
 
 export function requestImmediateSave(options?: {
     forceFullWrite?: boolean
-    skipBackups?: boolean
 }) {
     return requestImmediateSaveImpl(options)
 }
@@ -272,6 +267,14 @@ export async function saveDb() {
     let gotChannel = false
     const sessionID = v4()
     let saveInFlight: Promise<void> | null = null
+    const knownChatIdsByCharacter = new Map<string, Set<string>>(
+        (getDatabase()?.characters ?? [])
+            .filter(character => character?.chaId)
+            .map(character => [
+                character.chaId,
+                new Set((character.chats ?? []).map(chat => chat?.id).filter(Boolean)),
+            ])
+    )
     let channel: BroadcastChannel
     if (window.BroadcastChannel) {
         channel = new BroadcastChannel('risu-db')
@@ -360,6 +363,7 @@ export async function saveDb() {
         let didInitPluginsEffect = false
         let didInitPluginStorageEffect = false
         let didInitGeneralEffect = false
+        let trackedActiveChatKey = ''
 
         const debounceTime = 500; // 500 milliseconds
         let saveTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -386,7 +390,6 @@ export async function saveDb() {
             changed = true;
             void triggerSave({
                 skipBroadcast: true,
-                skipBackups: true,
             })
             void flushServerDbKeepalive()
         }
@@ -474,19 +477,20 @@ export async function saveDb() {
 
             if (DBState?.db?.characters?.[selIdState]) {
                 for (const key in DBState.db.characters[selIdState]) {
+                    // Exclude chats — chat changes are tracked via chat-specific server save, not database.bin
                     if (key !== 'chats') {
                         $state.snapshot(DBState.db.characters[selIdState][key])
                     }
                 }
-                $state.snapshot(DBState.db.characters[selIdState].chats)
+                // Track stub metadata and chat ordering for database.bin persistence.
+                $state.snapshot(DBState.db.characters[selIdState].chats.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    lastDate: c.lastDate,
+                    folderId: c.folderId,
+                })))
                 if (changeTracker.character[0] !== DBState.db.characters[selIdState]?.chaId) {
                     changeTracker.character.unshift(DBState.db.characters[selIdState]?.chaId)
-                }
-                if (
-                    changeTracker.chat[0]?.[0] !== DBState.db.characters[selIdState]?.chaId ||
-                    changeTracker.chat[0]?.[1] !== DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id
-                ) {
-                    changeTracker.chat.unshift([DBState.db.characters[selIdState]?.chaId, DBState.db.characters[selIdState]?.chats[DBState.db.characters[selIdState]?.chatPage].id])
                 }
             }
             if (!didInitGeneralEffect) {
@@ -494,6 +498,40 @@ export async function saveDb() {
                 changeTracker.character = []
                 changeTracker.chat = []
                 return
+            }
+            saveTimeoutExecute()
+        })
+        $effect(() => {
+            const activeChar = DBState?.db?.characters?.[selIdState]
+            const activeChat = activeChar?.chats?.[activeChar?.chatPage]
+            if (activeChat) {
+                $state.snapshot(activeChat)
+            }
+
+            const activeChaId = activeChar?.chaId ?? ''
+            const activeChatId = activeChat?.id ?? ''
+            const activeKey = activeChaId && activeChatId ? `${activeChaId}|${activeChatId}` : ''
+
+            if (!activeKey) {
+                trackedActiveChatKey = ''
+                return
+            }
+
+            // Selecting a different chat establishes a new baseline; only later edits are dirty.
+            if (trackedActiveChatKey !== activeKey) {
+                trackedActiveChatKey = activeKey
+                return
+            }
+
+            if (isHydrating(activeChaId, activeChatId)) {
+                return
+            }
+
+            if (
+                changeTracker.chat[0]?.[0] !== activeChaId ||
+                changeTracker.chat[0]?.[1] !== activeChatId
+            ) {
+                changeTracker.chat.unshift([activeChaId, activeChatId])
             }
             saveTimeoutExecute()
         })
@@ -516,6 +554,57 @@ export async function saveDb() {
         changeTracker.plugins = changeTracker.plugins || toSave.plugins
         changeTracker.pluginCustomStorage = changeTracker.pluginCustomStorage || toSave.pluginCustomStorage
         changeTracker.root = changeTracker.root || toSave.root
+    }
+
+    function collectChatsToPersist(db: Database, toSave: toSaveType): [string, string][] {
+        const chatsToPersist: [string, string][] = []
+        const seen = new Set<string>()
+        const pushChat = (chaId: string, chatId: string) => {
+            if (!chaId || !chatId) return
+            const key = `${chaId}|${chatId}`
+            if (seen.has(key)) return
+            seen.add(key)
+            chatsToPersist.push([chaId, chatId])
+        }
+
+        for (const [chaId, chatId] of toSave.chat) {
+            pushChat(chaId, chatId)
+        }
+
+        for (const chaId of toSave.character) {
+            const char = db.characters.find(c => c?.chaId === chaId)
+            if (!char) continue
+            const knownChatIds = knownChatIdsByCharacter.get(chaId) ?? new Set<string>()
+            for (const chat of char.chats ?? []) {
+                if (!chat?.id || chat._placeholder) continue
+                if (!knownChatIds.has(chat.id)) {
+                    pushChat(chaId, chat.id)
+                }
+            }
+        }
+
+        return chatsToPersist
+    }
+
+    function updateKnownChatsAfterSuccessfulSave(db: Database, toSave: toSaveType) {
+        for (const chaId of toSave.character) {
+            const char = db.characters.find(c => c?.chaId === chaId)
+            if (!char) {
+                knownChatIdsByCharacter.delete(chaId)
+                continue
+            }
+            knownChatIdsByCharacter.set(
+                chaId,
+                new Set((char.chats ?? []).map(chat => chat?.id).filter(Boolean))
+            )
+        }
+
+        for (const [chaId, chatId] of toSave.chat) {
+            if (!chaId || !chatId) continue
+            const knownChatIds = knownChatIdsByCharacter.get(chaId) ?? new Set<string>()
+            knownChatIds.add(chatId)
+            knownChatIdsByCharacter.set(chaId, knownChatIds)
+        }
     }
 
     async function rebaseTrackedLocalChangesOnLatestServerDb(conflictEtag: string | null, db: Database, toSave: toSaveType) {
@@ -590,7 +679,6 @@ export async function saveDb() {
         options?: {
             forceFullWrite?: boolean
             skipBroadcast?: boolean
-            skipBackups?: boolean
         }
     ): Promise<'saved' | 'retry' | 'noop'> {
         if (gotChannel) {
@@ -608,6 +696,28 @@ export async function saveDb() {
             return 'noop'
         }
 
+        // ── Save changed chat content to server ─────────────────────────
+        const failedChats: [string, string][] = []
+        for (const [chaId, chatId] of collectChatsToPersist(db, toSave)) {
+            const char = db.characters.find(c => c.chaId === chaId)
+            if (!char) continue
+            const chatIndex = char.chats.findIndex(c => c.id === chatId)
+            if (chatIndex === -1) continue
+            const chat = char.chats[chatIndex]
+            // Skip placeholders — they have no real data to save
+            if (!chat || chat._placeholder) continue
+            try {
+                await saveChatToServer(chaId, chatIndex, chatId, chat)
+            } catch (e) {
+                console.error(`[Save] Failed to save chat ${chaId}/${chatId}:`, e)
+                failedChats.push([chaId, chatId])
+            }
+        }
+        if (failedChats.length > 0) {
+            throw new Error(`Failed to save ${failedChats.length} chat${failedChats.length === 1 ? '' : 's'}`)
+        }
+
+        // ── database.bin: exclude chat payload (stubs only via encoder) ──
         await encoder.set(db, safeStructuredClone(toSave))
         const encoded = encoder.encode()
         if (!encoded) {
@@ -653,24 +763,19 @@ export async function saveDb() {
             }
         }
 
+        updateKnownChatsAfterSuccessfulSave(db, toSave)
+
         if (newEtag) {
             forageStorage.setDbEtag(newEtag)
         }
 
 
-        // NOTE: skipBackups only controls Kei cloud backup here.
-        // Internal database backups (dbbackup-*) are now created server-side
-        // with a 5-minute throttle, independent of this flag.
-        if (!options?.skipBackups) {
-            void saveDbKei()
-        }
         return 'saved'
     }
 
     async function triggerSave(options?: {
         forceFullWrite?: boolean
         skipBroadcast?: boolean
-        skipBackups?: boolean
     }) {
         if (saveInFlight) {
             return saveInFlight
@@ -716,7 +821,6 @@ export async function saveDb() {
         await tick()
         await triggerSave({
             forceFullWrite: options?.forceFullWrite,
-            skipBackups: options?.skipBackups,
         })
     }
 
@@ -2352,10 +2456,23 @@ export function changeChatTo(IdOrIndex: string | number) {
         return
     }
 
-    DBState.db.characters[selIdState.selId].chatPage = index
-    const newChat = DBState.db.characters[selIdState.selId].chats[index]
+    const char = DBState.db.characters[selIdState.selId]
+    char.chatPage = index
+    const newChat = char.chats[index]
     if(newChat){
-        loadTogglesFromChat(newChat)
+        if(newChat._placeholder){
+            const capturedIndex = index
+            loadingOverlayStore.set({ active: true, text: language.loading ?? '' })
+            void ensureChatHydrated(char.chats, capturedIndex, char.chaId).then((hydrated) => {
+                if(hydrated && char.chatPage === capturedIndex) loadTogglesFromChat(hydrated)
+            }).catch((e) => {
+                console.error('[changeChatTo] hydration failed:', e)
+            }).finally(() => {
+                loadingOverlayStore.set({ active: false, text: '' })
+            })
+        } else {
+            loadTogglesFromChat(newChat)
+        }
     }
     ReloadGUIPointer.set(Math.random())
 }

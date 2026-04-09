@@ -76,8 +76,8 @@ EXTRACTED_DIR=$(ls -d "$TMP_DIR"/Risuai-NodeOnly-* 2>/dev/null | head -1)
 
 info "Updating files..."
 
-# Remove old app files but keep save/
-find "$SCRIPT_DIR" -mindepth 1 -maxdepth 1 ! -name 'save' ! -name '.installed-version' -exec rm -rf {} +
+# Remove old app files but keep save/ and backups/
+find "$SCRIPT_DIR" -mindepth 1 -maxdepth 1 ! -name 'save' ! -name 'backups' ! -name '.installed-version' -exec rm -rf {} +
 
 # Move new files in
 mv "$EXTRACTED_DIR"/* "$EXTRACTED_DIR"/.[!.]* "$SCRIPT_DIR/" 2>/dev/null || true

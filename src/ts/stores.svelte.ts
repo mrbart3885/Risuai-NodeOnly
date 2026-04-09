@@ -112,6 +112,11 @@ export const LoadingStatusState = $state({
     text: '',
 })
 
+export const loadingOverlayStore = writable({
+    active: false,
+    text: '',
+})
+
 export const QuickSettings = $state({
     open: false,
     index: 0

@@ -2,6 +2,7 @@ import { Packr, Unpackr, decode } from "msgpackr/index-no-eval";
 import * as fflate from "fflate";
 import { getDatabase, presetTemplate, type Database } from "./database.svelte";
 import { forageStorage } from "../globalApi.svelte";
+import { chatToStub } from "./chatStorage";
 
 const packr = new Packr({
     useRecords:false
@@ -169,16 +170,18 @@ export class RisuSaveEncoder {
         });
         this.characterHashes = {}
         for( const character of data.characters) {
+            // Replace chats with stubs for database.bin — full chat data lives server-side
+            const charForEncode = { ...character, chats: character.chats.map(c => chatToStub(c)) }
             this.blocks[character.chaId] = await this.encodeBlock({
                 compression,
-                data: JSON.stringify(character),
+                data: JSON.stringify(charForEncode),
                 type: RisuSaveType.CHARACTER_WITH_CHAT,
                 name: character.chaId,
                 skipRemoteSaving: skipRemoteSavingOnCharacters
             }, {
                 remote: 'prefer'
             });
-            this.characterHashes[character.chaId] = calculateHash(normalizeJSON(character))
+            this.characterHashes[character.chaId] = calculateHash(normalizeJSON(charForEncode))
         }
         this.blocks['config'] = await this.encodeBlock({
             compression,
@@ -210,13 +213,17 @@ export class RisuSaveEncoder {
             const chaId = character.chaId
             savedId.add(chaId)
             const index = toSave.character.indexOf(chaId);
-            const currentHash = calculateHash(normalizeJSON(character))
+            // Hash based on stub-replaced character to avoid hash changes from hydration
+            const charForHash = { ...character, chats: character.chats.map(c => chatToStub(c)) }
+            const currentHash = calculateHash(normalizeJSON(charForHash))
             const hasChanged = this.characterHashes[chaId] !== currentHash
 
             if (index !== -1 || hasChanged || !this.blocks[chaId]) {
+                // Replace chats with stubs for database.bin — full chat data lives server-side
+                const charForEncode = { ...character, chats: character.chats.map(c => chatToStub(c)) }
                 this.blocks[character.chaId] = await this.encodeBlock({
                     compression: this.compression,
-                    data: JSON.stringify(character),
+                    data: JSON.stringify(charForEncode),
                     type: RisuSaveType.CHARACTER_WITH_CHAT,
                     name: character.chaId
                 }, {
@@ -818,8 +825,12 @@ export class RisuSavePatcher {
             }
         }
 
-        for (const character of this.lastSyncedDb.characters) {
-            this.hashBlocks[character.chaId] = calculateHash(character);
+        for (let i = 0; i < this.lastSyncedDb.characters.length; i++) {
+            const character = this.lastSyncedDb.characters[i];
+            // Hash with stubs only (matching set()) so hashes stay in sync
+            const withStubs = { ...character, chats: (character.chats || []).map((c: any) => chatToStub(c)) };
+            this.hashBlocks[character.chaId] = calculateHash(withStubs);
+            this.lastSyncedDb.characters[i] = withStubs;
         }
     }
 
@@ -869,9 +880,15 @@ export class RisuSavePatcher {
         const structuralChange = lastIds.length !== curIds.length ||
             lastIds.some((id: string, i: number) => id !== curIds[i])
 
+        // Replace chats with stubs for patch diff — full chat data lives server-side
+        function withStubs(char: any) {
+            if (!char) return char
+            return { ...char, chats: (char.chats || []).map((c: any) => chatToStub(c)) }
+        }
+
         if (structuralChange) {
             // Structural change → replace entire characters array (safe for deletions/additions)
-            const normChars = normalizeJSON(curCharacters)
+            const normChars = normalizeJSON(curCharacters.map(withStubs))
             patch.push({ op: 'replace', path: '/characters', value: normChars })
             // Update all character hashes
             for (const lastId of lastIds) {
@@ -888,7 +905,7 @@ export class RisuSavePatcher {
             for (let i = 0; i < curCharacters.length; i++) {
                 const lastChar = lastCharacters[i]
                 const curChar = curCharacters[i]
-                const normChar = normalizeJSON(curChar)
+                const normChar = normalizeJSON(withStubs(curChar))
                 const curCharId = curChar?.chaId
                 const curCharHash = curCharId ? calculateHash(normChar) : undefined
                 const trackedBySave = toSave.character.includes(curCharId ?? '')

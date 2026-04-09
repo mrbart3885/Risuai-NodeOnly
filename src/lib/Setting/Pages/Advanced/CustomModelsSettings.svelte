@@ -57,9 +57,7 @@
                         models[index] = models[index - 1]
                         models[index - 1] = temp
                         DBState.db.customModels = models
-                        void requestImmediateSave({
-                            skipBackups: true
-                        })
+                        void requestImmediateSave()
                     }}>
                         <ArrowUp />
                     </Button>
@@ -71,9 +69,7 @@
                         models[index] = models[index + 1]
                         models[index + 1] = temp
                         DBState.db.customModels = models
-                        void requestImmediateSave({
-                            skipBackups: true
-                        })
+                        void requestImmediateSave()
                     }}>
                         <ArrowDown />
                     </Button>
@@ -84,9 +80,7 @@
                         DBState.db.customModels = models
                         openedModels.delete(model.id)
                         openedModels = new Set(openedModels)
-                        void requestImmediateSave({
-                            skipBackups: true
-                        })
+                        void requestImmediateSave()
                     }}>
                         <TrashIcon />
                     </Button>
@@ -184,9 +178,7 @@
                 params: "",
                 flags: [],
             })
-            void requestImmediateSave({
-                skipBackups: true
-            })
+            void requestImmediateSave()
         }}>
             <PlusIcon />
         </button>

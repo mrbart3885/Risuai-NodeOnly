@@ -9,7 +9,7 @@
     import RisuHubIcon from "./Realm/RealmHubIcon.svelte";
     import Title from "./Title.svelte";
     import { updateInfoStore } from "src/ts/update";
-
+    import { publicStatsStore } from "src/ts/publicStats";
     const deploymentMarker = 'SHINYACAL-FORK';
 </script>
 <div class="h-full w-full flex flex-col overflow-y-auto items-center">
@@ -35,6 +35,17 @@
             {language.updateAvailable.replace('{{version}}', $updateInfoStore.latestVersion)}
           {/if}
         </button>
+      {/if}
+      {#if $publicStatsStore}
+      <div class="mt-3 flex gap-2 flex-wrap justify-center">
+        <span class="px-3 py-1 rounded-full text-sm bg-darkbg border border-selected text-textcolor2">
+          👥 {language.statsUsersToday.replace('{{count}}', $publicStatsStore.dau.toLocaleString())}
+          <span class="text-textcolor2/60">({language.statsYesterday.replace('{{count}}', $publicStatsStore.yesterdayDau.toLocaleString())})</span>
+        </span>
+        <span class="px-3 py-1 rounded-full text-sm bg-darkbg border border-selected text-textcolor2">
+          📊 {language.statsVisitsToday.replace('{{count}}', $publicStatsStore.visits.toLocaleString())}
+        </span>
+      </div>
       {/if}
     {/if}
     <div class="w-full flex p-4 flex-col text-textcolor max-w-4xl">

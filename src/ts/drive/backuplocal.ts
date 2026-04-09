@@ -1,7 +1,8 @@
 import { alertError, alertNormal, alertStore, alertWait, alertMd, alertConfirm } from "../alert";
 import { downloadFile, LocalWriter, forageStorage } from "../globalApi.svelte";
 import { encodeRisuSaveLegacy } from "../storage/risuSave";
-import { getDatabase } from "../storage/database.svelte";
+import { getDatabase, type Chat } from "../storage/database.svelte";
+import { fetchChatFromServer } from "../storage/chatStorage";
 import { language } from "src/lang";
 
 function formatBytes(bytes: number): string {
@@ -171,8 +172,23 @@ export async function SavePartialLocalBackup(){
         }
     }
 
-    const dbWithoutAccount = { ...db, account: undefined }
-    const dbData = encodeRisuSaveLegacy(dbWithoutAccount, 'compression')
+    // Reassemble full chats from server for placeholders (runtime lazy load)
+    alertWait(`Saving partial local backup... (Assembling chat data)`)
+    const dbCopy = structuredClone({ ...db, account: undefined })
+    for (const char of dbCopy.characters) {
+        for (let i = 0; i < char.chats.length; i++) {
+            const chat = char.chats[i]
+            if (chat._placeholder && chat.id) {
+                const full = await fetchChatFromServer(char.chaId, i, chat.id)
+                if (full) {
+                    char.chats[i] = full as Chat
+                } else {
+                    throw new Error(`Chat data missing for "${char.name}" / "${chat.name}" (${chat.id}). Backup aborted to prevent data loss.`)
+                }
+            }
+        }
+    }
+    const dbData = encodeRisuSaveLegacy(dbCopy, 'compression')
 
     alertWait(`Saving partial local backup... (Saving database)`) 
 
@@ -292,3 +308,21 @@ export async function CleanupMigratedFiles() {
         alertError(error instanceof Error ? error.message : 'Cleanup failed')
     }
 }
+
+// ── Server-side backup functions ─────────────────────────────────────────────
+
+export async function SaveServerBackup() {
+    try {
+        alertWait(language.serverBackupSaving)
+        const result = await forageStorage.saveServerBackup((current, total, bytes) => {
+            const pct = total > 0 ? ((current / total) * 100).toFixed(1) : '0'
+            const bytesStr = formatBytes(bytes)
+            alertWait(`${language.serverBackupSaving} (${pct}% - ${bytesStr})`)
+        })
+        alertNormal(language.serverBackupSaveSuccess(result.filename, formatBytes(result.size)))
+    } catch (error) {
+        console.error(error)
+        alertError(error instanceof Error ? error.message : 'Server backup failed')
+    }
+}
+

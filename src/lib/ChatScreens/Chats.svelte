@@ -114,7 +114,7 @@
                 }
             }
             nextHash = currentHash;
-            
+
         }
 
         //@ts-expect-error Set<T> requires type arg, and Set.difference needs 'esnext' lib (polyfilled by Core-js)
@@ -132,7 +132,6 @@
         });
 
         hashes = currentHashes;
-        
     };
 
     onDestroy(() => {
@@ -167,14 +166,13 @@
     let previousChatRoomId: string | null = null;
 
     $effect(() => {
-        console.log('Updating Chats');
         void $ReloadChatPointer; // Make $effect track ReloadChatPointer changes
         const wasAtBottom = checkIfAtBottom();
         updateChatBody()
-        
+
         const currentChatRoomId = getCurrentChatRoomId();
         const isSameChat = currentChatRoomId === previousChatRoomId;
-        
+
         // Only auto-scroll if it's the same chat and new messages were added
         if(isSameChat && messages.length > previousLength){
             const lastMsg = messages[messages.length - 1];

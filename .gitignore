@@ -10,6 +10,7 @@ package-lock.json
 node_modules
 dist/
 save/
+backups/
 .installed-version
 dist-web/
 dist-ssr

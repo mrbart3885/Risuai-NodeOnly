@@ -974,78 +974,23 @@
         <span class="text-textcolor mt-4">{language.type}</span>
 
         <SelectInput className="mb-4" value={
-            DBState.db.hypaV3 ? 'hypaV3' :
-            DBState.db.hypav2 ? 'hypaV2' :
-            DBState.db.supaModelType !== 'none' ? 'supaMemory' :
-            DBState.db.hanuraiEnable ? 'hanuraiMemory' : 'none'
+            DBState.db.hypaV3 ? 'hypaV3' : 'none'
         } onchange={(v) => {
             //@ts-expect-error 'value' doesn't exist on EventTarget, but target is HTMLSelectElement here
             const value = v.target.value
-            if (value === 'supaMemory'){
-                DBState.db.supaModelType = 'distilbart'
-                DBState.db.memoryAlgorithmType = 'supaMemory'
-                DBState.db.hypav2 = false
-                DBState.db.hanuraiEnable = false
-                DBState.db.hypaV3 = false
-            } else if (value === 'hanuraiMemory'){
-                DBState.db.supaModelType = 'none'
-                DBState.db.memoryAlgorithmType = 'hanuraiMemory'
-                DBState.db.hypav2 = false
-                DBState.db.hanuraiEnable = true
-                DBState.db.hypaV3 = false
-            } else if (value === 'hypaV2') {
-                DBState.db.supaModelType = 'distilbart'
-                DBState.db.memoryAlgorithmType = 'hypaMemoryV2'
-                DBState.db.hypav2= true
-                DBState.db.hanuraiEnable = false
-                DBState.db.hypaV3 = false
-            } else if (value === 'hypaV3') {
+            if (value === 'hypaV3') {
                 DBState.db.memoryAlgorithmType = 'hypaMemoryV3'
-                DBState.db.supaModelType = 'none'
-                DBState.db.hanuraiEnable = false
-                DBState.db.hypav2 = false
                 DBState.db.hypaV3 = true
             } else {
-                DBState.db.supaModelType = 'none'
                 DBState.db.memoryAlgorithmType = 'none'
-                DBState.db.hypav2 = false
-                DBState.db.hanuraiEnable = false
                 DBState.db.hypaV3 = false
             }
         }}>
             <OptionInput value="none" >None</OptionInput>
-            <OptionInput value="supaMemory" >{language.SuperMemory}</OptionInput>
-            <OptionInput value="hypaV2" >{language.HypaMemory} V2</OptionInput>
-            <OptionInput value="hanuraiMemory" >{language.hanuraiMemory}</OptionInput>
             <OptionInput value="hypaV3" >{language.HypaMemory} V3</OptionInput>
         </SelectInput>
 
-        {#if DBState.db.hanuraiEnable}
-            <span class="mb-2 text-textcolor2 text-sm text-wrap wrap-break-word max-w-full">{language.hanuraiDesc}</span>
-            <span>Chunk Size</span>
-            <NumberInput size="sm" marginBottom bind:value={DBState.db.hanuraiTokens} min={100} />
-            <div class="flex mb-4">
-                <Check bind:check={DBState.db.hanuraiSplit} name="Text Spliting"/>
-            </div>
-        {:else if DBState.db.hypav2}
-            <span class="mb-2 text-textcolor2 text-sm text-wrap wrap-break-word max-w-full">{language.hypaV2Desc}</span>
-            <span class="text-textcolor mt-4">{language.SuperMemory} {language.model}</span>
-            <SelectInput className="mt-2 mb-2" bind:value={DBState.db.supaModelType}>
-                <OptionInput value="distilbart">distilbart-cnn-6-6 (Free/Local)</OptionInput>
-                <OptionInput value="instruct35">OpenAI 3.5 Turbo Instruct</OptionInput>
-                <OptionInput value="subModel">{language.submodel}</OptionInput>
-            </SelectInput>
-            {#if DBState.db.supaModelType === 'davinci' || DBState.db.supaModelType === 'curie' || DBState.db.supaModelType === 'instruct35'}
-            <span class="text-textcolor">{language.SuperMemory} OpenAI Key</span>
-            <TextInput size="sm" marginBottom bind:value={DBState.db.supaMemoryKey}/>
-            {/if}
-            <span class="text-textcolor">{language.summarizationPrompt} <Help key="summarizationPrompt" /></span>
-            <TextAreaInput size="sm" bind:value={DBState.db.supaMemoryPrompt} placeholder="Leave it blank to use default"/>
-            <span class="text-textcolor">{language.hypaChunkSize}</span>
-            <NumberInput size="sm" marginBottom bind:value={DBState.db.hypaChunkSize} min={100} />
-            <span class="text-textcolor">{language.hypaAllocatedTokens}</span>
-            <NumberInput size="sm" marginBottom bind:value={DBState.db.hypaAllocatedTokens} min={100} />
-        {:else if DBState.db.hypaV3}
+        {#if DBState.db.hypaV3}
             <span class="max-w-full mb-6 text-sm text-wrap wrap-break-word text-textcolor2">{language.hypaV3Settings.descriptionLabel}</span>
             <span class="text-textcolor">Preset</span>
             <select class={"border border-darkborderc focus:border-borderc rounded-md shadow-xs text-textcolor bg-transparent focus:ring-borderc focus:ring-2 focus:outline-hidden transition-colors duration-200 text-md px-4 py-2 mb-1"}
@@ -1169,7 +1114,7 @@
             {#if DBState.db.hypaV3Presets?.[DBState.db.hypaV3PresetId]?.settings}
                 {@const settings = DBState.db.hypaV3Presets[DBState.db.hypaV3PresetId].settings}
 
-                <span class="text-textcolor">{language.SuperMemory} {language.model}</span>
+                <span class="text-textcolor">{language.model}</span>
                 <SelectInput className="mb-4" bind:value={settings.summarizationModel}>
                     <OptionInput value="subModel">{language.submodel}</OptionInput>
                     {#if "gpu" in navigator}
@@ -1246,27 +1191,6 @@
             {/if}
 
             <div class="mb-8"></div>
-        {:else if (DBState.db.supaModelType !== 'none' && DBState.db.hypav2 === false && DBState.db.hypaV3 === false)}
-            <span class="mb-2 text-textcolor2 text-sm text-wrap wrap-break-word max-w-full">{language.supaDesc}</span>
-            <span class="text-textcolor mt-4">{language.SuperMemory} {language.model}</span>
-            <SelectInput className="mt-2 mb-2" bind:value={DBState.db.supaModelType}>
-                <OptionInput value="distilbart" >distilbart-cnn-6-6 (Free/Local)</OptionInput>
-                <OptionInput value="instruct35" >OpenAI 3.5 Turbo Instruct</OptionInput>
-                <OptionInput value="subModel" >{language.submodel}</OptionInput>
-            </SelectInput>
-            <span class="text-textcolor">{language.maxSupaChunkSize}</span>
-            <NumberInput size="sm" marginBottom bind:value={DBState.db.maxSupaChunkSize} min={100} />
-            {#if DBState.db.supaModelType === 'davinci' || DBState.db.supaModelType === 'curie' || DBState.db.supaModelType === 'instruct35'}
-                <span class="text-textcolor">{language.SuperMemory} OpenAI Key</span>
-                <TextInput size="sm" marginBottom bind:value={DBState.db.supaMemoryKey}/>
-            {/if}
-            {#if DBState.db.supaModelType !== 'none'}
-                <span class="text-textcolor">{language.SuperMemory} Prompt</span>
-                <TextInput size="sm" marginBottom bind:value={DBState.db.supaMemoryPrompt} placeholder="Leave it blank to use default"/>
-            {/if}
-            <div class="flex mb-4">
-                <Check bind:check={DBState.db.hypaMemory} name={language.enable + ' ' + language.HypaMemory}/>
-            </div>
         {/if}
 
         <span class="text-textcolor">{language.embedding} <Help key="embedding"/></span>

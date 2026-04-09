@@ -1,8 +1,7 @@
 # ------------------------------------------------------------------------------------------
 
-ARG NODE_IMAGE=node:20-slim
+ARG NODE_IMAGE=node:24-slim
 ARG PNPM_VERSION=9.12.2
-
 FROM ${NODE_IMAGE} AS base
 ARG PNPM_VERSION
 WORKDIR /app
@@ -15,6 +14,9 @@ RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 # ------------------------------------------------------------------------------------------
 
 FROM base AS deps
+# better-sqlite3 requires native build tools on Node 24
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+# Install only prod deps
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
 
 # ------------------------------------------------------------------------------------------
