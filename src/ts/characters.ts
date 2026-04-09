@@ -17,6 +17,7 @@ import { importCharacter } from "./characterCards";
 import { importCharacterPackage } from "./characterPackage";
 import { PngChunk } from "./pngChunk";
 import { removeUnusedCharacterAssets } from "./assetCleanup";
+import { extractChatFromHtmlExport, normalizeImportedChat } from "./chatImport";
 
 export function createNewCharacter() {
     let db = getDatabase()
@@ -414,7 +415,13 @@ export async function importChat(){
             const json = JSON.parse(Buffer.from(dat.data).toString('utf-8'))
             if((json.type === 'risuAllChats' || json.type === 'risuChat') && json.ver === 2){
                 const folders = json.folders || []
-                const chats = Array.isArray(json.data) ? json.data : [json.data]
+                const chats = (Array.isArray(json.data) ? json.data : [json.data])
+                    .map((chat) => normalizeImportedChat(chat))
+                    .filter((chat): chat is Chat => chat !== null)
+                if (chats.length === 0) {
+                    alertError(language.errors.noData)
+                    return
+                }
                 const selectedID = get(selectedCharID)
                 let db = getDatabase()
                 let folderIdMap = {}
@@ -435,7 +442,6 @@ export async function importChat(){
                     if(chat.folderId && folderIdMap[chat.folderId]){
                         chat.folderId = folderIdMap[chat.folderId]
                     }
-                    chat.id = v4()
                 })
                 db.characters[selectedID].chats.unshift(...chats)
                 setDatabase(db)
@@ -445,16 +451,14 @@ export async function importChat(){
             if(json.type === 'risuAllChats' && json.ver === 1){
                 const chats = json.data
                 if(Array.isArray(chats) && chats.length > 0){
-                    db.characters[selectedID].chats.unshift(...(chats.map((v) => {
-                        if(!v.id){
-                            v.id = uuidv4()
-                        }
-                        if(!v.localLore){
-                            v.localLore = []
-                        }
-                        v.fmIndex ??= -1
-                        return v
-                    })))
+                    const normalizedChats = chats
+                        .map((chat) => normalizeImportedChat(chat))
+                        .filter((chat): chat is Chat => chat !== null)
+                    if (normalizedChats.length === 0) {
+                        alertError(language.errors.noData)
+                        return
+                    }
+                    db.characters[selectedID].chats.unshift(...normalizedChats)
                     setDatabase(db)
                     alertNormal(language.successImport)
                     return
@@ -464,11 +468,9 @@ export async function importChat(){
                 }
             }
             if(json.type === 'risuChat' && json.ver === 1){
-                const das:Chat = json.data
-                if(!(checkNullish(das.message) || checkNullish(das.note) || checkNullish(das.name) || checkNullish(das.localLore))){
-                    das.fmIndex ??= -1
-                    das.id = v4()
-                    db.characters[selectedID].chats.unshift(das)
+                const normalizedChat = normalizeImportedChat(json.data)
+                if(normalizedChat){
+                    db.characters[selectedID].chats.unshift(normalizedChat)
                     setDatabase(db)
                     alertNormal(language.successImport)
                     return
@@ -484,11 +486,9 @@ export async function importChat(){
             }
         }
         else if(dat.name.endsWith('html')){
-            const doc = new DOMParser().parseFromString(Buffer.from(dat.data).toString('utf-8'), 'text/html')
-            const chat = doc.querySelector('.idat').textContent
-            const json = JSON.parse(chat)
-            if(json.message && json.note && json.name && json.localLore){
-                db.characters[selectedID].chats.unshift(json)
+            const importedChat = extractChatFromHtmlExport(Buffer.from(dat.data).toString('utf-8'))
+            if(importedChat){
+                db.characters[selectedID].chats.unshift(importedChat)
                 setDatabase(db)
                 alertNormal(language.successImport)
             }
