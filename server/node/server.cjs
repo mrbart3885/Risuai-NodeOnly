@@ -2185,12 +2185,12 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
                 }
                 res.set({
                     'Content-Type': file.mime,
-                    'Cache-Control': 'public, max-age=86400',
+                    'Cache-Control': 'public, max-age=31536000, immutable',
                     'ETag': etag,
                 })
                 return res.send(file.buffer)
             }
-            return res.status(404).end()
+            return res.status(404).set('Cache-Control', 'no-store').end()
         }
 
         if (key.startsWith('inlay_thumb/')) {
@@ -2200,7 +2200,7 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
                 return res.status(404).end()
             }
             const file = await readInlayFile(id)
-            if (!file) return res.status(404).end()
+            if (!file) return res.status(404).set('Cache-Control', 'no-store').end()
             const etag = `"thumb-${Math.floor(file.mtimeMs)}"`
             if (req.headers['if-none-match'] === etag) {
                 return res.status(304).end()
@@ -2208,7 +2208,7 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
             const thumb = await generateThumbnail(file.buffer)
             res.set({
                 'Content-Type': 'image/webp',
-                'Cache-Control': 'public, max-age=86400, must-revalidate',
+                'Cache-Control': 'public, max-age=31536000, immutable',
                 'ETag': etag,
             })
             return res.send(thumb)
@@ -2216,7 +2216,7 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
 
         // Fast-path 304: check updated_at BEFORE loading the blob.
         const updatedAt = kvGetUpdatedAt(key)
-        if (updatedAt === null) return res.status(404).end()
+        if (updatedAt === null) return res.status(404).set('Cache-Control', 'no-store').end()
 
         const etag = `"${updatedAt}"`
         if (req.headers['if-none-match'] === etag) {
@@ -2224,12 +2224,12 @@ app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
         }
 
         const data = kvGet(key)
-        if (!data) return res.status(404).end()
+        if (!data) return res.status(404).set('Cache-Control', 'no-store').end()
 
         const { binary, contentType } = resolveAssetPayload(key, data)
         res.set({
             'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=0, must-revalidate',
+            'Cache-Control': 'public, max-age=31536000, immutable',
             'ETag': etag,
         })
         res.send(binary)
