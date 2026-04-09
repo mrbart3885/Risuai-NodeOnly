@@ -322,6 +322,7 @@ let importInProgress = false;
 // ── Update check ─────────────────────────────────────────────────────────────
 const UPDATE_CHECK_DISABLED = process.env.RISU_UPDATE_CHECK === 'false';
 const UPDATE_CHECK_URL = process.env.RISU_UPDATE_URL || 'https://risu-update-worker.nodridan.workers.dev/check';
+const PUBLIC_STATS_URL = (process.env.RISU_UPDATE_URL || 'https://risu-update-worker.nodridan.workers.dev/check').replace(/\/check$/, '/api/public-stats');
 
 const currentVersion = (() => {
     try {
@@ -3540,6 +3541,18 @@ app.post('/api/inlays/compress', sessionAuthMiddleware, async (req, res) => {
     }
 
     res.end();
+});
+
+// ── Public stats proxy ───────────────────────────────────────────────────────
+app.get('/api/public-stats', async (req, res) => {
+    try {
+        const r = await fetch(PUBLIC_STATS_URL);
+        if (!r.ok) { res.status(r.status).json({ error: 'upstream error' }); return; }
+        const data = await r.json();
+        res.json(data);
+    } catch {
+        res.status(502).json({ error: 'fetch failed' });
+    }
 });
 
 // ── Update check endpoint ────────────────────────────────────────────────────
