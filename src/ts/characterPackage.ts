@@ -6,6 +6,7 @@ import { LocalWriter, readImage, VirtualWriter } from './globalApi.svelte'
 import { language } from 'src/lang'
 import { type character, getDatabase, setDatabase, saveImage } from './storage/database.svelte'
 import type { Chat } from './storage/database.svelte'
+import { fetchChatFromServer } from './storage/chatStorage'
 import { selectSingleFile } from './util'
 import { createBlankChar } from './characters'
 import { CharXWriter } from './process/processzip'
@@ -406,6 +407,20 @@ export async function exportCharacterPackage(
         }
 
         const charName = sanitizeFilename(char.name || 'character')
+
+        // Hydrate placeholder chats from server before any scan/export
+        for (let i = 0; i < char.chats.length; i++) {
+            const chat = char.chats[i]
+            if (chat._placeholder && chat.id) {
+                const full = await fetchChatFromServer(char.chaId, i, chat.id)
+                if (full) {
+                    char.chats[i] = full as Chat
+                } else {
+                    alertError(`Chat data missing for "${char.name}" / "${chat.name}". Export aborted to prevent data loss.`)
+                    return
+                }
+            }
+        }
 
         // Confirm
         let summary = `${language.characterPackage}\n\n`
