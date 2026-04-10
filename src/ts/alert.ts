@@ -1,7 +1,7 @@
 import { get, writable } from "svelte/store"
 import { sleep } from "./util"
 import { language } from "../lang"
-import { getDatabase, type MessageGenerationInfo } from "./storage/database.svelte"
+import { getDatabase, nodeOnlyVer, type MessageGenerationInfo } from "./storage/database.svelte"
 import { alertStore as alertStoreImported } from "./stores.svelte"
 
 export interface alertData{
@@ -32,7 +32,7 @@ export const alertStore = {
 const TOS_ACCEPTANCE_STORAGE_KEY = 'tos2'
 
 export function alertError(msg: string | Error) {
-    console.error(msg)
+    console.error(`[NodeOnly v${nodeOnlyVer}]`, msg)
     const db = getDatabase()
 
     let stackTrace: string | undefined = undefined; 
