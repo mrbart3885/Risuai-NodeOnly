@@ -1,5 +1,5 @@
 import { get, writable } from "svelte/store";
-import { saveImage, setDatabase, type character, type Chat, defaultSdDataFunc, type loreBook, getDatabase, getCharacterByIndex, setCharacterByIndex, getCurrentChat, loadTogglesFromChat } from "./storage/database.svelte";
+import { saveImage, setDatabase, type character, type Chat, defaultSdDataFunc, type loreBook, getDatabase, getCharacterByIndex, setCharacterByIndex, getCurrentChat, loadTogglesFromChat, normalizeChat } from "./storage/database.svelte";
 import { ensureChatHydrated } from "./storage/chatStorage";
 import { alertAddCharacter, alertConfirm, alertError, alertNormal, alertSelect, alertStore, alertWait } from "./alert";
 import { loadingOverlayStore, chatDeselected } from "./stores.svelte";
@@ -443,7 +443,7 @@ export async function importChat(){
                         chat.folderId = folderIdMap[chat.folderId]
                     }
                 })
-                db.characters[selectedID].chats.unshift(...chats)
+                db.characters[selectedID].chats.unshift(...chats.map(c => normalizeChat(c)))
                 setDatabase(db)
                 alertNormal(language.successImport)
                 return

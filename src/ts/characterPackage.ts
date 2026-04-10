@@ -4,7 +4,7 @@ import { alertConfirm, alertError, alertNormal, alertStore, alertWait } from './
 import { exportCharacterCard, importCharacterProcess } from './characterCards'
 import { LocalWriter, readImage, VirtualWriter } from './globalApi.svelte'
 import { language } from 'src/lang'
-import { type character, getDatabase, setDatabase, saveImage } from './storage/database.svelte'
+import { type character, getDatabase, setDatabase, saveImage, normalizeChat } from './storage/database.svelte'
 import type { Chat } from './storage/database.svelte'
 import { fetchChatFromServer } from './storage/chatStorage'
 import { selectSingleFile } from './util'
@@ -305,9 +305,9 @@ function importChatsToCharacter(
             }
             targetChar.chatFolders = [...importedFolders, ...existingFolders]
         }
-        targetChar.chats.unshift(...importedChats)
+        targetChar.chats.unshift(...importedChats.map(chat => normalizeChat(chat)))
     } else {
-        targetChar.chats = importedChats
+        targetChar.chats = importedChats.map(chat => normalizeChat(chat))
         if (chatsJson.folders && Array.isArray(chatsJson.folders)) {
             targetChar.chatFolders = chatsJson.folders
         }

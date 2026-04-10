@@ -729,7 +729,7 @@ export function getCurrentChat(){
 
 export function setCurrentChat(chat:Chat){
     const char = getCurrentCharacter()
-    char.chats[char.chatPage] = chat
+    char.chats[char.chatPage] = normalizeChat(chat)
     setCurrentCharacter(char)
 }
 
@@ -1895,6 +1895,19 @@ interface ComfyConfig{
 }
 
 export type FormatingOrderItem = 'main'|'jailbreak'|'chats'|'lorebook'|'globalNote'|'authorNote'|'lastChat'|'description'|'postEverything'|'personaPrompt'
+
+/**
+ * Ensure a Chat object has all required fields.
+ * Call at trust boundaries: after hydration, before assigning to character.chats, etc.
+ */
+export function normalizeChat(chat: Partial<Chat>): Chat {
+    const c = chat as Chat
+    if (!Array.isArray(c.message)) c.message = []
+    if (typeof c.note !== 'string') c.note = ''
+    if (typeof c.name !== 'string') c.name = ''
+    if (!Array.isArray(c.localLore)) c.localLore = []
+    return c
+}
 
 export interface Chat{
     message: Message[]

@@ -1,5 +1,5 @@
 import { get, writable } from "svelte/store";
-import { type character, type MessageGenerationInfo, type Chat, type MessagePresetInfo, changeToPreset, setCurrentChat, type Message } from "../storage/database.svelte";
+import { type character, type MessageGenerationInfo, type Chat, type MessagePresetInfo, changeToPreset, setCurrentChat, type Message, normalizeChat } from "../storage/database.svelte";
 import { DBState } from '../stores.svelte';
 import { CharEmotion, selectedCharID } from "../stores.svelte";
 import { ChatTokenizer, tokenize, tokenizeNum } from "../tokenizer";
@@ -1465,7 +1465,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
         currentChat = DBState.db.characters[selectedChar].chats[selectedChat]        
         const triggerResult = await runTrigger(currentChar, 'output', {chat:currentChat})
         if(triggerResult && triggerResult.chat){
-            currentChat = triggerResult.chat
+            currentChat = normalizeChat(triggerResult.chat)
         }
         if(triggerResult && triggerResult.sendAIprompt){
             resendChat = true
@@ -1554,7 +1554,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
 
         const triggerResult = await runTrigger(currentChar, 'output', {chat:currentChat})
         if(triggerResult && triggerResult.chat){
-            DBState.db.characters[selectedChar].chats[selectedChat] = triggerResult.chat
+            DBState.db.characters[selectedChar].chats[selectedChat] = normalizeChat(triggerResult.chat)
         }
         if(triggerResult && triggerResult.sendAIprompt){
             resendChat = true

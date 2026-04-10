@@ -1,6 +1,6 @@
 import { allowedDbKeys, customProviderStore, getV2PluginAPIs, handlePluginInstallViaPlugin, pluginV2, type PluginV2ProviderArgument, type PluginV2ProviderOptions, type RisuPlugin } from "../plugins.svelte";
 import { SandboxHost } from "./factory";
-import { getDatabase } from "src/ts/storage/database.svelte";
+import { getDatabase, normalizeChat } from "src/ts/storage/database.svelte";
 import { SafeLocalPluginStorage, tagWhitelist } from "../pluginSafeClass";
 import DOMPurify from 'dompurify';
 import { additionalChatMenu, additionalFloatingActionButtons, additionalHamburgerMenu, additionalSettingsMenu, bodyIntercepterStore, DBState, selectedCharID, type MenuDef } from "src/ts/stores.svelte";
@@ -863,7 +863,7 @@ const makeRisuaiAPIV3 = (iframe:HTMLIFrameElement,plugin:RisuPlugin) => {
             if(charId){
                 const chats = db.characters[charId].chats;
                 if(chats && chats[chatIndex]){
-                    DBState.db.characters[charId].chats[chatIndex] = chat
+                    DBState.db.characters[charId].chats[chatIndex] = normalizeChat(chat)
                 }
             }
         },
