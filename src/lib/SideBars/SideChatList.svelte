@@ -7,7 +7,7 @@
     import type { Chat, ChatFolder, character, groupChat } from "src/ts/storage/database.svelte";
     import { ensureChatHydrated } from "src/ts/storage/chatStorage";
     import { DBState, ReloadGUIPointer } from 'src/ts/stores.svelte';
-    import { selectedCharID } from "src/ts/stores.svelte";
+    import { selectedCharID, chatDeselected } from "src/ts/stores.svelte";
 
     import CheckInput from "../UI/GUI/CheckInput.svelte";
     import Button from "../UI/GUI/Button.svelte";
@@ -243,9 +243,13 @@
                     {@const chatIdx = chara.chats.indexOf(chat)}
                     <button data-risu-chat-idx={chatIdx} onclick={() => {
                         if(!editMode){
-                            changeChatTo(chatIdx)
+                            if(chatIdx === chara.chatPage && !$chatDeselected){
+                                $chatDeselected = true
+                            } else {
+                                changeChatTo(chatIdx)
+                            }
                         }
-                    }} class="risu-chats flex items-center text-textcolor border-solid border-0 border-darkborderc p-2 cursor-pointer rounded-md"class:bg-selected={chatIdx === chara.chatPage}>
+                    }} class="risu-chats flex items-center text-textcolor border-solid border-0 border-darkborderc p-2 cursor-pointer rounded-md"class:bg-selected={chatIdx === chara.chatPage && !$chatDeselected}>
                         {#if editMode}
                             <TextInput bind:value={chat.name} className="grow min-w-0" padding={false}/>
                         {:else}
@@ -358,11 +362,15 @@
             {#if chat.folderId == null}
             <button data-risu-chat-idx={i} onclick={() => {
                 if(!editMode){
-                    changeChatTo(i)
+                    if(i === chara.chatPage && !$chatDeselected){
+                        $chatDeselected = true
+                    } else {
+                        changeChatTo(i)
+                    }
                 }
             }}
             class="flex items-center text-textcolor border-solid border-0 border-darkborderc p-2 cursor-pointer rounded-md"
-            class:bg-selected={i === chara.chatPage}>
+            class:bg-selected={i === chara.chatPage && !$chatDeselected}>
                 {#if editMode}
                     <TextInput bind:value={chara.chats[i].name} className="grow min-w-0" padding={false}/>
                 {:else}
@@ -517,7 +525,7 @@
             </button>
         </div>
 
-        {#if DBState.db.characters[$selectedCharID]?.chaId !== '§playground'}
+        {#if DBState.db.characters[$selectedCharID]?.chaId !== '§playground' && !$chatDeselected}
             {#if DBState.db.showPresetInSidebar}
                 <PresetBind />
             {/if}

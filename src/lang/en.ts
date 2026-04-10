@@ -1466,6 +1466,7 @@ export const languageEnglish = {
     automaticCachePoint: "Automatic Cache Point",
     experimentalChatCompression: "Experimental Chat Data Handling",
     loadingChatData: "Loading Chat Data",
+    selectChatToView: "Select a chat to view",
     outputImageModal: "Output Image Modal",
     playMessageOnTranslateEnd: "Play Audio on Translate Completion",
     auxModelUnderModelSettings: "Show Separate Aux Models in Model Settings",

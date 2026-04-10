@@ -25,6 +25,7 @@ export const DynamicGUI = writable(false)
 export const sideBarClosing = writable(false)
 export const sideBarStore = writable(window.innerWidth > 1024)
 export const selectedCharID = writable(-1)
+export const chatDeselected = writable(false)
 export const CurrentTriggerIdStore = writable<string | null>(null)
 export const CharEmotion = writable({} as {[key:string]: [string, string, number][]})
 export const ViewBoxsize = writable({ width: 12 * 16, height: 12 * 16 }); // Default width and height in pixels
@@ -113,9 +114,14 @@ export const LoadingStatusState = $state({
     text: '',
 })
 
-export const loadingOverlayStore = writable({
+export const loadingOverlayStore = writable<{
+    active: boolean,
+    text: string,
+    onCancel?: (() => void) | null,
+}>({
     active: false,
     text: '',
+    onCancel: null,
 })
 
 export const QuickSettings = $state({

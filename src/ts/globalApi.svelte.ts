@@ -4,7 +4,7 @@ import { tick } from "svelte";
 import { get } from "svelte/store";
 import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, nodeOnlyVer, getCurrentCharacter, loadTogglesFromChat } from "./storage/database.svelte";
 import { checkRisuUpdate } from "./update";
-import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore, loadingOverlayStore } from "./stores.svelte";
+import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore, loadingOverlayStore, chatDeselected } from "./stores.svelte";
 import { loadPlugins } from "./plugins/plugins.svelte";
 import { alertConfirm, alertError, alertMd, alertNormal, alertNormalWait, alertSelect, alertTOS, waitAlert } from "./alert";
 import { hasher } from "./parser/parser.svelte";
@@ -2469,19 +2469,26 @@ export function changeChatTo(IdOrIndex: string | number) {
         return
     }
 
+    chatDeselected.set(false)
     const char = DBState.db.characters[selIdState.selId]
     char.chatPage = index
     const newChat = char.chats[index]
     if(newChat){
         if(newChat._placeholder){
             const capturedIndex = index
-            loadingOverlayStore.set({ active: true, text: language.loading ?? '' })
+            let cancelled = false
+            loadingOverlayStore.set({ active: true, text: language.loading ?? '', onCancel: () => {
+                cancelled = true
+                chatDeselected.set(true)
+                loadingOverlayStore.set({ active: false, text: '', onCancel: null })
+            }})
             void ensureChatHydrated(char.chats, capturedIndex, char.chaId).then((hydrated) => {
+                if(cancelled) return
                 if(hydrated && char.chatPage === capturedIndex) loadTogglesFromChat(hydrated)
             }).catch((e) => {
                 console.error('[changeChatTo] hydration failed:', e)
             }).finally(() => {
-                loadingOverlayStore.set({ active: false, text: '' })
+                if(!cancelled) loadingOverlayStore.set({ active: false, text: '', onCancel: null })
             })
         } else {
             loadTogglesFromChat(newChat)
