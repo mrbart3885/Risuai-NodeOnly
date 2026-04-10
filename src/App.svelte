@@ -244,7 +244,7 @@
     {#if easyPanelStore.open}
         <EasyPanel />
     {/if}
-    {#if loadoutModalStore.open}
+    {#if !DBState.db.hideLoadout && loadoutModalStore.open}
         <LoadoutModal />
     {/if}
     {#if popUpEditorStore.open}

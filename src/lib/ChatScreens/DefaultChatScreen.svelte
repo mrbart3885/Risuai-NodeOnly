@@ -954,7 +954,7 @@
                     {/if}
 
                     
-                    {#if DBState.db.enableRisuaiProTools}
+                    {#if DBState.db.enableRisuaiProTools && !DBState.db.hideEasyPanel}
                         <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
                             easyPanelStore.open = !easyPanelStore.open
                         }}>

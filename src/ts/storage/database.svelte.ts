@@ -627,6 +627,8 @@ export function setDatabase(data:Database){
     data.showPersonaInSidebar ??= true
     data.disableMobileDragDrop ??= false
     data.disableToggleBinding ??= false
+    data.hideLoadout ??= true
+    data.hideEasyPanel ??= true
     data.hideAllImages ??= false
     data.ImagenModel ??= 'imagen-4.0-generate-001'
     data.ImagenImageSize ??= '1K'
@@ -1178,6 +1180,8 @@ export interface Database{
     showPersonaInSidebar:boolean
     disableMobileDragDrop:boolean
     disableToggleBinding:boolean
+    hideLoadout:boolean
+    hideEasyPanel:boolean
     menuSideBar:boolean
     pluginV2: RisuPlugin[]
     showSavingIcon:boolean

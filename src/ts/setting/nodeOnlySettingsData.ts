@@ -10,6 +10,8 @@ export const nodeOnlySettingsItems: SettingItem[] = [
     { id: 'nodeonly.showModelInSidebar', type: 'check', labelKey: 'showModelInSidebar', bindKey: 'showModelInSidebar', helpKey: 'showModelInSidebar', classes: 'mt-4' },
     { id: 'nodeonly.showPresetInSidebar', type: 'check', labelKey: 'showPresetInSidebar', bindKey: 'showPresetInSidebar', helpKey: 'showPresetInSidebar', classes: 'mt-4' },
     { id: 'nodeonly.showPersonaInSidebar', type: 'check', labelKey: 'showPersonaInSidebar', bindKey: 'showPersonaInSidebar', helpKey: 'showPersonaInSidebar', classes: 'mt-4' },
+    { id: 'nodeonly.hideLoadout', type: 'check', labelKey: 'hideLoadout', bindKey: 'hideLoadout', helpKey: 'hideLoadout', classes: 'mt-4' },
+    { id: 'nodeonly.hideEasyPanel', type: 'check', labelKey: 'hideEasyPanel', bindKey: 'hideEasyPanel', helpKey: 'hideEasyPanel', classes: 'mt-4' },
     { id: 'nodeonly.disableMobileDragDrop', type: 'check', labelKey: 'disableMobileDragDrop', bindKey: 'disableMobileDragDrop', helpKey: 'disableMobileDragDrop', classes: 'mt-4' },
     {
         id: 'nodeonly.disableToggleBinding', type: 'check', labelKey: 'disableToggleBinding', bindKey: 'disableToggleBinding',

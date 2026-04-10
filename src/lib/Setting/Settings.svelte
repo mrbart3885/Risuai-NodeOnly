@@ -172,7 +172,7 @@
                         </button>
                     {/each}
 
-                    {#if DBState.db.enableRisuaiProTools}
+                    {#if DBState.db.enableRisuaiProTools && !DBState.db.hideEasyPanel}
                         <button class="flex gap-2 items-center hover:text-textcolor"
                             class:text-textcolor={$SettingsMenuIndex === 16}
                             class:text-textcolor2={$SettingsMenuIndex !== 16}
