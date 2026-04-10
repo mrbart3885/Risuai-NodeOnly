@@ -1,11 +1,14 @@
 /**
  * Portable updater — runs with the bundled bin/node, no npm dependencies.
  * Downloads the latest portable zip/tar.gz from GitHub Releases,
- * replaces app files (including bin/) while preserving save/.
+ * replaces app files while preserving save/.
+ * On Windows, bundled Node (bin/) is staged and copied by update.bat
+ * after this process exits, to avoid self-replacement file locks.
  */
 
 const https = require('https');
 const http = require('http');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -16,6 +19,7 @@ const ROOT = path.resolve(__dirname, '..');
 const isWin = process.platform === 'win32';
 const REQUIRED_ENTRIES = ['dist', 'server', 'package.json'];
 const REQUIRED_DIST_FILES = ['index.html'];
+const REQUIRED_WIN_ENTRIES = ['bin'];
 
 function log(msg) { process.stdout.write(`[updater] ${msg}\n`); }
 function error(msg) { process.stderr.write(`[ERROR] ${msg}\n`); process.exit(1); }
@@ -106,6 +110,13 @@ function validateExtractedRoot(extractedRoot) {
             throw new Error(`Downloaded package is missing required entry: ${entry}`);
         }
     }
+    if (isWin) {
+        for (const entry of REQUIRED_WIN_ENTRIES) {
+            if (!fs.existsSync(path.join(extractedRoot, entry))) {
+                throw new Error(`Downloaded Windows package is missing required entry: ${entry}`);
+            }
+        }
+    }
     for (const file of REQUIRED_DIST_FILES) {
         if (!fs.existsSync(path.join(extractedRoot, 'dist', file))) {
             throw new Error(`Downloaded package is missing dist/${file}`);
@@ -127,6 +138,44 @@ function restoreBackupIntoRoot(backupDir, overwrite = true) {
             }
         } catch { /* best effort */ }
     }
+}
+
+function listFilesRecursive(dir, baseDir = dir, files = []) {
+    if (!fs.existsSync(dir)) return files;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            listFilesRecursive(fullPath, baseDir, files);
+            continue;
+        }
+        if (entry.isFile()) {
+            files.push(path.relative(baseDir, fullPath));
+        }
+    }
+    files.sort();
+    return files;
+}
+
+function hashFile(filePath) {
+    return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function areDirectoriesEquivalent(a, b) {
+    const filesA = listFilesRecursive(a);
+    const filesB = listFilesRecursive(b);
+    if (filesA.length !== filesB.length) return false;
+
+    for (let i = 0; i < filesA.length; i += 1) {
+        if (filesA[i] !== filesB[i]) return false;
+        const left = path.join(a, filesA[i]);
+        const right = path.join(b, filesB[i]);
+        const leftStat = fs.statSync(left);
+        const rightStat = fs.statSync(right);
+        if (leftStat.size !== rightStat.size) return false;
+        if (hashFile(left) !== hashFile(right)) return false;
+    }
+
+    return true;
 }
 
 async function main() {
@@ -180,10 +229,19 @@ async function main() {
     const extractedDir = path.join(tmpDir, 'extracted');
     const extractedRoot = resolveExtractedRoot(extractedDir);
     validateExtractedRoot(extractedRoot);
+    const currentBin = path.join(ROOT, 'bin');
+    const newBin = path.join(extractedRoot, 'bin');
+    const skipBinReplacement = fs.existsSync(currentBin)
+        && fs.existsSync(newBin)
+        && areDirectoriesEquivalent(currentBin, newBin);
+    if (skipBinReplacement) {
+        log('Bundled Node unchanged; skipping bin/ replacement.');
+    }
 
     // Phase 1: move old files to backup (safer than immediate delete)
     log('Replacing files...');
     const keep = new Set(['save', '.installed-version', '.update-tmp', 'scripts']);
+    if (isWin || skipBinReplacement) keep.add('bin');
     const backupDir = path.join(tmpDir, 'backup');
     fs.mkdirSync(backupDir, { recursive: true });
 
@@ -204,6 +262,7 @@ async function main() {
     // Phase 2: move new files from extracted to root
     const moved = [];
     const skipMove = new Set(['save', 'scripts']);
+    if (isWin || skipBinReplacement) skipMove.add('bin');
     try {
         for (const entry of fs.readdirSync(extractedRoot)) {
             if (skipMove.has(entry)) continue;
@@ -244,12 +303,39 @@ async function main() {
         }
     }
 
-    // Write version marker
-    fs.writeFileSync(path.join(ROOT, '.installed-version'), latest);
+    // Phase 4 (Windows): stage bin/ update for update.bat post-step
+    if (isWin) {
+        if (!fs.existsSync(newBin)) {
+            error('Downloaded Windows package is missing bin/. Update aborted before version finalize.');
+        }
+        const stagedBin = path.join(tmpDir, 'new-bin');
+        const skipBinUpdate = path.join(tmpDir, 'skip-bin-update');
+        try { fs.rmSync(stagedBin, { recursive: true, force: true }); } catch { /* noop */ }
+        try { fs.rmSync(skipBinUpdate, { force: true }); } catch { /* noop */ }
+        if (skipBinReplacement) {
+            fs.writeFileSync(skipBinUpdate, 'same');
+        } else {
+            fs.cpSync(newBin, stagedBin, { recursive: true });
+            log('Staged bundled Node update (will be applied after updater exits).');
+        }
+    }
+
+    // Write version marker after all file replacement is truly complete.
+    // On Windows, update.bat finalizes this after bin/ replacement succeeds.
+    if (isWin) {
+        fs.writeFileSync(path.join(tmpDir, 'latest-version'), latest);
+        log('Staged version marker update for post-step finalize.');
+    } else {
+        fs.writeFileSync(path.join(ROOT, '.installed-version'), latest);
+    }
 
     // Cleanup
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); }
-    catch { log('Warning: could not remove .update-tmp, you can delete it manually.'); }
+    if (isWin) {
+        log('Leaving .update-tmp for update.bat post-step cleanup.');
+    } else {
+        try { fs.rmSync(tmpDir, { recursive: true, force: true }); }
+        catch { log('Warning: could not remove .update-tmp, you can delete it manually.'); }
+    }
 
     log(`Update complete! ${current} → ${latest}`);
     log('');

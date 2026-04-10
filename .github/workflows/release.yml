@@ -135,7 +135,7 @@ jobs:
         shell: bash
         run: |
           printf '@echo off\r\nsetlocal\r\ntitle RisuAI NodeOnly\r\nset PORT=6001\r\nstart "" "http://localhost:%%PORT%%"\r\n"%%~dp0bin\\node.exe" "%%~dp0server\\node\\server.cjs"\r\npause\r\n' > portable/RisuAI.bat
-          printf '@echo off\r\n"%%~dp0bin\\node.exe" "%%~dp0scripts\\updater.cjs"\r\nif exist "%%~dp0.update-tmp" rmdir /s /q "%%~dp0.update-tmp" 2>nul\r\npause\r\n' > portable/update.bat
+          printf '@echo off\r\n"%%~dp0bin\\node.exe" "%%~dp0scripts\\updater.cjs"\r\nif errorlevel 1 goto :fail\r\nif exist "%%~dp0.update-tmp" (\r\nif exist "%%~dp0.update-tmp\\new-bin\\" (\r\nxcopy /E /I /Y "%%~dp0.update-tmp\\new-bin\\*" "%%~dp0bin\\" >nul\r\nif errorlevel 1 goto :fail\r\n) else (\r\nif not exist "%%~dp0.update-tmp\\skip-bin-update" goto :fail\r\n)\r\nif not exist "%%~dp0.update-tmp\\latest-version" goto :fail\r\ncopy /Y "%%~dp0.update-tmp\\latest-version" "%%~dp0.installed-version" >nul\r\nif errorlevel 1 goto :fail\r\nrmdir /s /q "%%~dp0.update-tmp" 2>nul\r\n)\r\necho Update complete.\r\npause\r\nexit /b 0\r\n:fail\r\necho Update finalization failed. Existing installation was left in place where possible.\r\npause\r\nexit /b 1\r\n' > portable/update.bat
 
       - name: Add launcher scripts (Unix)
         if: matrix.platform != 'win'
