@@ -355,8 +355,8 @@ export async function tokenize(data:string) {
     return encoded.length
 }
 
-export async function tokenizeAccurate(data:string, consistantChar?:boolean) {
-    data = risuChatParser(data.replace('{{slot}}',''), {
+export async function tokenizeAccurate(data:string | null | undefined, consistantChar?:boolean) {
+    data = risuChatParser((data ?? '').replace('{{slot}}',''), {
         tokenizeAccurate: true,
         consistantChar: consistantChar,
     })
