@@ -1351,6 +1351,7 @@ export const languageKorean = {
     "automaticCachePoint": "자동 캐시 포인트",
     "experimentalChatCompression": "실험적 채팅 데이터 처리",
     "loadingChatData": "채팅 데이터 로딩 중",
+    "selectChatToView": "채팅을 선택해주세요",
     "outputImageModal": "출력 이미지 모달",
     "playMessageOnTranslateEnd": "번역 완료 시 오디오 재생",
     "auxModelUnderModelSettings": "보조 모델 분리를 모델 설정에 표시",
