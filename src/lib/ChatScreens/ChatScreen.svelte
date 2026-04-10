@@ -2,7 +2,7 @@
     import { getCustomBackground, getEmotion } from "../../ts/util";
     
     import { DBState } from 'src/ts/stores.svelte';
-    import { CharEmotion, selectedCharID } from "../../ts/stores.svelte";
+    import { CharEmotion, selectedCharID, openModuleListStore } from "../../ts/stores.svelte";
     import ResizeBox from './ResizeBox.svelte'
     import DefaultChatScreen from "./DefaultChatScreen.svelte";
     import defaultWallpaper from '../../etc/bg.jpg'
@@ -13,6 +13,13 @@
     import ModuleChatMenu from "../Setting/Pages/Module/ModuleChatMenu.svelte";
     let openChatList = $state(false)
     let openModuleList = $state(false)
+
+    $effect(() => {
+        if ($openModuleListStore) {
+            openModuleList = true
+            openModuleListStore.set(false)
+        }
+    })
 
     const wallPaper = `background: url(${defaultWallpaper})`
     const externalStyles = 
