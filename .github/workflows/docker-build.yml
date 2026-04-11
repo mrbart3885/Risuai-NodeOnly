@@ -11,8 +11,16 @@ env:
   IMAGE_NAME: mrbart3885/risuai-nodeonly
 
 jobs:
-  build-and-push-image:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
@@ -31,8 +39,62 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Platform slug
+        id: slug
+        run: echo "pair=$(echo '${{ matrix.platform }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ steps.slug.outputs.pair }}
+          cache-to: type=gha,scope=${{ steps.slug.outputs.pair }},mode=max
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ steps.slug.outputs.pair }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract version from tag
         id: version
+        shell: bash
         run: |
           if [[ "${{ github.ref }}" =~ ^refs/tags/v(.+)$ ]]; then
             VERSION="${BASH_REMATCH[1]}"
@@ -41,25 +103,27 @@ jobs:
             echo "minor=$MINOR" >> $GITHUB_OUTPUT
             echo "is_tag=true" >> $GITHUB_OUTPUT
           else
-            echo "version=$(git rev-parse --short $GITHUB_SHA)" >> $GITHUB_OUTPUT
+            echo "version=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
             echo "is_tag=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ steps.version.outputs.is_tag == 'true' && format('{0}/{1}:latest', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ steps.version.outputs.is_tag == 'true' && format('{0}/{1}:v{2}', env.REGISTRY, env.IMAGE_NAME, steps.version.outputs.version) || format('{0}/{1}:{2}', env.REGISTRY, env.IMAGE_NAME, steps.version.outputs.version) }}
-            ${{ steps.version.outputs.is_tag == 'true' && format('{0}/{1}:v{2}', env.REGISTRY, env.IMAGE_NAME, steps.version.outputs.minor) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        shell: bash
+        run: |
+          TAGS=""
+          if [[ "${{ steps.version.outputs.is_tag }}" == "true" ]]; then
+            TAGS="-t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            TAGS="$TAGS -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.version.outputs.version }}"
+            TAGS="$TAGS -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.version.outputs.minor }}"
+          else
+            TAGS="-t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
+          fi
+          docker buildx imagetools create $TAGS \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
 
   cleanup-old-images:
-    needs: build-and-push-image
+    needs: merge
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
