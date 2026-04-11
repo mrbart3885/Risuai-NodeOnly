@@ -777,7 +777,7 @@
             <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" onclick={onReroll}>
                 <ArrowRight size={22}/>
             </button>
-        {:else if DBState.db.swipe}
+        {:else}
             <!-- Normal messages: ← counter ↻/→ with hide/show logic -->
             {#if currentPage <= 1}
                 <div class:dyna-icon={rerollIcon === 'dynamic'} class:force-show={rerollIcon === 'force'} style="width:22px"></div>
@@ -798,10 +798,6 @@
                     <ArrowRight size={22}/>
                 </button>
             {/if}
-        {:else}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'} onclick={onReroll}>
-                <RefreshCcwIcon size={20}/>
-            </button>
         {/if}
     {/if}
 {/snippet}

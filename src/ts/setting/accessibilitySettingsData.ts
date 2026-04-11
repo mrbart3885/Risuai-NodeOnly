@@ -25,13 +25,6 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['ask', 'removal', 'confirm', 'delete']
     },
     {
-        id: 'acc.swipe',
-        type: 'check',
-        labelKey: 'SwipeRegenerate',
-        bindKey: 'swipe',
-        keywords: ['swipe', 'regenerate', 'gesture']
-    },
-    {
         id: 'acc.instantRemove',
         type: 'check',
         labelKey: 'instantRemove',
