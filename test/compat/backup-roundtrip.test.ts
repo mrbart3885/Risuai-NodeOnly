@@ -11,7 +11,7 @@ import { describe, test, expect, afterAll } from 'vitest'
 import { spawnServer, type ServerHandle } from './helpers/spawnServer.js'
 import { createClient } from './helpers/client.js'
 import { createSeedBackup } from './helpers/seed.js'
-import { normalizeBackup, countAssets } from './helpers/normalize.js'
+import { normalizeBackup, fingerprintAssets } from './helpers/normalize.js'
 import { encodeBackup } from './helpers/encode.js'
 
 // Track servers so we can clean them all up even if a test fails.
@@ -68,6 +68,11 @@ describe('backup round-trip', () => {
     for (const key of normA.normalized.settingKeys) {
       expect(normB.normalized.settingKeys).toContain(key)
     }
+    // Message content spot-check
+    for (let i = 0; i < normA.normalized.characters.length; i++) {
+      expect(normB.normalized.characters[i].firstMessages)
+        .toEqual(normA.normalized.characters[i].firstMessages)
+    }
   })
 
   test('round-trip with multiple characters preserves message counts', async () => {
@@ -87,6 +92,27 @@ describe('backup round-trip', () => {
         expect(count).toBe(5)
       }
     }
+  })
+})
+
+// ─── Asset round-trip ──────────────────────────────────────────────────────
+
+describe('asset round-trip', () => {
+  test('asset count and payload survive import and re-export', async () => {
+    const srv = await spawnServer()
+    servers.push(srv)
+    const client = await createClient(srv.port, srv.password)
+
+    const seed = createSeedBackup({ characterCount: 2, includeAssets: true })
+    const beforeFingerprints = fingerprintAssets(seed)
+    expect(beforeFingerprints.length).toBe(2)
+
+    await client.importBackup(seed)
+    const exported = await client.exportBackup()
+    const afterFingerprints = fingerprintAssets(exported)
+
+    // Both count and content (sha256) must match
+    expect(afterFingerprints).toEqual(beforeFingerprints)
   })
 })
 

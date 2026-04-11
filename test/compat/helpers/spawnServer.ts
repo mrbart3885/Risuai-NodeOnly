@@ -83,12 +83,20 @@ export async function spawnServer(): Promise<ServerHandle> {
     })
   })
 
+  // Track exit state via event listener (set up once, before any cleanup call)
+  let exited = child.exitCode !== null
+  child.on('exit', () => { exited = true })
+
   const cleanup = async () => {
-    if (!child.killed) {
+    if (!exited) {
       child.kill('SIGTERM')
-      // Give it a moment to flush
-      await new Promise(r => setTimeout(r, 500))
-      if (!child.killed) child.kill('SIGKILL')
+      await new Promise<void>(resolve => {
+        const timeout = setTimeout(() => {
+          if (!exited) child.kill('SIGKILL')
+          resolve()
+        }, 3000)
+        child.on('exit', () => { clearTimeout(timeout); resolve() })
+      })
     }
     await rm(tempDir, { recursive: true, force: true })
   }

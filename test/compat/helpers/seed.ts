@@ -24,6 +24,8 @@ export interface SeedOptions {
   chatsPerCharacter?: number
   /** Number of messages per chat (default 2). */
   messagesPerChat?: number
+  /** Include dummy asset entries in the backup (default false). */
+  includeAssets?: boolean
 }
 
 export function createSeedBackup(opts: SeedOptions = {}): Buffer {
@@ -31,6 +33,7 @@ export function createSeedBackup(opts: SeedOptions = {}): Buffer {
     characterCount = 1,
     chatsPerCharacter = 1,
     messagesPerChat = 2,
+    includeAssets = false,
   } = opts
 
   const characters = Array.from({ length: characterCount }, (_, ci) => {
@@ -80,7 +83,17 @@ export function createSeedBackup(opts: SeedOptions = {}): Buffer {
 
   const dbBin = encodeRisuSaveLegacy(database)
 
-  return encodeBackup([
+  const entries: Array<{ name: string; data: Buffer }> = [
     { name: 'database.risudat', data: dbBin },
-  ])
+  ]
+
+  if (includeAssets) {
+    for (let i = 0; i < characterCount; i++) {
+      // Asset entry names have no prefix — server prepends 'assets/' on import
+      const hexKey = Buffer.from(`test-asset-${i}`).toString('hex')
+      entries.push({ name: hexKey, data: Buffer.from(`fake-png-data-${i}`) })
+    }
+  }
+
+  return encodeBackup(entries)
 }

@@ -35,6 +35,9 @@ export interface NormalizedDb {
     chaId: string
     chatCount: number
     messageCounts: number[]  // message count per chat
+    /** First and last message text of each chat (content spot-check). */
+    firstMessages: string[]
+    lastMessages: string[]
   }>
   personaCount: number
   /** Sorted list of top-level setting keys that are present. */
@@ -54,6 +57,18 @@ export function normalizeDatabase(db: Record<string, unknown>): NormalizedDb {
         ? c.chats.map((chat: any) =>
             Array.isArray(chat?.message) ? chat.message.length : 0,
           )
+        : [],
+      firstMessages: Array.isArray(c.chats)
+        ? c.chats.map((chat: any) => {
+            const msgs = Array.isArray(chat?.message) ? chat.message : []
+            return msgs.length > 0 ? String(msgs[0]?.data ?? '') : ''
+          })
+        : [],
+      lastMessages: Array.isArray(c.chats)
+        ? c.chats.map((chat: any) => {
+            const msgs = Array.isArray(chat?.message) ? chat.message : []
+            return msgs.length > 0 ? String(msgs[msgs.length - 1]?.data ?? '') : ''
+          })
         : [],
     }))
     .sort((a, b) => a.chaId.localeCompare(b.chaId))
@@ -84,7 +99,19 @@ export function normalizeBackup(bin: Buffer): { raw: Record<string, unknown>; no
   return { raw, normalized: normalizeDatabase(raw) }
 }
 
-/** Count non-database entries (assets, inlays, etc.) in a backup. */
-export function countAssets(bin: Buffer): number {
-  return decodeBackup(bin).filter(e => e.name !== 'database.risudat').length
+/** Asset fingerprint: name + sha256 of payload. Sorted for stable comparison. */
+export interface AssetFingerprint {
+  name: string
+  hash: string
+}
+
+export function fingerprintAssets(bin: Buffer): AssetFingerprint[] {
+  const { createHash } = require('node:crypto') as typeof import('node:crypto')
+  return decodeBackup(bin)
+    .filter(e => e.name !== 'database.risudat')
+    .map(e => ({
+      name: e.name,
+      hash: createHash('sha256').update(e.data).digest('hex'),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
 }
