@@ -185,7 +185,6 @@ function chatToStub(chat) {
  * Extracts all chat payloads into the store keyed by chaId → chatId.
  */
 function initChatStore(dbObj) {
-    const previousStore = fullChatStore;
     fullChatStore = new Map();
     if (!dbObj?.characters) return;
     for (const char of dbObj.characters) {
@@ -197,16 +196,6 @@ function initChatStore(dbObj) {
                     chat.id = nodeCrypto.randomUUID();
                 }
                 charChats.set(chat.id, chat);
-            } else if (chat && chat._stub && chat.id && previousStore) {
-                // Stub in DB — recover full chat data from previous store if available.
-                // This prevents data loss when disk has stubs but memory still has content.
-                const prevCharChats = previousStore.get(char.chaId);
-                if (prevCharChats) {
-                    const prevChat = prevCharChats.get(chat.id);
-                    if (prevChat) {
-                        charChats.set(chat.id, prevChat);
-                    }
-                }
             }
         }
         if (charChats.size > 0) {
@@ -2645,10 +2634,7 @@ app.post('/api/write', async (req, res, next) => {
                     kvSet(key, mergedContent);
                 } catch (e) {
                     console.error('[Write] Failed to merge chats into database.bin:', e.message);
-                    // Preserve existing disk data — writing stubs-only would permanently
-                    // lose chat content (fullChatStore can no longer recover it on next read).
-                    res.status(500).json({ error: 'Failed to merge chat data' });
-                    return;
+                    kvSet(key, fileContent);
                 }
             } else {
                 kvSet(key, fileContent);
