@@ -539,13 +539,13 @@
 
     {#snippet CustomFlagButton(name:string,flag:LLMFlags)}
         <Button className="mt-2" onclick={(e) => {
-            if(DBState.db.customFlags.includes(flag)){
+            if(DBState.db.customFlags.includes(flag as LLMFlags)){
                 DBState.db.customFlags = DBState.db.customFlags.filter((f) => f !== flag)
             }
             else{
-                DBState.db.customFlags.push(flag)
+                DBState.db.customFlags.push(flag as LLMFlags)
             }
-        }} styled={DBState.db.customFlags.includes(flag) ? 'primary' : 'outlined'}>
+        }} styled={DBState.db.customFlags.includes(flag as LLMFlags) ? 'primary' : 'outlined'}>
             {name}
         </Button>
     {/snippet}
