@@ -132,14 +132,34 @@ function assignMissingChatIds(dbObj) {
 }
 
 async function decodeDatabaseWithPersistentChatIds(raw, options = {}) {
-    const { createBackup = false } = options;
+    const { createBackup = false, migrationResult = null } = options;
     const dbObj = normalizeJSON(await decodeRisuSave(raw));
+    let needsPersist = false;
+
     const hadMissingIds = assignMissingChatIds(dbObj);
-    if (hadMissingIds) {
+    if (hadMissingIds) needsPersist = true;
+
+    // One-time migration: restore upstream cold storage characters to full characters.
+    // This runs when upstream data first enters NodeOnly (backup import or save folder copy).
+    // After restore, the coldstorage field is removed and the clean DB is persisted.
+    // Failed characters are promoted to safe blank characters — their KV data is preserved for manual recovery.
+    const coldRestoreResult = restoreColdStorageCharactersInDb(dbObj);
+    if (coldRestoreResult.restored > 0 || coldRestoreResult.failed > 0) needsPersist = true;
+    if (coldRestoreResult.failed > 0) {
+        console.error(`[ColdStorage] ${coldRestoreResult.failed} character(s) could not be restored and were converted to safe blank characters. Cold storage KV data is preserved.`);
+        for (const name of coldRestoreResult.failedNames) {
+            console.error(`[ColdStorage]   - "${name}"`);
+        }
+    }
+
+    if (needsPersist) {
         kvSet('database/database.bin', Buffer.from(encodeRisuSaveLegacy(dbObj)));
         if (createBackup) {
             createBackupAndRotate();
         }
+    }
+    if (migrationResult) {
+        migrationResult.coldStorageFailed = coldRestoreResult.failed;
     }
     return dbObj;
 }
@@ -1298,6 +1318,109 @@ function parseInlaySidecarBackupName(name) {
     return { id };
 }
 
+function normalizeColdStorageStorageKey(nameOrKey) {
+    let key = nameOrKey;
+    if (key.startsWith('coldstorage/')) {
+        key = key.slice('coldstorage/'.length);
+    }
+    if (key.endsWith('.json')) {
+        key = key.slice(0, -'.json'.length);
+    }
+    if (!key || key.includes('/') || isInvalidBackupPathSegment(key)) {
+        throw new Error(`Invalid cold storage entry name: ${nameOrKey}`);
+    }
+    return `coldstorage/${key}`;
+}
+
+function toColdStorageBackupName(storageKey) {
+    return `${normalizeColdStorageStorageKey(storageKey)}.json`;
+}
+
+function parseColdStorageJsonBuffer(buffer, sourceLabel, options = {}) {
+    const { allowPlainJson = false } = options;
+    try {
+        const decompressed = zlib.gunzipSync(buffer);
+        return {
+            coldData: JSON.parse(decompressed.toString('utf-8')),
+            format: 'gzip',
+        };
+    } catch (gzipError) {
+        if (!allowPlainJson) {
+            throw gzipError;
+        }
+        try {
+            return {
+                coldData: JSON.parse(buffer.toString('utf-8')),
+                format: 'plain-json',
+            };
+        } catch (jsonError) {
+            throw new Error(`[ColdStorage] failed to parse ${sourceLabel}: gzip=${gzipError.message}; json=${jsonError.message}`);
+        }
+    }
+}
+
+function encodeColdStorageCanonicalBuffer(coldData) {
+    return Buffer.from(zlib.gzipSync(Buffer.from(JSON.stringify(coldData), 'utf-8')));
+}
+
+function readColdStorageJsonEntry(nameOrKey, options = {}) {
+    const { migrateLegacy = false, allowPlainJsonFallback = false } = options;
+    const canonicalKey = normalizeColdStorageStorageKey(nameOrKey);
+    const legacyBackupKey = `${canonicalKey}.json`;
+
+    let storageKey = canonicalKey;
+    let value = kvGet(canonicalKey);
+    if (!value) {
+        storageKey = legacyBackupKey;
+        value = kvGet(legacyBackupKey);
+    }
+    if (!value) {
+        return null;
+    }
+
+    const parsed = parseColdStorageJsonBuffer(value, storageKey, {
+        allowPlainJson: allowPlainJsonFallback || storageKey !== canonicalKey,
+    });
+
+    if (migrateLegacy && (storageKey !== canonicalKey || parsed.format !== 'gzip')) {
+        kvSet(canonicalKey, encodeColdStorageCanonicalBuffer(parsed.coldData));
+        if (storageKey !== canonicalKey) {
+            kvDel(storageKey);
+        }
+    }
+
+    return {
+        coldData: parsed.coldData,
+        storageKey,
+        canonicalKey,
+        format: parsed.format,
+    };
+}
+
+function listColdStorageBackupEntries() {
+    const canonicalKeys = Array.from(new Set(
+        kvList('coldstorage/').map((key) => normalizeColdStorageStorageKey(key))
+    )).sort((a, b) => a.localeCompare(b));
+
+    return canonicalKeys.map((storageKey) => {
+        const entry = readColdStorageJsonEntry(storageKey, {
+            migrateLegacy: true,
+            allowPlainJsonFallback: true,
+        });
+        if (!entry) {
+            throw new Error(`[ColdStorage] missing cold storage entry while exporting: ${storageKey}`);
+        }
+        const plainJson = Buffer.from(JSON.stringify(entry.coldData), 'utf-8');
+        return {
+            kind: 'buffer',
+            buffer: plainJson,
+            backupName: toColdStorageBackupName(storageKey),
+            sortKey: toColdStorageBackupName(storageKey),
+            size: plainJson.length,
+        };
+    });
+}
+
 function resolveBackupStorageKey(name) {
     if (Buffer.byteLength(name, 'utf-8') > BACKUP_ENTRY_NAME_MAX_BYTES) {
         throw new Error(`Backup entry name too long: ${name.slice(0, 64)}`);
@@ -1331,6 +1454,12 @@ function resolveBackupStorageKey(name) {
             throw new Error(`Invalid inlay sidecar backup entry name: ${name}`);
         }
         return name;
+    }
+
+    // Upstream backups transport cold storage as coldstorage/<uuid>.json.
+    // Normalize back to the runtime KV key: coldstorage/<uuid>.
+    if (name.startsWith('coldstorage/')) {
+        return normalizeColdStorageStorageKey(name);
     }
 
     if (isInvalidBackupPathSegment(name) || name !== path.basename(name)) {
@@ -1426,6 +1555,7 @@ async function importBackupFromSource(dataSource, { maxBytes = 0, totalBytes = 0
     kvDelPrefix('inlay_thumb/');
     kvDelPrefix('inlay_meta/');
     kvDelPrefix('inlay_info/');
+    kvDelPrefix('coldstorage/');
     clearEntities();
 
     try {
@@ -1507,7 +1637,12 @@ async function importBackupFromSource(dataSource, { maxBytes = 0, totalBytes = 0
                     // Skip deprecated thumbnail entries from legacy backups
                 } else {
                     const storageKey = resolveBackupStorageKey(name);
-                    kvSet(storageKey, data);
+                    const storageValue = storageKey.startsWith('coldstorage/')
+                        ? encodeColdStorageCanonicalBuffer(
+                            parseColdStorageJsonBuffer(data, name, { allowPlainJson: true }).coldData
+                        )
+                        : data;
+                    kvSet(storageKey, storageValue);
                     if (storageKey === 'database/database.bin') {
                         hasDatabase = true;
                     } else {
@@ -1564,6 +1699,19 @@ async function importBackupFromSource(dataSource, { maxBytes = 0, totalBytes = 0
 
     invalidateDbCache();
 
+    // Trigger cold storage migration now so import result includes failure count.
+    const dbRaw = kvGet('database/database.bin');
+    let coldStorageFailed = 0;
+    if (dbRaw) {
+        const migration = {};
+        const dbObj = await decodeDatabaseWithPersistentChatIds(dbRaw, {
+            createBackup: false,
+            migrationResult: migration,
+        });
+        coldStorageFailed = migration.coldStorageFailed || 0;
+        initChatStore(dbObj);
+    }
+
     try {
         checkpointWal('TRUNCATE');
     } catch (checkpointError) {
@@ -1571,7 +1719,10 @@ async function importBackupFromSource(dataSource, { maxBytes = 0, totalBytes = 0
     }
 
     console.log(`[Backup Import] Complete: ${assetsRestored} assets restored, ${(bytesReceived / 1024 / 1024).toFixed(1)}MB processed`);
-    return { assetsRestored, bytesReceived };
+    if (coldStorageFailed > 0) {
+        console.error(`[Backup Import] ${coldStorageFailed} cold storage character(s) could not be restored`);
+    }
+    return { assetsRestored, bytesReceived, coldStorageFailed };
 }
 
 app.get('/', async (req, res, next) => {
@@ -2346,7 +2497,7 @@ app.get('/api/read', async (req, res, next) => {
                     value = Buffer.from(encodeRisuSaveLegacy(stripped));
                 } catch (e) {
                     console.error('[Read] Failed to strip chats from database.bin:', e.message);
-                    // Fall through with original value
+                    return next(e);
                 }
                 dbEtag = computeBufferEtag(value);
                 if (req.headers['if-none-match'] === dbEtag) {
@@ -2558,7 +2709,9 @@ app.post('/api/patch', async (req, res, next) => {
             if (!dbCache[filePath]) {
                 const fileContent = kvGet(decodedKey);
                 if (fileContent) {
-                    const decoded = normalizeJSON(await decodeRisuSave(fileContent));
+                    const decoded = decodedKey === 'database/database.bin'
+                        ? await decodeDatabaseWithPersistentChatIds(fileContent)
+                        : normalizeJSON(await decodeRisuSave(fileContent));
                     if (decodedKey === 'database/database.bin') {
                         initChatStore(decoded);
                         dbCache[filePath] = normalizeJSON(stripChatsFromDb(decoded));
@@ -2771,6 +2924,7 @@ app.get('/api/backup/export', async (req, res, next) => {
                 sortKey: entry.key,
                 size: entry.size,
             })),
+            ...listColdStorageBackupEntries(),
             ...kvListWithSizes('inlay_meta/').map((entry) => ({
                 kind: 'kv',
                 key: entry.key,
@@ -2811,7 +2965,9 @@ app.get('/api/backup/export', async (req, res, next) => {
             if (closed) break;
             const value = entry.kind === 'kv'
                 ? kvGet(entry.key)
-                : await fs.readFile(entry.sourcePath);
+                : entry.kind === 'buffer'
+                    ? entry.buffer
+                    : await fs.readFile(entry.sourcePath);
             if (closed) break;
             if (value) {
                 const ok = res.write(encodeBackupEntry(entry.backupName, value));
@@ -2901,7 +3057,11 @@ app.post('/api/backup/import', async (req, res, next) => {
         }
 
         const result = await importBackupFromSource(req, { maxBytes: BACKUP_IMPORT_MAX_BYTES });
-        res.json({ ok: true, assetsRestored: result.assetsRestored });
+        res.json({
+            ok: true,
+            assetsRestored: result.assetsRestored,
+            coldStorageFailed: result.coldStorageFailed,
+        });
     } catch (error) {
         next(error);
     } finally {
@@ -2936,6 +3096,7 @@ app.post('/api/backup/server/save', async (req, res, next) => {
 
         const namespacedEntries = [
             ...kvListWithSizes('assets/').map((e) => ({ kind: 'kv', key: e.key, backupName: path.basename(e.key), size: e.size })),
+            ...listColdStorageBackupEntries(),
             ...kvListWithSizes('inlay_meta/').map((e) => ({ kind: 'kv', key: e.key, backupName: e.key, size: e.size })),
             ...inlayEntries,
             ...sidecarEntries,
@@ -2969,7 +3130,9 @@ app.post('/api/backup/server/save', async (req, res, next) => {
                         if (closed) break;
                         const value = entry.kind === 'kv'
                             ? kvGet(entry.key)
-                            : await fs.readFile(entry.sourcePath);
+                            : entry.kind === 'buffer'
+                                ? entry.buffer
+                                : await fs.readFile(entry.sourcePath);
                         if (value) {
                             const ok = writeStream.write(encodeBackupEntry(entry.backupName, value));
                             if (!ok) await new Promise(r => writeStream.once('drain', r));
@@ -3097,7 +3260,12 @@ app.post('/api/backup/server/restore', async (req, res, next) => {
                 res.write(JSON.stringify({ type: 'progress', bytes: received, totalBytes: total }) + '\n');
             },
         });
-        res.write(JSON.stringify({ type: 'done', ok: true, assetsRestored: result.assetsRestored }) + '\n');
+        res.write(JSON.stringify({
+            type: 'done',
+            ok: true,
+            assetsRestored: result.assetsRestored,
+            coldStorageFailed: result.coldStorageFailed,
+        }) + '\n');
         res.end();
     } catch (error) {
         if (!res.headersSent) {
@@ -3166,8 +3334,93 @@ app.get('/api/backup/server/download/:filename', async (req, res, next) => {
 
 // ── Chat content endpoints (runtime lazy load) ─────────────────────────────
 
-// Cold storage compatibility: restore chat data stored in coldstorage/ KV entries
+// Cold storage compatibility: restore data stored in coldstorage/ KV entries
 const COLD_STORAGE_HEADER = '\uEF01COLDSTORAGE\uEF01';
+
+function restoreColdStorageCharacter(character) {
+    if (!character?.coldstorage) return true;
+    const key = character.coldstorage;
+    const entry = readColdStorageJsonEntry(key, {
+        migrateLegacy: true,
+    });
+    if (!entry) {
+        console.error(`[ColdStorage] character data not found for key: ${key}`);
+        return false;
+    }
+    try {
+        const coldData = entry.coldData;
+        if (coldData?.character) {
+            Object.assign(character, coldData.character);
+            delete character.coldstorage;
+            delete character.coldStoragedChats;
+        } else {
+            console.error(`[ColdStorage] unexpected character cold data format for key: ${key}`);
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error(`[ColdStorage] character restore failed for key ${key}:`, err.message);
+        return false;
+    }
+}
+
+function promoteFailedColdStorageStub(char) {
+    const coldKey = char.coldstorage;
+    // Fill in missing fields with safe defaults matching createBlankChar() in src/ts/characters.ts.
+    // SYNC: if createBlankChar() defaults change, update this object to match.
+    const defaults = {
+        firstMessage: '', desc: '', notes: '', chatFolders: [],
+        emotionImages: [], bias: [], viewScreen: 'none', globalLore: [],
+        sdData: [
+            ['always', 'solo, 1girl'], ['negative', ''],
+            ["|character's appearance", ''], ['current situation', ''],
+            ["$character's pose", ''], ["$character's emotion", ''],
+            ['current location', ''],
+        ],
+        utilityBot: false, customscript: [], exampleMessage: '',
+        creatorNotes: '', systemPrompt: '', postHistoryInstructions: '',
+        alternateGreetings: [], tags: [], creator: '', characterVersion: '',
+        personality: '', scenario: '',
+        firstMsgIndex: -1,
+        replaceGlobalNote: '', additionalText: '',
+        triggerscript: [
+            { comment: '', type: 'manual', conditions: [], effect: [{ type: 'v2Header', code: '', indent: 0 }] },
+            { comment: 'New Event', type: 'manual', conditions: [], effect: [] },
+        ],
+    };
+    for (const [key, value] of Object.entries(defaults)) {
+        if (char[key] === undefined || char[key] === null) {
+            char[key] = value;
+        }
+    }
+    // Force firstMsgIndex to -1 even if stub had 0 — prevents alternateGreetings[0] access on empty array
+    char.firstMsgIndex = -1;
+    // Ensure chats array is valid
+    if (!Array.isArray(char.chats) || char.chats.length === 0) {
+        char.chats = [{ message: [], note: '', name: 'Chat 1', localLore: [] }];
+    }
+    // Leave recovery breadcrumb and remove cold storage markers
+    char.desc = `[Cold storage restore failed. Original key: ${coldKey}]\n\n${char.desc || ''}`.trim();
+    delete char.coldstorage;
+    delete char.coldStoragedChats;
+}
+
+function restoreColdStorageCharactersInDb(dbObj) {
+    const result = { restored: 0, failed: 0, failedNames: [] };
+    if (!Array.isArray(dbObj?.characters)) return result;
+    for (let i = 0; i < dbObj.characters.length; i++) {
+        const char = dbObj.characters[i];
+        if (!char?.coldstorage) continue;
+        if (restoreColdStorageCharacter(char)) {
+            result.restored++;
+        } else {
+            result.failed++;
+            result.failedNames.push(char.name || `(index ${i})`);
+            promoteFailedColdStorageStub(char);
+        }
+    }
+    return result;
+}
 
 function isColdStorageChat(chat) {
     return chat?.message?.[0]?.data?.startsWith(COLD_STORAGE_HEADER);
@@ -3176,14 +3429,15 @@ function isColdStorageChat(chat) {
 function restoreColdStorageChat(chat) {
     if (!isColdStorageChat(chat)) return true;
     const key = chat.message[0].data.slice(COLD_STORAGE_HEADER.length);
-    const compressed = kvGet('coldstorage/' + key);
-    if (!compressed) {
+    const entry = readColdStorageJsonEntry(key, {
+        migrateLegacy: true,
+    });
+    if (!entry) {
         console.error(`[ColdStorage] data not found for key: ${key}`);
         return false;
     }
     try {
-        const decompressed = zlib.gunzipSync(compressed);
-        const coldData = JSON.parse(decompressed.toString('utf-8'));
+        const coldData = entry.coldData;
         if (Array.isArray(coldData)) {
             chat.message = coldData;
         } else if (coldData?.message) {

@@ -646,6 +646,7 @@ export function updateLorebooks(book:loreBook[]){
 
 }
 
+// SYNC: server/node/server.cjs promoteFailedColdStorageStub() mirrors these defaults.
 export function createBlankChar():character{
     return {
         name: '',

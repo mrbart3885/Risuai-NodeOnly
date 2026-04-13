@@ -17,6 +17,15 @@ function encodeRisuSaveLegacy(data: unknown): Buffer {
   return Buffer.concat([MAGIC_RAW, encoded])
 }
 
+export interface ColdStorageCharacterSpec {
+  /** Character name. */
+  name: string
+  /** Cold storage UUID key. */
+  coldKey: string
+  /** The full character data to store in the cold storage entry (null = omit KV entry to simulate failure). */
+  fullData: Record<string, unknown> | null
+}
+
 export interface SeedOptions {
   /** Number of characters to create (default 1). */
   characterCount?: number
@@ -26,6 +35,8 @@ export interface SeedOptions {
   messagesPerChat?: number
   /** Include dummy asset entries in the backup (default false). */
   includeAssets?: boolean
+  /** Cold storage character stubs to include in the backup. */
+  coldStorageCharacters?: ColdStorageCharacterSpec[]
 }
 
 export function createSeedBackup(opts: SeedOptions = {}): Buffer {
@@ -34,6 +45,7 @@ export function createSeedBackup(opts: SeedOptions = {}): Buffer {
     chatsPerCharacter = 1,
     messagesPerChat = 2,
     includeAssets = false,
+    coldStorageCharacters = [],
   } = opts
 
   const characters = Array.from({ length: characterCount }, (_, ci) => {
@@ -81,11 +93,35 @@ export function createSeedBackup(opts: SeedOptions = {}): Buffer {
     selectedCharacter: 0,
   }
 
+  // Add cold storage character stubs to the database
+  for (const cs of coldStorageCharacters) {
+    characters.push({
+      name: cs.name,
+      chaId: `cold-char-${cs.coldKey}`,
+      image: '',
+      type: 'character',
+      chats: [{ message: [{ time: Date.now(), data: '', role: 'char' }], note: '', name: '', localLore: [] }],
+      chatPage: 0,
+      firstMsgIndex: 0,
+      coldstorage: cs.coldKey,
+    })
+  }
+
   const dbBin = encodeRisuSaveLegacy(database)
 
   const entries: Array<{ name: string; data: Buffer }> = [
     { name: 'database.risudat', data: dbBin },
   ]
+
+  // Add cold storage KV entries (upstream backup format: coldstorage/<key>.json with plain JSON)
+  for (const cs of coldStorageCharacters) {
+    if (cs.fullData !== null) {
+      entries.push({
+        name: `coldstorage/${cs.coldKey}.json`,
+        data: Buffer.from(JSON.stringify(cs.fullData), 'utf-8'),
+      })
+    }
+  }
 
   if (includeAssets) {
     for (let i = 0; i < characterCount; i++) {

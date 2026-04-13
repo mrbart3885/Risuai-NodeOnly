@@ -1,4 +1,4 @@
-import { alertError, alertNormal, alertStore, alertWait, alertMd, alertConfirm } from "../alert";
+import { alertError, alertNormal, alertStore, alertWait, alertMd, alertConfirm, waitAlert } from "../alert";
 import { downloadFile, LocalWriter, forageStorage } from "../globalApi.svelte";
 import { encodeRisuSaveLegacy } from "../storage/risuSave";
 import { getDatabase, type Chat } from "../storage/database.svelte";
@@ -224,14 +224,19 @@ export function LoadLocalBackup(){
             const file = input.files[0];
             input.remove();
             alertWait(`Loading local Backup... (Uploading ${file.name})`);
-            await forageStorage.importBackup(file, (loaded, total) => {
+            const result = await forageStorage.importBackup(file, (loaded, total) => {
                 const progress = total > 0 ? ((loaded / total) * 100).toFixed(2) : '0.00'
                 alertWait(`Loading local Backup... (${progress}%)`)
             })
-            alertStore.set({
-                type: "wait",
-                msg: "Success, Refreshing your app."
-            });
+            if (result.coldStorageFailed && result.coldStorageFailed > 0) {
+                alertError(`Warning: ${result.coldStorageFailed} character(s) could not be restored from cold storage. The imported save may be incomplete. The app will now reload.`)
+                await waitAlert()
+            } else {
+                alertStore.set({
+                    type: "wait",
+                    msg: "Success, Refreshing your app."
+                });
+            }
             location.search = ''
             location.reload()
         };
@@ -325,4 +330,3 @@ export async function SaveServerBackup() {
         alertError(error instanceof Error ? error.message : 'Server backup failed')
     }
 }
-

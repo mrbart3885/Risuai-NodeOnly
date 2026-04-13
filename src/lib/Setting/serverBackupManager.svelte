@@ -1,6 +1,6 @@
 <script lang="ts">
     import { language } from "src/lang";
-    import { alertConfirm, alertError, alertNormal, alertWait, alertStore } from "src/ts/alert";
+    import { alertConfirm, alertError, alertNormal, alertWait, alertStore, waitAlert } from "src/ts/alert";
     import { forageStorage, downloadFile } from "src/ts/globalApi.svelte";
     import { XIcon, RotateCcwIcon, DownloadIcon, TrashIcon } from "@lucide/svelte";
 
@@ -41,13 +41,18 @@
         if (!(await alertConfirm(language.backupLoadConfirm2))) return;
         alertWait(language.serverBackupRestoring);
         try {
-            await forageStorage.restoreServerBackup(backup.filename, (bytes, totalBytes) => {
+            const result = await forageStorage.restoreServerBackup(backup.filename, (bytes, totalBytes) => {
                 if (totalBytes > 0) {
                     const pct = ((bytes / totalBytes) * 100).toFixed(1);
                     alertWait(`${language.serverBackupRestoring} (${pct}%)`);
                 }
             });
-            alertStore.set({ type: "wait", msg: "Success, Refreshing your app." });
+            if (result.coldStorageFailed && result.coldStorageFailed > 0) {
+                alertError(`Warning: ${result.coldStorageFailed} character(s) could not be restored from cold storage. The restored save may be incomplete. The app will now reload.`);
+                await waitAlert();
+            } else {
+                alertStore.set({ type: "wait", msg: "Success, Refreshing your app." });
+            }
             location.search = '';
             location.reload();
         } catch (error) {

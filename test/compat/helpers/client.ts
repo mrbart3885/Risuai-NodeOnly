@@ -11,7 +11,7 @@ export interface RisuClient {
    * Import a .bin backup (runs the two-stage prepare → import flow).
    * Returns the JSON response from the import endpoint.
    */
-  importBackup: (data: Buffer) => Promise<{ ok: boolean; assetsRestored?: number; error?: string }>
+  importBackup: (data: Buffer) => Promise<{ ok: boolean; assetsRestored?: number; coldStorageFailed?: number; error?: string }>
   /** Raw fetch with auth header pre-set. */
   fetch: (path: string, init?: RequestInit) => Promise<Response>
 }
@@ -65,7 +65,7 @@ export async function createClient(port: number, password: string): Promise<Risu
       headers: { 'content-type': 'application/x-risu-backup' },
       body: new Uint8Array(data),
     })
-    return (await impRes.json()) as { ok: boolean; assetsRestored?: number; error?: string }
+    return (await impRes.json()) as { ok: boolean; assetsRestored?: number; coldStorageFailed?: number; error?: string }
   }
 
   return { token, exportBackup, importBackup, fetch: authFetch }
