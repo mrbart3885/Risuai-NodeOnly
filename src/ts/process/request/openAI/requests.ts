@@ -1272,8 +1272,9 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                                     
                                     readed["__tool_calls"] = JSON.stringify(toolCallsData)
                                 }
-                                if(choice?.delta?.reasoning_content){
-                                    reasoningContent += choice.delta.reasoning_content
+                                const reasoningDelta = choice?.delta?.reasoning_content ?? choice?.delta?.reasoning
+                                if(reasoningDelta){
+                                    reasoningContent += reasoningDelta
                                 }
                             }
                         } catch (error) {}
