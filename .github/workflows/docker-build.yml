@@ -121,3 +121,84 @@ jobs:
           fi
           docker buildx imagetools create $TAGS \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+  cleanup-old-images:
+    needs: merge
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Delete orphaned untagged versions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = 'mrbart3885';
+            const pkg = 'risuai-nodeonly';
+
+            // 1. Get all package versions
+            const versions = await github.paginate(
+              github.rest.packages.getAllPackageVersionsForPackageOwnedByUser,
+              { package_type: 'container', package_name: pkg, username: owner, per_page: 100 }
+            );
+
+            // 2. Get ghcr.io auth token
+            const tokenResp = await fetch(
+              `https://ghcr.io/token?scope=repository:${owner}/${pkg}:pull`
+            );
+            const { token } = await tokenResp.json();
+
+            // 3. Collect digests referenced by tagged manifest lists
+            const referencedDigests = new Set();
+            for (const v of versions) {
+              if (v.metadata?.container?.tags?.length > 0) {
+                try {
+                  const resp = await fetch(
+                    `https://ghcr.io/v2/${owner}/${pkg}/manifests/${v.name}`,
+                    {
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json'
+                      }
+                    }
+                  );
+                  if (resp.ok) {
+                    const manifest = await resp.json();
+                    if (manifest.manifests) {
+                      for (const m of manifest.manifests) {
+                        referencedDigests.add(m.digest);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  core.warning(`Failed to fetch manifest for ${v.name}: ${e.message}`);
+                }
+              }
+            }
+            core.info(`Referenced digests: ${referencedDigests.size}`);
+
+            // 4. Delete untagged versions NOT referenced by any manifest list
+            const untagged = versions
+              .filter(v => !v.metadata?.container?.tags?.length)
+              .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+            let deleted = 0;
+            for (const v of untagged) {
+              if (referencedDigests.has(v.name)) {
+                core.info(`KEEP ${v.name.slice(0, 20)}... (referenced)`);
+                continue;
+              }
+              core.info(`DELETE ${v.name.slice(0, 20)}... (orphaned)`);
+              try {
+                await github.rest.packages.deletePackageVersionForUser({
+                  package_type: 'container',
+                  package_name: pkg,
+                  username: owner,
+                  package_version_id: v.id
+                });
+                deleted++;
+              } catch (e) {
+                core.warning(`Failed to delete ${v.id}: ${e.message}`);
+              }
+            }
+            core.info(`Cleanup done: deleted ${deleted} orphaned versions, kept ${untagged.length - deleted} referenced`);
