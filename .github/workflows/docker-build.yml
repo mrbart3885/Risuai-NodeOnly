@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: mrbart3885/risuai-nodeonly
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build:
@@ -26,14 +26,18 @@ jobs:
       packages: write
 
     steps:
+      - name: Lowercase image name
+        id: lower
+        run: echo "image_name=${IMAGE_NAME,,}" >> $GITHUB_OUTPUT
+
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -45,11 +49,11 @@ jobs:
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower.outputs.image_name }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ steps.slug.outputs.pair }}
           cache-to: type=gha,scope=${{ steps.slug.outputs.pair }},mode=max
 
@@ -75,6 +79,10 @@ jobs:
       packages: write
 
     steps:
+      - name: Lowercase image name
+        id: lower
+        run: echo "image_name=${IMAGE_NAME,,}" >> $GITHUB_OUTPUT
+
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
@@ -83,10 +91,10 @@ jobs:
           merge-multiple: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -111,16 +119,17 @@ jobs:
         working-directory: /tmp/digests
         shell: bash
         run: |
+          IMAGE="${{ env.REGISTRY }}/${{ steps.lower.outputs.image_name }}"
           TAGS=""
           if [[ "${{ steps.version.outputs.is_tag }}" == "true" ]]; then
-            TAGS="-t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-            TAGS="$TAGS -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.version.outputs.version }}"
-            TAGS="$TAGS -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.version.outputs.minor }}"
+            TAGS="-t ${IMAGE}:latest"
+            TAGS="$TAGS -t ${IMAGE}:v${{ steps.version.outputs.version }}"
+            TAGS="$TAGS -t ${IMAGE}:v${{ steps.version.outputs.minor }}"
           else
-            TAGS="-t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
+            TAGS="-t ${IMAGE}:${{ steps.version.outputs.version }}"
           fi
           docker buildx imagetools create $TAGS \
-            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+            $(printf "${IMAGE}@sha256:%s " *)
 
   cleanup-old-images:
     needs: merge
@@ -134,7 +143,7 @@ jobs:
         with:
           script: |
             const owner = context.repo.owner;
-            const pkg = 'risuai-nodeonly';
+            const pkg = context.repo.repo.toLowerCase();
 
             // 1. Get all package versions
             const versions = await github.paginate(
