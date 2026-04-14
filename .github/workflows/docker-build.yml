@@ -133,7 +133,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const owner = 'mrbart3885';
+            const owner = context.repo.owner;
             const pkg = 'risuai-nodeonly';
 
             // 1. Get all package versions
