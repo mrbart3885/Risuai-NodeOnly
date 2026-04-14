@@ -134,5 +134,5 @@ jobs:
         with:
           package-name: risuai-nodeonly
           package-type: container
-          min-versions-to-keep: 5
+          min-versions-to-keep: 30
           delete-only-untagged-versions: true
