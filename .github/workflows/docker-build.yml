@@ -121,18 +121,3 @@ jobs:
           fi
           docker buildx imagetools create $TAGS \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
-
-  cleanup-old-images:
-    needs: merge
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    steps:
-      - name: Delete old package versions
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: risuai-nodeonly
-          package-type: container
-          min-versions-to-keep: 30
-          delete-only-untagged-versions: true
