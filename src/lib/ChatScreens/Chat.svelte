@@ -178,7 +178,7 @@
     }
 
 
-    let blankMessage = $derived((message === '{{none}}' || message === '{{blank}}' || message === '') && idx === -1 || isComment)
+    let blankMessage = $derived((message === '{{none}}' || message === '{{blank}}' || message === '') && idx === -1 && !altGreeting || isComment)
 
     $effect.pre(() => {
         displaya(message)
