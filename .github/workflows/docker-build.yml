@@ -121,7 +121,11 @@ jobs:
           fi
           docker buildx imagetools create $TAGS \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
-
+      - name: Verify manifest
+        if: steps.version.outputs.is_tag == 'true'
+        run: |
+          docker buildx imagetools inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
   cleanup-old-images:
     needs: merge
     if: startsWith(github.ref, 'refs/tags/v')
