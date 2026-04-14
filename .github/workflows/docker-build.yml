@@ -151,12 +151,13 @@ jobs:
               return;
             }
 
-            // 2. Get ghcr.io auth token (GITHUB_TOKEN for private, anon for public)
+            // 2. Get ghcr.io auth token (Basic auth for private support)
             let token;
             try {
+              const basicAuth = Buffer.from(`${owner}:${process.env.GITHUB_TOKEN}`).toString('base64');
               const tokenResp = await fetch(
                 `https://ghcr.io/token?scope=repository:${owner}/${pkg}:pull`,
-                { headers: { 'Authorization': `Bearer ${process.env.GITHUB_TOKEN}` } }
+                { headers: { 'Authorization': `Basic ${basicAuth}` } }
               );
               if (!tokenResp.ok) throw new Error(`token endpoint returned ${tokenResp.status}`);
               token = (await tokenResp.json()).token;
@@ -168,16 +169,17 @@ jobs:
             // 3. Collect digests referenced by tagged manifest lists
             const referencedDigests = new Set();
             let fetchFailures = 0;
+            const acceptHeader = [
+              'application/vnd.oci.image.index.v1+json',
+              'application/vnd.docker.distribution.manifest.list.v2+json',
+              'application/vnd.oci.image.manifest.v1+json',
+              'application/vnd.docker.distribution.manifest.v2+json'
+            ].join(',');
             for (const v of tagged) {
               try {
                 const resp = await fetch(
                   `https://ghcr.io/v2/${owner}/${pkg}/manifests/${v.name}`,
-                  {
-                    headers: {
-                      'Authorization': `Bearer ${token}`,
-                      'Accept': 'application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json'
-                    }
-                  }
+                  { headers: { 'Authorization': `Bearer ${token}`, 'Accept': acceptHeader } }
                 );
                 if (!resp.ok) {
                   fetchFailures++;
@@ -185,6 +187,7 @@ jobs:
                   continue;
                 }
                 const manifest = await resp.json();
+                // manifest list → collect child digests; single manifest → no children
                 if (manifest.manifests) {
                   for (const m of manifest.manifests) {
                     referencedDigests.add(m.digest);
@@ -197,13 +200,13 @@ jobs:
             }
             core.info(`Referenced digests: ${referencedDigests.size}, fetch failures: ${fetchFailures}`);
 
-            // 4. Safety checks
-            if (referencedDigests.size === 0) {
-              core.error('No referenced digests found — aborting to prevent data loss');
+            // 4. Safety: abort if ANY manifest list fetch failed
+            if (fetchFailures > 0) {
+              core.error(`${fetchFailures} manifest fetch(es) failed — aborting to prevent data loss`);
               return;
             }
-            if (fetchFailures > tagged.length / 2) {
-              core.error(`Too many fetch failures (${fetchFailures}/${tagged.length}) — aborting`);
+            if (referencedDigests.size === 0) {
+              core.info('No multi-platform manifests found — nothing to clean up');
               return;
             }
 
