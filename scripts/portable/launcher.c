@@ -1,9 +1,8 @@
 /*
  * RisuAI NodeOnly — Windows portable launcher
  * Compiled with: gcc -municode -O2 -o RisuAI.exe launcher.c launcher.res -lshell32
+ * Note: -municode already defines UNICODE and _UNICODE
  */
-#define UNICODE
-#define _UNICODE
 #include <windows.h>
 #include <shellapi.h>
 #include <stdio.h>

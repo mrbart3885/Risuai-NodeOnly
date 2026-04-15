@@ -167,7 +167,8 @@ jobs:
             portable/dist/logo_256.png \
             scripts/portable/icon.ico
           cd scripts/portable
-          windres launcher.rc -o launcher.res
+          GCC_DIR="$(dirname "$(which gcc)")"
+          "$GCC_DIR/windres" launcher.rc -O coff -o launcher.res
           gcc -municode -O2 -o ../../portable/RisuAI.exe launcher.c launcher.res -lshell32
           rm -f launcher.res icon.ico
 
