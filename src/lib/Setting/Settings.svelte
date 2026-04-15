@@ -172,6 +172,11 @@
                         <BoxIcon />
                         <span>{language.supporterThanks}</span>
                     </button>
+                    {#if additionalSettingsMenu.length > 0}
+                        <div class="border-t border-selected mt-2 pt-2">
+                            <span class="text-textcolor2 text-xs ml-1">{language.plugin}</span>
+                        </div>
+                    {/if}
                     {#each additionalSettingsMenu as menu}
                         <button class="flex gap-2 items-center hover:text-textcolor text-textcolor2"
                             onclick={() => {
