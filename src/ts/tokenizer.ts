@@ -1,6 +1,6 @@
 import type { Tiktoken } from "@dqbd/tiktoken";
 import type { Tokenizer } from "@mlc-ai/web-tokenizers";
-import { type groupChat, type character, type Chat, getCurrentCharacter, getDatabase } from "./storage/database.svelte";
+import { type character, type Chat, getCurrentCharacter, getDatabase } from "./storage/database.svelte";
 import type { MultiModal, OpenAIChat } from "./process/index.svelte";
 import { supportsInlayImage } from "./process/files/inlays";
 import { risuChatParser } from "./parser/parser.svelte";
@@ -193,9 +193,10 @@ let googleCloudTokenizedCache = new Map<string, number>()
 async function tokenizeGoogleCloud(text:string) {
     const db = getDatabase()
     const model = getModelInfo(db.aiModel)
+    const cacheKey = text + model.internalID
 
-    if(googleCloudTokenizedCache.has(text + model.internalID)){
-        const count = googleCloudTokenizedCache.get(text + model.internalID)
+    if(googleCloudTokenizedCache.has(cacheKey)){
+        const count = googleCloudTokenizedCache.get(cacheKey) ?? 0
         return new Uint32Array(count)
     }
 
@@ -218,7 +219,7 @@ async function tokenizeGoogleCloud(text:string) {
     }
 
     const json = await res.json()
-    googleCloudTokenizedCache.set(text + model.internalID, json.totalTokens as number)
+    googleCloudTokenizedCache.set(cacheKey, json.totalTokens as number)
     const count = json.totalTokens as number
 
     return new Uint32Array(count)
@@ -523,7 +524,7 @@ export async function strongBan(data:string, bias:{[key:number]:number}) {
     return bias
 }
 
-export async function getCharToken(char?:character|groupChat|null){
+export async function getCharToken(char?:character|null){
     let persistant = 0
     let dynamic = 0
 
@@ -531,10 +532,6 @@ export async function getCharToken(char?:character|groupChat|null){
         const c = getCurrentCharacter()
         char = c
     }
-    if(char.type === 'group'){
-        return {persistant:0, dynamic:0}
-    }
-
     const basicTokenize = async (data:string) => {
         data = data.replace(/{{char}}/g, char.name).replace(/<char>/g, char.name)
         return await tokenize(data)

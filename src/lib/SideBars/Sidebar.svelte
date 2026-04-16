@@ -95,7 +95,7 @@
             img:cha.image ?? "",
             index:index,
             type: "normal",
-            name: cha.type === 'group' ? `[Group] ${cha.name}` : cha.name
+            name: cha.name
           });
         }
       }
@@ -110,7 +110,7 @@
               img:cha.image ?? "",
               index:index,
               type: "normal",
-              name: cha.type === 'group' ? `[Group] ${cha.name}` : cha.name
+              name: cha.name
             });
           }
         }
@@ -317,7 +317,6 @@
         db.characterOrder.splice(mainIndex.index, 1)
       }
     }
-    setDatabase(db)
   }
 
   type DragEv = DragEvent & {
@@ -709,7 +708,6 @@
                     }
                     oder.name = v
                     db.characterOrder[ind] = oder
-                    setDatabase(db)
                   }
                 }
                 else if(sel === 1){
@@ -722,7 +720,6 @@
                   }
                   oder.color = colors[sel].toLocaleLowerCase()
                   db.characterOrder[ind] = oder
-                  setDatabase(db)
                 }
                 else if(sel === 2) {
                   const sel = parseInt(await alertSelect(['Reset to Default Image', 'Select Image File']))
@@ -754,7 +751,6 @@
                       oder.imgFile = folderImageData
                       oder.img = await getFileSrc(folderImageData)
                       db.characterOrder[ind] = oder
-                      setDatabase(db)
                       break;
                   }
                 }

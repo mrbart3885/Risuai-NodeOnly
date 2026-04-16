@@ -8,7 +8,7 @@
     import { getRisuHub, hubAdditionalHTML } from "src/ts/characterCards";
     import RisuHubIcon from "./Realm/RealmHubIcon.svelte";
     import Title from "./Title.svelte";
-    import { updateInfoStore } from "src/ts/update";
+    import { updateInfoStore, updatePopupStore } from "src/ts/update";
     import { publicStatsStore } from "src/ts/publicStats";
     const deploymentMarker = 'SHINYACAL-FORK';
 </script>
@@ -25,7 +25,7 @@
             {$updateInfoStore.severity === 'optional'
               ? 'bg-green-900/30 text-green-400 border border-green-800/50 hover:bg-green-900/50'
               : 'bg-red-900/30 text-red-400 border border-red-800/50 hover:bg-red-900/50'}"
-          onclick={() => openURL($updateInfoStore.releaseUrl)}
+          onclick={() => updatePopupStore.set($updateInfoStore)}
         >
           {#if $updateInfoStore.severity === 'outdated'}
             ⚠ {language.updateOutdated.replace('{{version}}', $updateInfoStore.latestVersion)}

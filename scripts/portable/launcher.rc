@@ -1,0 +1,2 @@
+/* Windows resource file — embeds application icon into the .exe */
+1 ICON "icon.ico"

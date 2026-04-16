@@ -29,11 +29,29 @@
     import { alertInput, alertConfirm, alertError, alertNormalWait } from "src/ts/alert";
     import { selectSingleFile } from "src/ts/util";
     import { translateStackTrace } from "../../ts/sourcemap";
+    import versionData from "../../../version.json";
 
     let showDetails = $state(false);
     let translatedStackTrace = $state('');
-    let isTranslated = $state(false);
+    let stackTraceTranslationFailed = $state(false);
     let isTranslating = $state(false);
+    const displayedStackTrace = $derived(translatedStackTrace || $alertStore.stackTrace || '');
+    const risuVersion = versionData.version;
+    const stackTraceCodeBlock = $derived.by(() => {
+        const lines = [`Risu version: ${risuVersion}`]
+
+        if (stackTraceTranslationFailed) {
+            lines.push(language.stackTraceTranslationFailed)
+        } else if (isTranslating) {
+            lines.push(language.translating)
+        }
+
+        if (displayedStackTrace) {
+            lines.push('', displayedStackTrace)
+        }
+
+        return lines.join('\n')
+    });
 
     let btn
     let input = $state('')
@@ -52,6 +70,9 @@
     let togglePresetFilter = $state(false)
     let togglePresetMenuOpen: number | null = $state(null)
     let togglePresetMenuPos: {x: number, y: number} = $state({x: 0, y: 0})
+
+    function closePresets() { togglePresetMenuOpen = null; alertStore.set({ type: 'none', msg: '' }) }
+    function reopenPresets() { togglePresetMenuOpen = null; alertStore.set({ type: 'togglePresets', msg: '' }) }
 
     // Register JSON language for syntax highlighting
     if (!hljs.getLanguage('json')) {
@@ -86,7 +107,7 @@
     $effect.pre(() => {
         showDetails = false;
         translatedStackTrace = '';
-        isTranslated = false;
+        stackTraceTranslationFailed = false;
         isTranslating = false;
         if(btn){
             btn.focus()
@@ -109,33 +130,27 @@
     });
 
     $effect(() => {
-        if (showDetails) {
-            const shouldAutoTranslate = DBState.db.sourcemapTranslate;
-            isTranslated = shouldAutoTranslate;
-            if (shouldAutoTranslate && !translatedStackTrace) {
-                loadTranslatedTrace();
-            }
+        if ($alertStore.type === 'error' && $alertStore.stackTrace && !translatedStackTrace && !stackTraceTranslationFailed && !isTranslating) {
+            void loadTranslatedTrace();
         }
     });
 
     async function loadTranslatedTrace() {
-        if (isTranslating || translatedStackTrace) return;
+        if (isTranslating || translatedStackTrace || stackTraceTranslationFailed || !$alertStore.stackTrace) return;
         isTranslating = true;
         try {
-            translatedStackTrace = await translateStackTrace($alertStore.stackTrace);
+            const result = await translateStackTrace($alertStore.stackTrace);
+            if (result.didTranslate) {
+                translatedStackTrace = result.stackTrace;
+            } else {
+                stackTraceTranslationFailed = true;
+            }
         } catch (e) {
             console.error("Failed to translate stack trace:", e);
-            isTranslated = false;
+            stackTraceTranslationFailed = true;
         } finally {
             isTranslating = false;
         }
-    }
-
-    async function handleToggleTranslate() {
-        if (!isTranslated && !translatedStackTrace) {
-            await loadTranslatedTrace();
-        }
-        isTranslated = !isTranslated;
     }
 
     const beautifyJSON = (data:string) =>{
@@ -221,16 +236,21 @@
                             {/if}
                         </Button>
                         {#if showDetails}
-                            <Button styled="outlined" size="sm" onclick={handleToggleTranslate} disabled={isTranslating} className="ml-2">
-                                {#if isTranslating}
-                                    {language.translating}
-                                {:else if isTranslated}
-                                    {language.showOriginal}
-                                {:else}
-                                    {language.translateCode}
-                                {/if}
-                            </Button>
-                            <pre class="stack-trace">{@html isTranslated ? translatedStackTrace : $alertStore.stackTrace}</pre>
+                            <div class="stack-trace-wrap">
+                                <button
+                                    class="stack-trace-copy"
+                                    onclick={() => copyToClipboard(stackTraceCodeBlock, 'stack-trace')}
+                                    title={language.copy}
+                                    aria-label={language.copy}
+                                >
+                                    {#if copiedKey === 'stack-trace'}
+                                        <CheckIcon size={14} />
+                                    {:else}
+                                        <CopyIcon size={14} />
+                                    {/if}
+                                </button>
+                                <pre class="stack-trace">{stackTraceCodeBlock}</pre>
+                            </div>
                         {/if}
                     </div>
                 {/if}
@@ -340,27 +360,25 @@
             {:else if $alertStore.type === 'selectChar'}
                 <div class="flex w-full items-start flex-wrap gap-2 justify-start">
                     {#each DBState.db.characters as char, i}
-                        {#if char.type !== 'group'}
-                            {#if char.image}
-                                {#await getCharImage(DBState.db.characters[i].image, 'css')}
-                                    <BarIcon onClick={() => {
-                                        alertStore.set({type: 'none',msg: char.chaId})
-                                    }}>
-                                        <User/>
-                                    </BarIcon>
-                                {:then im} 
-                                    <BarIcon onClick={() => {
-                                        alertStore.set({type: 'none',msg: char.chaId})
-                                    }} additionalStyle={im} />
-                                    
-                                {/await}
-                            {:else}
+                        {#if char.image}
+                            {#await getCharImage(DBState.db.characters[i].image, 'css')}
                                 <BarIcon onClick={() => {
                                     alertStore.set({type: 'none',msg: char.chaId})
                                 }}>
-                                <User/>
+                                    <User/>
                                 </BarIcon>
-                            {/if}
+                            {:then im} 
+                                <BarIcon onClick={() => {
+                                    alertStore.set({type: 'none',msg: char.chaId})
+                                }} additionalStyle={im} />
+                                
+                            {/await}
+                        {:else}
+                            <BarIcon onClick={() => {
+                                alertStore.set({type: 'none',msg: char.chaId})
+                            }}>
+                            <User/>
+                            </BarIcon>
                         {/if}
                     {/each}
                 </div>
@@ -630,8 +648,6 @@
     </div>
 
 {:else if $alertStore.type === 'togglePresets'}
-    {@const closePresets = () => { togglePresetMenuOpen = null; alertStore.set({ type: 'none', msg: '' }) }}
-    {@const reopenPresets = () => { togglePresetMenuOpen = null; alertStore.set({ type: 'togglePresets', msg: '' }) }}
     {@const currentPromptPresetName = DBState.db.botPresets[DBState.db.botPresetsId]?.name}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div class="fixed top-0 left-0 h-full w-full bg-black/50 flex flex-col z-50 items-center justify-center" role="button" tabindex="0" onclick={closePresets}>
@@ -734,6 +750,7 @@
                                                     DBState.db.togglePresets![idx].values = snapshotCurrentToggleValues()
                                                     DBState.db.togglePresets![idx].promptPresetName = promptPreset?.name
                                                     DBState.db.togglePresets = [...DBState.db.togglePresets!]
+                                                    await alertNormalWait((language.togglePresetOverwritten as any)(presetName))
                                                 }
                                                 reopenPresets()
                                             }}>
@@ -958,7 +975,7 @@
 {:else if $alertStore.type === 'branches'}
     <div class="absolute w-full h-full z-50 bg-black/80 flex justify-center items-center overflow-x-auto overflow-y-auto">
         {#if branchHover !== null}
-            <div class="z-30 whitespace-pre-wrap p-4 text-textcolor bg-darkbg border-darkborderc border rounded-md absolute text-white" style="top: {branchHover.y * 80 + 24}px; left: {(branchHover.x + 1) * 80 + 24}px">
+            <div class="z-30 whitespace-pre-wrap p-4 text-textcolor bg-darkbg border-darkborderc border rounded-md absolute" style="top: {branchHover.y * 80 + 24}px; left: {(branchHover.x + 1) * 80 + 24}px">
                 {branchHover.content}
             </div>
         {/if}
@@ -1217,19 +1234,44 @@
         --tw-bg-opacity: 1 !important;
     }
 
+    .stack-trace-wrap {
+        position: relative;
+        margin-top: 0.5rem;
+    }
+
     .stack-trace {
         background-color: var(--risu-theme-bgcolor);
         color: var(--risu-theme-textcolor2);
         border: 1px solid var(--risu-theme-darkborderc);
         border-radius: 0.25rem;
-        padding: 0.5rem;
-        margin-top: 0.5rem;
+        padding: 0.75rem 2.75rem 0.75rem 0.75rem;
         font-family: monospace;
         font-size: 0.75rem;
         white-space: pre-wrap;
         word-break: break-all;
         max-height: 200px;
         overflow-y: auto;
+    }
+
+    .stack-trace-copy {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        border: 1px solid var(--risu-theme-darkborderc);
+        border-radius: 0.375rem;
+        background-color: var(--risu-theme-darkbg);
+        color: var(--risu-theme-textcolor2);
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .stack-trace-copy:hover {
+        background-color: var(--risu-theme-bgcolor);
+        color: var(--risu-theme-textcolor);
     }
 
     .request-log-code {

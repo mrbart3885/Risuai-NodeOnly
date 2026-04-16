@@ -24,7 +24,6 @@ export async function selectUserImg() {
         note: db.userNote,
         id: db.personas[db.selectedPersona].id ?? v4()
     }
-    setDatabase(db)
 }
 
 export function saveUserPersona() {
@@ -33,7 +32,6 @@ export function saveUserPersona() {
     db.personas[db.selectedPersona].icon = db.userIcon
     db.personas[db.selectedPersona].personaPrompt = db.personaPrompt
     db.personas[db.selectedPersona].note = db.userNote
-    setDatabase(db)
 }
 
 export function changeUserPersona(id: number, save: 'save' | 'noSave' = 'save') {
@@ -47,7 +45,6 @@ export function changeUserPersona(id: number, save: 'save' | 'noSave' = 'save') 
     db.userIcon = pr.icon
     db.userNote = pr.note
     db.selectedPersona = id
-    setDatabase(db)
 }
 
 interface PersonaCard {
@@ -136,7 +133,6 @@ export async function importUserPersona() {
                 note: data.note,
                 id: v4()
             })
-            setDatabase(db)
             alertNormal(language.successImport)
         } else {
             alertError(language.errors.noData)

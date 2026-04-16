@@ -395,7 +395,7 @@ export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):
         delete body.generation_config.thinkingBudget
     }
 
-    if(systemPrompt === ''){
+    if(systemPrompt.trim() === ''){
         delete body.systemInstruction
     }
 

@@ -1,6 +1,6 @@
 import { get } from "svelte/store";
 import { CharEmotion, selectedCharID } from "../stores.svelte";
-import { type character, type customscript, type groupChat, getDatabase, getCurrentCharacter, getCurrentChat } from "../storage/database.svelte";
+import { type character, type customscript, getDatabase, getCurrentCharacter, getCurrentChat } from "../storage/database.svelte";
 import { downloadFile } from "../globalApi.svelte";
 import { alertError, alertNormal } from "../alert";
 import { language } from "src/lang";
@@ -23,7 +23,7 @@ type pScript = {
     actions: string[]
 }
 
-export async function processScript(char:character|groupChat, data:string, mode:ScriptMode, cbsConditions:CbsConditions = {}){
+export async function processScript(char:character, data:string, mode:ScriptMode, cbsConditions:CbsConditions = {}){
     return (await processScriptFull(char, data, mode, -1, cbsConditions)).data
 }
 
@@ -96,14 +96,14 @@ export function resetScriptCache(){
     processScriptCache = new Map()
 }
 
-export async function processScriptFull(char:character|groupChat|simpleCharacterArgument, data:string, mode:ScriptMode, chatID = -1, cbsConditions:CbsConditions = {}){
+export async function processScriptFull(char:character|simpleCharacterArgument, data:string, mode:ScriptMode, chatID = -1, cbsConditions:CbsConditions = {}){
     let db = getDatabase()
     let emoChanged = false
     data = await runLuaEditTrigger(char, mode, data, { index:chatID })
 
     if(mode === 'editdisplay'){
         const currentChar = getCurrentCharacter()
-        if(currentChar.type !== 'group'){
+        if(currentChar){
             try{
                 const perf = performance.now()
                 const d = await runTrigger(currentChar, 'display', {

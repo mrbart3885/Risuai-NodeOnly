@@ -39,7 +39,7 @@
                 if (!message) return null;
 
                 let speaker = null;
-                if (chara.type === 'group' && message.saying) {
+                if (message.saying) {
                     speaker = findCharacterbyId(message.saying);
                 }
 

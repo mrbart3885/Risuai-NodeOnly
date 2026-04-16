@@ -1,18 +1,18 @@
-import { svelte } from "@sveltejs/vite-plugin-svelte"
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig, mergeConfig } from 'vitest/config'
+import viteConfig from './vite.config'
 
-export default defineConfig({
-  plugins: [
-    svelte(),
-  ],
-  resolve: {
-    alias: {
-      src: '/src',
+const baseConfig =
+  typeof viteConfig === 'function'
+    ? viteConfig({ command: 'serve', mode: 'test' })
+    : viteConfig
+
+export default mergeConfig(
+  baseConfig,
+  defineConfig({
+    test: {
+      environment: 'happy-dom',
+      exclude: [...configDefaults.exclude, 'test/compat/**/*.test.ts'],
+      setupFiles: ['src/ts/polyfill.ts'],
     },
-    conditions: ['browser'],
-  },
-  test: {
-    environment: 'happy-dom',
-    setupFiles: ['vitest.setup.ts'],
-  },
-})
+  })
+)

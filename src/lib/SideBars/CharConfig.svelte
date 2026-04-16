@@ -86,7 +86,6 @@
 
     $effect.pre(() => {
         const chara = DBState.db.characters[$selectedCharID]
-        if(chara.type === 'group') return
         const desc = (chara as character).desc
         const firstMsg = chara.firstMessage
         const localNote = chara.chats[chara.chatPage].note
@@ -221,18 +220,7 @@
 
 </script>
 
-{#if DBState.db.characters[$selectedCharID]?.type === 'group'}
-    <div class="p-4 text-textcolor2 text-center flex flex-col items-center gap-3">
-        <p>Group chat is no longer supported.</p>
-        <p class="text-sm">This group can be safely deleted if no longer needed.</p>
-        <Button styled="danger" size="sm" onclick={() => {
-            removeChar($selectedCharID, DBState.db.characters[$selectedCharID]?.name ?? '')
-        }}>
-            <TrashIcon size={16} />
-            {language.removeCharacter}
-        </Button>
-    </div>
-{:else if licensed !== 'private' && !$MobileGUI}
+{#if licensed !== 'private' && !$MobileGUI}
     <div class="flex mb-2" class:gap-2={iconButtonSize === 24} class:gap-1={iconButtonSize < 24}>
         <button class={$CharConfigSubMenu === 0 ? 'text-textcolor ' : 'text-textcolor2'} onclick={() => {$CharConfigSubMenu = 0}}>
             <UserIcon size={iconButtonSize} />

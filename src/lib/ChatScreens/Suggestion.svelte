@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { requestChatData } from "src/ts/process/request/request";
     import { doingChat, type OpenAIChat } from "../../ts/process/index.svelte";
-    import { setDatabase, type character, type Message, type groupChat, type Database } from "../../ts/storage/database.svelte";
+    import { setDatabase, type character, type Message, type Database } from "../../ts/storage/database.svelte";
 	import { DBState } from 'src/ts/stores.svelte';
     import { selectedCharID } from "../../ts/stores.svelte";
     import { translate } from "src/ts/translator/translator";
@@ -46,7 +46,7 @@
             suggestMessages = []
         }
         if(!v && $selectedCharID > -1 && (!suggestMessages || suggestMessages.length === 0) && !progress){
-            let currentChar:character|groupChat = DBState.db.characters[$selectedCharID];
+            let currentChar:character = DBState.db.characters[$selectedCharID];
             let messages:Message[] = []
             
             messages = [...messages, ...currentChar.chats[currentChar.chatPage].message];
@@ -90,7 +90,6 @@
                     var suggestMessagesNew = rq2.result.split('\n').filter(msg => msg.startsWith('-')).map(msg => msg.replace('-','').trim())
                     const db:Database = DBState.db;
                     db.characters[$selectedCharID].chats[currentChar.chatPage].suggestMessages = suggestMessagesNew
-                    setDatabase(db)
                     suggestMessages = suggestMessagesNew
                 }
                 progress = false

@@ -1,7 +1,7 @@
 <script lang="ts">
 
     import Suggestion from './Suggestion.svelte';
-    import { CameraIcon, DatabaseIcon, GlobeIcon, ImagePlusIcon, LanguagesIcon, Laugh, MenuIcon, MicOffIcon, PackageIcon, Plus, RefreshCcwIcon, ReplyIcon, Send, StepForwardIcon, XIcon, BrainIcon, ArrowDown, SparkleIcon, ZapIcon } from "@lucide/svelte";
+    import { CameraIcon, ChevronUpIcon, ChevronDownIcon, DatabaseIcon, GlobeIcon, ImagePlusIcon, LanguagesIcon, Laugh, MenuIcon, MicOffIcon, PackageIcon, Plus, RefreshCcwIcon, ReplyIcon, Send, StepForwardIcon, XIcon, BrainIcon, ArrowDown, SparkleIcon, ZapIcon } from "@lucide/svelte";
     import { selectedCharID, PlaygroundStore, createSimpleCharacter, hypaV3ModalOpen, ScrollToMessageStore, additionalChatMenu, additionalFloatingActionButtons, easyPanelStore, chatDeselected } from "../../ts/stores.svelte";
     import { tick } from 'svelte';
     import Chat from "./Chat.svelte";
@@ -23,7 +23,6 @@
     import { aiLawApplies, chatFoldedState, chatFoldedStateMessageIndex, downloadFile } from 'src/ts/globalApi.svelte';
     import { runTrigger } from 'src/ts/process/triggers';
     import { v4 } from 'uuid';
-    import { PreUnreroll, Prereroll } from 'src/ts/process/prereroll';
     import { processMultiCommand } from 'src/ts/process/command';
     import { postChatFile } from 'src/ts/process/files/multisend';
     import { getInlayAsset } from 'src/ts/process/files/inlays';
@@ -46,13 +45,12 @@
     let messageInputTranslate:string = $state('')
     let openMenu = $state(false)
     let loadPages = $state(30)
-    let rerolls:Message[][] = []
-    let rerollid = -1
-    let lastCharId = -1
     let doingChatInputTranslate = false
     let toggleStickers:boolean = $state(false)
     let fileInput:string[] = $state([])
     let showNewMessageButton = $state(false)
+    let showScrollNav = $state(false)
+    let scrollNavTimer: ReturnType<typeof setTimeout> | null = null
     let chatsInstance: any = $state()
     let isScrollingToMessage = $state(false)
     let { openModuleList = $bindable(false), openChatList = $bindable(false), customStyle = '' }: Props = $props();
@@ -74,6 +72,56 @@
 
     function scrollToBottom() {
         chatsInstance?.scrollToLatestMessage();
+    }
+
+    function navigateMessage(direction: 'prev' | 'next') {
+        const container = document.querySelector('.default-chat-screen')
+        if (!container) return
+        const messages = Array.from(container.querySelectorAll('[data-chat-index]'))
+            .map(el => ({ el: el as HTMLElement, idx: parseInt(el.getAttribute('data-chat-index')!) }))
+            .sort((a, b) => a.idx - b.idx)
+        if (messages.length === 0) return
+
+        const containerRect = container.getBoundingClientRect()
+        const threshold = 30
+
+        // Find the message currently at the top of the viewport
+        let current = messages[0]
+        for (const msg of messages) {
+            const rect = msg.el.getBoundingClientRect()
+            if (rect.bottom > containerRect.top + threshold) {
+                current = msg
+                break
+            }
+        }
+
+        const currentRect = current.el.getBoundingClientRect()
+
+        if (direction === 'prev') {
+            const topVisible = currentRect.top >= containerRect.top - threshold
+            if (!topVisible) {
+                // Current message top is hidden → scroll to its start
+                current.el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            } else {
+                // Already at top → go to previous message start
+                const prev = messages.find(m => m.idx === current.idx - 1)
+                if (prev) {
+                    prev.el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+            }
+        } else {
+            const bottomVisible = currentRect.bottom <= containerRect.bottom + threshold
+            if (!bottomVisible) {
+                // Current message bottom is hidden → scroll to its end
+                current.el.scrollIntoView({ behavior: 'smooth', block: 'end' })
+            } else {
+                // Already see the end → go to next message start
+                const next = messages.find(m => m.idx === current.idx + 1)
+                if (next) {
+                    next.el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+            }
+        }
     }
     $effect(() => {
         if(ScrollToMessageStore.value !== -1){
@@ -159,10 +207,6 @@
         if($doingChat){
             return
         }
-        if(lastCharId !== $selectedCharID){
-            rerolls = []
-            rerollid = -1
-        }
 
         const activeChat = await ensureActiveChatReady(selectedChar)
         if(!activeChat) return
@@ -185,15 +229,13 @@
         }
 
         if(messageInput === ''){
-            if(DBState.db.characters[selectedChar].type !== 'group'){
-                if(cha.length === 0 || cha[cha.length - 1].role !== 'user'){
-                    if(DBState.db.useSayNothing){
-                        cha.push({
-                            role: 'user',
-                            data: '*says nothing*',
-                            name: null
-                        })
-                    }
+            if(cha.length === 0 || cha[cha.length - 1].role !== 'user'){
+                if(DBState.db.useSayNothing){
+                    cha.push({
+                        role: 'user',
+                        data: '*says nothing*',
+                        name: null
+                    })
                 }
             }
         }
@@ -224,96 +266,106 @@
         messageInput = ''
         messageInputTranslate = ''
         DBState.db.characters[selectedChar].chats[DBState.db.characters[selectedChar].chatPage].message = cha
-        rerolls = []
+
         await sleep(10)
         updateInputSizeAll()
         await sendChatMain(continueResponse)
 
     }
 
+    function getLastCharMsg() {
+        const msgs = DBState.db.characters[$selectedCharID]?.chats[DBState.db.characters[$selectedCharID].chatPage]?.message
+        if (!msgs || msgs.length === 0) return null
+        for (let i = msgs.length - 1; i >= 0; i--) {
+            if (msgs[i].role === 'char' && !msgs[i].isComment && !msgs[i].disabled) return msgs[i]
+        }
+        return null
+    }
+
     async function reroll() {
-        if($doingChat){
-            return
-        }
-        if(lastCharId !== $selectedCharID){
-            rerolls = []
-            rerollid = -1
-        }
-        const genId = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.at(-1)?.generationInfo?.generationId
-        if(genId){
-            const r = Prereroll(genId)
-            if(r){
-                DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].data = r
-                return
-            }
-        }
-        if(rerollid < rerolls.length - 1){
-            if(Array.isArray(rerolls[rerollid + 1])){
-                rerollid += 1
-                let rerollData = safeStructuredClone(rerolls[rerollid])
-                let msgs = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
-                for(let i = 0; i < rerollData.length; i++){
-                    msgs[msgs.length - rerollData.length + i] = rerollData[i]
-                }
-                DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = msgs
-            }
-            return
-        }
-        if(rerolls.length === 0){
-            rerolls.push(safeStructuredClone([DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.at(-1)]))
-            rerollid = rerolls.length - 1
-        }
+        if($doingChat) return
+        const lastMsg = getLastCharMsg()
+        if (!lastMsg) return
+
+        // Save existing swipes before clone replaces the array
+        const savedSwipes = lastMsg.swipes ? [...lastMsg.swipes] : [lastMsg.data]
+
+        // Generate new response
+        // Preserve trailing comment/disabled messages (e.g. branch comments)
         let cha = safeStructuredClone(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message)
-        if(cha.length === 0 ){
-            return
-        }
+        if(cha.length === 0) return
         openMenu = false
+
+        const trailingComments = []
+        while(cha.length > 0 && (cha[cha.length - 1].isComment || cha[cha.length - 1].disabled)) {
+            trailingComments.unshift(cha.pop())
+        }
+
+        if(cha.length === 0) return
         const saying = cha[cha.length - 1].saying
         let sayingQu = 2
         while(cha[cha.length - 1].role !== 'user'){
             if(cha[cha.length - 1].saying === saying){
                 sayingQu -= 1
-                if(sayingQu === 0){
-                    break
-                }
+                if(sayingQu === 0) break
             }
             let msg = cha.pop()
-            if(!msg){
-                return
-            }
+            if(!msg) return
         }
         DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = cha
         await sendChatMain()
+
+        // Restore trailing comments after the new message
+        if (trailingComments.length > 0) {
+            const msgs = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
+            msgs.push(...trailingComments)
+            DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = msgs
+        }
+
+        // Save new response to swipes
+        const newLastMsg = getLastCharMsg()
+        if (newLastMsg && !newLastMsg.swipes) {
+            newLastMsg.swipes = [...savedSwipes, newLastMsg.data]
+            newLastMsg.swipeId = newLastMsg.swipes.length - 1
+        }
     }
 
     async function unReroll() {
-        if($doingChat){
-            return
+        if($doingChat) return
+        const lastMsg = getLastCharMsg()
+        if (!lastMsg || !lastMsg.swipes || lastMsg.swipeId === undefined) return
+
+        lastMsg.swipeId = lastMsg.swipeId <= 0 ? lastMsg.swipes.length - 1 : lastMsg.swipeId - 1
+        lastMsg.data = lastMsg.swipes[lastMsg.swipeId]
+        DBState.db.characters[$selectedCharID].reloadKeys += 1
+    }
+
+    function nextSwipe() {
+        const lastMsg = getLastCharMsg()
+        if (!lastMsg || !lastMsg.swipes || lastMsg.swipeId === undefined) return
+
+        lastMsg.swipeId = lastMsg.swipeId >= lastMsg.swipes.length - 1 ? 0 : lastMsg.swipeId + 1
+        lastMsg.data = lastMsg.swipes[lastMsg.swipeId]
+        DBState.db.characters[$selectedCharID].reloadKeys += 1
+    }
+
+    function deleteSwipe() {
+        const lastMsg = getLastCharMsg()
+        if (!lastMsg || !lastMsg.swipes || lastMsg.swipes.length <= 1) return
+
+        const idx = lastMsg.swipeId ?? 0
+        lastMsg.swipes.splice(idx, 1)
+
+        if (idx >= lastMsg.swipes.length) {
+            lastMsg.swipeId = lastMsg.swipes.length - 1
         }
-        if(lastCharId !== $selectedCharID){
-            rerolls = []
-            rerollid = -1
+        lastMsg.data = lastMsg.swipes[lastMsg.swipeId]
+
+        if (lastMsg.swipes.length === 1) {
+            delete lastMsg.swipes
+            delete lastMsg.swipeId
         }
-        const genId = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.at(-1)?.generationInfo?.generationId
-        if(genId){
-            const r = PreUnreroll(genId)
-            if(r){
-                DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].data = r
-                return
-            }
-        }
-        if(rerollid <= 0){
-            return
-        }
-        if(Array.isArray(rerolls[rerollid - 1])){
-            rerollid -= 1
-            let rerollData = safeStructuredClone(rerolls[rerollid])
-            let msgs = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message
-            for(let i = 0; i < rerollData.length; i++){
-                msgs[msgs.length - rerollData.length + i] = rerollData[i]
-            }
-            DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message = msgs
-        }
+        DBState.db.characters[$selectedCharID].reloadKeys += 1
     }
 
     let abortController:null|AbortController = null
@@ -328,15 +380,10 @@
                 signal:abortController.signal,
                 continue:continued
             })
-            if(previousLength < DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length){
-                rerolls.push(safeStructuredClone(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message).slice(previousLength))
-                rerollid = rerolls.length - 1
-            }
         } catch (error) {
             console.error(error)
             alertError(error)
         }
-        lastCharId = $selectedCharID
         $doingChat = false
         if(DBState.db.playMessage){
             const audio = new Audio(sendSound);
@@ -535,6 +582,28 @@
     openMenu = false
 }}>
     
+    {#if DBState.db.useNodeOnlyScrollButton && currentChat.length > 0}
+        <div
+            class="absolute right-3 bottom-16 z-40 flex flex-col rounded-lg bg-bgcolor/70 backdrop-blur-sm border border-darkborderc border-opacity-30 shadow-lg overflow-hidden transition-opacity duration-300"
+            class:opacity-0={!showScrollNav}
+            class:pointer-events-none={!showScrollNav}
+        >
+            <button
+                class="w-9 h-9 text-textcolor2 hover:text-textcolor hover:bg-darkbg/50 flex items-center justify-center transition-colors"
+                onclick={() => { showScrollNav = true; if (scrollNavTimer) clearTimeout(scrollNavTimer); scrollNavTimer = setTimeout(() => { showScrollNav = false }, 1500); navigateMessage('prev') }}
+            >
+                <ChevronUpIcon size={18} />
+            </button>
+            <div class="border-t border-darkborderc border-opacity-30"></div>
+            <button
+                class="w-9 h-9 text-textcolor2 hover:text-textcolor hover:bg-darkbg/50 flex items-center justify-center transition-colors"
+                onclick={() => { showScrollNav = true; if (scrollNavTimer) clearTimeout(scrollNavTimer); scrollNavTimer = setTimeout(() => { showScrollNav = false }, 1500); navigateMessage('next') }}
+            >
+                <ChevronDownIcon size={18} />
+            </button>
+        </div>
+    {/if}
+
     {#if showNewMessageButton}
         {#if (DBState.db.newMessageButtonStyle === 'bottom-center' || !DBState.db.newMessageButtonStyle)}
             <button class="absolute bottom-16 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2 hover:bg-blue-600 transition-colors" onclick={scrollToBottom}>
@@ -606,7 +675,12 @@
             <span>{language.selectChatToView}</span>
         </div>
     {:else}
-        <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen" onscroll={(e) => {
+        <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen" class:nodeonly-standard={DBState.db.theme === ''} onscroll={(e) => {
+            if (DBState.db.useNodeOnlyScrollButton) {
+                showScrollNav = true
+                if (scrollNavTimer) clearTimeout(scrollNavTimer)
+                scrollNavTimer = setTimeout(() => { showScrollNav = false }, 1500)
+            }
             //@ts-expect-error scrollHeight/clientHeight/scrollTop don't exist on EventTarget, but target is HTMLElement here
             const scrolled = (e.target.scrollHeight - e.target.clientHeight + e.target.scrollTop)
             if(scrolled < 100 && currentChat.length > loadPages){
@@ -624,7 +698,7 @@
                     class="{DBState.db.fixedChatTextarea ? 'sticky pt-2 pb-2 right-0 bottom-0 bg-bgcolor' : 'mt-2 mb-2'} flex items-stretch w-full"
                     style="{DBState.db.fixedChatTextarea ? 'z-index:29;' : ''}"
             >
-                {#if DBState.db.useChatSticker && currentCharacter.type !== 'group'}
+                {#if DBState.db.useChatSticker}
                     <div onclick={()=>{toggleStickers = !toggleStickers}}
                          class={"ml-4 bg-textcolor2 flex justify-center items-center  w-12 h-12 rounded-md hover:bg-blue-500 transition-colors "+(toggleStickers ? 'text-green-500':'text-textcolor')}>
                         <Laugh/>
@@ -844,6 +918,8 @@
                 messages={currentChat}
                 loadPages={loadPages}
                 onReroll={reroll}
+                onNextSwipe={nextSwipe}
+                onDeleteSwipe={deleteSwipe}
                 unReroll={unReroll}
                 currentCharacter={currentCharacter}
                 currentUsername={currentUsername}
@@ -853,63 +929,54 @@
             />
 
             {#if currentChat.length <= loadPages}
-                {#if DBState.db.characters[$selectedCharID].type !== 'group' }
-                    <Chat
-                        character={createSimpleCharacter(DBState.db.characters[$selectedCharID])}
-                        name={DBState.db.characters[$selectedCharID].name}
-                        message={currentChatFmIndex === -1 ? DBState.db.characters[$selectedCharID].firstMessage :
-                            DBState.db.characters[$selectedCharID].alternateGreetings[currentChatFmIndex]}
-                        role='char'
-                        img={getCharImage(DBState.db.characters[$selectedCharID].image, 'css')}
-                        idx={-1}
-                        altGreeting={DBState.db.characters[$selectedCharID].alternateGreetings.length > 0}
-                        largePortrait={DBState.db.characters[$selectedCharID].largePortrait}
-                        firstMessage={true}
-                        onReroll={() => {
-                            const cha = DBState.db.characters[$selectedCharID]
-                            const chat = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage]
-                            if(cha.type !== 'group'){
-                                if (chat.fmIndex >= (cha.alternateGreetings.length - 1)){
-                                    chat.fmIndex = -1
-                                }
-                                else{
-                                    chat.fmIndex += 1
-                                }
-                            }
-                            DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage] = chat
-                        }}
-                        unReroll={() => {
-                            const cha = DBState.db.characters[$selectedCharID]
-                            const chat = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage]
-                            if(cha.type !== 'group'){
-                                if (chat.fmIndex === -1){
-                                    chat.fmIndex = (cha.alternateGreetings.length - 1)
-                                }
-                                else{
-                                    chat.fmIndex -= 1
-                                }
-                            }
-                            DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage] = chat
-                        }}
-                        isLastMemory={false}
-                        currentPage={(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex ?? -1) + 2}
-                        totalPages={DBState.db.characters[$selectedCharID].alternateGreetings.length + 1}
-
-                    />
-                    {#if (aiLawApplies() && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length === 0)}
-                        <div class="ml-auto mr-auto mt-4 text-textcolor2 italic max-w-2/3 wrap-break-word text-center">
-                            {language.aiGenerationWarning}
-                        </div>
-                    {/if}
-                    {#if !DBState.db.characters[$selectedCharID].removedQuotes && DBState.db.characters[$selectedCharID].creatorNotes.length >= 2}
-                        <CreatorQuote quote={DBState.db.characters[$selectedCharID].creatorNotes} onRemove={() => {
-                            const cha = DBState.db.characters[$selectedCharID]
-                            if(cha.type !== 'group'){
-                                cha.removedQuotes = true
-                            }
-                            DBState.db.characters[$selectedCharID] = cha
-                        }} />
-                    {/if}
+                <Chat
+                    character={createSimpleCharacter(DBState.db.characters[$selectedCharID])}
+                    name={DBState.db.characters[$selectedCharID].name}
+                    message={currentChatFmIndex === -1 ? DBState.db.characters[$selectedCharID].firstMessage :
+                        DBState.db.characters[$selectedCharID].alternateGreetings[currentChatFmIndex]}
+                    role='char'
+                    img={getCharImage(DBState.db.characters[$selectedCharID].image, 'css')}
+                    idx={-1}
+                    altGreeting={DBState.db.characters[$selectedCharID].alternateGreetings.length > 0 && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length === 0}
+                    largePortrait={DBState.db.characters[$selectedCharID].largePortrait}
+                    firstMessage={true}
+                    onReroll={() => {
+                        const cha = DBState.db.characters[$selectedCharID]
+                        const chat = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage]
+                        if (chat.fmIndex >= (cha.alternateGreetings.length - 1)){
+                            chat.fmIndex = -1
+                        }
+                        else{
+                            chat.fmIndex += 1
+                        }
+                        DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage] = chat
+                    }}
+                    unReroll={() => {
+                        const cha = DBState.db.characters[$selectedCharID]
+                        const chat = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage]
+                        if (chat.fmIndex === -1){
+                            chat.fmIndex = (cha.alternateGreetings.length - 1)
+                        }
+                        else{
+                            chat.fmIndex -= 1
+                        }
+                        DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage] = chat
+                    }}
+                    isLastMemory={false}
+                    currentPage={(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex ?? -1) + 2}
+                    totalPages={DBState.db.characters[$selectedCharID].alternateGreetings.length + 1}
+                />
+                {#if (aiLawApplies() && DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length === 0)}
+                    <div class="ml-auto mr-auto mt-4 text-textcolor2 italic max-w-2/3 wrap-break-word text-center">
+                        {language.aiGenerationWarning}
+                    </div>
+                {/if}
+                {#if !DBState.db.characters[$selectedCharID].removedQuotes && DBState.db.characters[$selectedCharID].creatorNotes.length >= 2}
+                    <CreatorQuote quote={DBState.db.characters[$selectedCharID].creatorNotes} onRemove={() => {
+                        const cha = DBState.db.characters[$selectedCharID]
+                        cha.removedQuotes = true
+                        DBState.db.characters[$selectedCharID] = cha
+                    }} />
                 {/if}
             {/if}
 

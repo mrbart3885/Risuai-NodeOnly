@@ -1,6 +1,6 @@
 import DOMPurify from 'dompurify';
 import markdownit from 'markdown-it'
-import { appVer, getCurrentCharacter, getDatabase, type Database, type character, type customscript, type groupChat, type triggerscript } from '../storage/database.svelte';
+import { appVer, getCurrentCharacter, getDatabase, type Database, type character, type customscript, type triggerscript } from '../storage/database.svelte';
 import { DBState, selIdState } from '../stores.svelte';
 import { aiWatermarkingLawApplies, getFileSrc } from '../globalApi.svelte';
 import { isNodeServer } from "src/ts/platform"
@@ -463,8 +463,8 @@ export function resetAssetsCache(charAssets: string[][], emoAssets: string[][], 
 
 $effect.root(() => {
     $effect(() => {
-        const charId = selIdState.selId
-        const char = DBState.db.characters?.[charId]
+        const charId = selIdState?.selId
+        const char = charId == null ? null : DBState?.db?.characters?.[charId]
         if (!char || char.type !== 'character') {
             return
         }
@@ -901,7 +901,7 @@ function parseThoughtsAndTools(data:string){
 
 export async function ParseMarkdown(
     data:string,
-    charArg:(character|simpleCharacterArgument | groupChat | string) = null,
+    charArg:(character|simpleCharacterArgument | string) = null,
     mode:'normal'|'back'|'pretranslate'|'notrim' = 'normal',
     chatID=-1,
     cbsConditions:CbsConditions = {}
@@ -910,7 +910,7 @@ export async function ParseMarkdown(
     const additionalAssetMode = (mode === 'back') ? 'back' : 'normal'
     let char = (typeof(charArg) === 'string') ? (findCharacterbyId(charArg)) : (charArg)
 
-    if(char && char.type !== 'group'){
+    if(char){
         data = await parseAdditionalAssets(data, char, additionalAssetMode, {
             ch: chatID
         })
@@ -921,7 +921,7 @@ export async function ParseMarkdown(
         data = (await processScriptFull(char, data, 'editdisplay', chatID, cbsConditions)).data
     }
 
-    if(firstParsed !== data && char && char.type !== 'group'){
+    if(firstParsed !== data && char){
         data = await parseAdditionalAssets(data, char, additionalAssetMode, {
             ch: chatID
         })
@@ -974,17 +974,20 @@ const metaCodes = [
     '\u180E', //mongolian vowel separator
 ]
 
-export function addMetadataToElement(data:string, modelShortName:string){
-    if(!aiWatermarkingLawApplies()){
-        return data
-    }
+const encodedMetadataCache = new Map<string, string>()
 
-    let metadata = '{' + [
+function encodeMetadata(modelShortName:string){
+    const metadata = '{' + [
         'risuai',
         modelShortName.toLocaleLowerCase().replace(/[^a-z]/g, ''),
     ].join('|') + '}'
-    let encodedMetaCode = ''
 
+    const cached = encodedMetadataCache.get(metadata)
+    if(cached !== undefined){
+        return cached
+    }
+
+    let encodedMetaCode = ''
     for(let i=0;i<metadata.length;i++){
         let byte = (metadata.charCodeAt(i) - 97).toString(6).padStart(2,'0')
         for(let j=0;j<byte.length;j++){
@@ -1017,6 +1020,16 @@ export function addMetadataToElement(data:string, modelShortName:string){
         }
     }
 
+    encodedMetadataCache.set(metadata, encodedMetaCode)
+    return encodedMetaCode
+}
+
+export function addMetadataToElement(data:string, modelShortName:string){
+    if(!aiWatermarkingLawApplies()){
+        return data
+    }
+
+    const encodedMetaCode = encodeMetadata(modelShortName)
     console.log('Encoded metadata:', encodedMetaCode.length, 'characters')
     console.log('This requires at least', Math.ceil(encodedMetaCode.length / 32), '<p> tags to store')
 
@@ -1691,7 +1704,7 @@ function blockEndMatcher(p1:string,type:{type:blockMatch,type2?:string,mode?:str
 export function risuChatParser(da:string, arg:{
     chatID?:number
     db?:Database
-    chara?:string|character|groupChat
+    chara?:string|character
     rmVar?:boolean,
     var?:{[key:string]:string}
     tokenizeAccurate?:boolean
@@ -1710,20 +1723,7 @@ export function risuChatParser(da:string, arg:{
     let chara:character|string = null
 
     if(aChara){
-        if(typeof(aChara) !== 'string' && aChara.type === 'group'){
-            if(aChara.chats[aChara.chatPage].message.length > 0){
-                const gc = findCharacterbyId(aChara.chats[aChara.chatPage].message.at(-1).saying ?? '')
-                if(gc.name !== 'Unknown Character'){
-                    chara = gc
-                }
-            }
-            else{
-                chara = 'bot'
-            }
-        }
-        else{
-            chara = aChara
-        }
+        chara = aChara
     }
     if(arg.tokenizeAccurate){
         const db = arg.db ?? DBState.db

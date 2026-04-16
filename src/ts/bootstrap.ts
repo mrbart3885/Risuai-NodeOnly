@@ -31,6 +31,7 @@ import {
 import { registerModelDynamic } from "./model/modellist";
 import { isNodeServer } from "./platform";
 import { convertStubsToPlaceholders } from "./storage/chatStorage";
+import { isChatStub, purgeUnsupportedGroupChats } from "./storage/database.svelte";
 
 /**
  * Loads the application data.
@@ -256,6 +257,11 @@ async function checkNewFormat(): Promise<void> {
         return v !== null;
     });
 
+    const removedGroupChats = purgeUnsupportedGroupChats(db)
+    if (removedGroupChats > 0) {
+        console.warn(`[bootstrap] Removed ${removedGroupChats} unsupported group chat entr${removedGroupChats === 1 ? 'y' : 'ies'} from database`)
+    }
+
     db.modules = await Promise.all((db.modules ?? []).map(async (v) => {
         if (v?.lorebook) {
             if (!Array.isArray(v.lorebook)) {
@@ -396,7 +402,7 @@ async function checkNewFormat(): Promise<void> {
     setDatabase(db);
     checkCharOrder();
     for (const expiredCharacter of expiredCharacters) {
-        await removeUnusedCharacterAssets(expiredCharacter, getDatabase())
+        await removeUnusedCharacterAssets(expiredCharacter, db)
     }
 }
 

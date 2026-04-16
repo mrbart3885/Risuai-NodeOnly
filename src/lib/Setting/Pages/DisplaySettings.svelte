@@ -52,7 +52,8 @@
     <Button onclick={() => {$openThemePresetList = true}} className="mt-4">{language.themePresets}</Button>
     <span class="text-textcolor mt-4">{language.theme}</span>
     <SelectInput className="mt-2" bind:value={DBState.db.theme}>
-        <OptionInput value="" >Standard Risu</OptionInput>
+        <OptionInput value="" >NodeOnly Standard</OptionInput>
+        <OptionInput value="standardRisu" >Standard Risu</OptionInput>
         <OptionInput value="waifu" >Waifulike</OptionInput>
         <!-- <OptionInput value="waifuMobile" >WaifuCut</OptionInput> -->
         <OptionInput value="mobilechat" >Mobile Chat</OptionInput>
@@ -253,16 +254,17 @@
     </div>
 
     <div class="flex items-center mt-2">
-        <Check bind:check={DBState.db.showFirstMessagePages} name={language.showFirstMessagePages}/>
-    </div>
-
-    <div class="flex items-center mt-2">
         <Check bind:check={DBState.db.hideRealm} name={language.hideRealm}/>
     </div>
 
     <div class="flex items-center mt-2">
         <Check bind:check={DBState.db.hideAllImages} name={language.hideAllImages}/>
         <Help key="hideAllImagesDesc"/>
+    </div>
+
+    <div class="flex items-center mt-2">
+        <Check bind:check={DBState.db.hideMessagePageCount} name={language.hideMessagePageCount}/>
+        <Help key="hideMessagePageCountDesc"/>
     </div>
 
     <div class="flex items-center mt-2">

@@ -41,11 +41,13 @@
         img?: string|Promise<string>;
         idx?: number;
         messageGenerationInfo?: MessageGenerationInfo|null;
-        rerollIcon?: boolean|'dynamic';
+        rerollIcon?: boolean|'dynamic'|'force';
         role?: string;
         totalLength?: number;
         onReroll?: () => void;
+        onNextSwipe?: () => void;
         unReroll?: () => void;
+        onDeleteSwipe?: () => void;
         character?: simpleCharacterArgument|string|null;
         firstMessage?: boolean;
         altGreeting?: boolean;
@@ -67,7 +69,9 @@
         role = null,
         totalLength = 0,
         onReroll = () => {},
+        onNextSwipe = () => {},
         unReroll = () => {},
+        onDeleteSwipe = () => {},
         character = null,
         firstMessage = false,
         altGreeting = false,
@@ -174,7 +178,7 @@
     }
 
 
-    let blankMessage = $derived((message === '{{none}}' || message === '{{blank}}' || message === '') && idx === -1 || isComment)
+    let blankMessage = $derived((message === '{{none}}' || message === '{{blank}}' || message === '') && idx === -1 && !altGreeting || isComment)
 
     $effect.pre(() => {
         displaya(message)
@@ -205,7 +209,7 @@
 
     async function handleButtonTriggerWithin(event: UIEvent) {
         const currentChar = getCurrentCharacter()
-        if(!currentChar || currentChar.type === 'group'){
+        if(!currentChar){
             return
         }
 
@@ -321,8 +325,8 @@
                     }}
             >
                 <BotIcon size={20} />
-                <span class="ml-1">
-                    {capitalize(getModelInfo(messageGenerationInfo.model).shortName)}
+                <span class="ml-1 max-w-[288px] truncate">
+                    {capitalize(getModelInfo(messageGenerationInfo.model).shortName.replace(/^pluginmodel:::/, ''))}
                 </span>
             </button>
         {/if}
@@ -399,7 +403,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span class="text chat-width chattext prose minw-0"
-            class:prose-invert={$ColorSchemeTypeStore}
+            class:prose-invert={$ColorSchemeTypeStore === 'dark'}
             bind:this={bodyRoot}
             onclick={() => {
             if(DBState.db.clickToEdit && idx > -1){
@@ -453,7 +457,7 @@
             </button>
         {:else}
             <span class="text-xs">{statusMessage}</span>
-            <div class="flex items-center ml-2 gap-2">
+            <div class="flex items-center ml-2 gap-2 flex-wrap justify-end">
                 {@render translationButton()}
                 {#if window.innerWidth >= 640}
                     {@render majorIconButtonsBody(false)}
@@ -472,8 +476,9 @@
                         {@render majorIconButtonsBody(false)}
                     {/if}
                 {/if}
-                {@render rerolls()}
-
+                <div class="flex items-center gap-1">
+                    {@render rerolls()}
+                </div>
             </div>
         {/if}
     </div>
@@ -712,7 +717,7 @@
     </button>    
 {/if}
 {#if idx > -1}
-    {#if DBState.db.characters[selIdState.selId].type !== 'group' && DBState.db.characters[selIdState.selId].ttsMode !== 'none' && (DBState.db.characters[selIdState.selId].ttsMode)}
+    {#if DBState.db.characters[selIdState.selId].ttsMode !== 'none' && (DBState.db.characters[selIdState.selId].ttsMode)}
         <button class="flex items-center hover:text-blue-500 transition-colors button-icon-tts" onclick={()=>{
             return sayTTS(null, message)
         }}>
@@ -763,19 +768,44 @@
 {/snippet}
 
 {#snippet rerolls()}
-    {#if rerollIcon || altGreeting}
-        {#if DBState.db.swipe || altGreeting}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-unreroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={unReroll}>
+    {#if (rerollIcon || altGreeting) && role !== 'user'}
+        {#if altGreeting}
+            <!-- First message: ← counter → -->
+            <button class="flex items-center shrink-0 hover:text-blue-500 transition-colors button-icon-unreroll" onclick={unReroll}>
                 <ArrowLeft size={22}/>
             </button>
-            {#if firstMessage && DBState.db.swipe && DBState.db.showFirstMessagePages}
-                <span class="flex items-center text-xs text-textcolor2">{currentPage}/{totalPages}</span>
+            {#if !DBState.db.hideMessagePageCount}
+                <span class="flex items-center text-xs text-textcolor2 shrink overflow-hidden whitespace-nowrap min-w-0">{currentPage}/{totalPages}</span>
             {/if}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={onReroll}>
+            <button class="flex items-center shrink-0 hover:text-blue-500 transition-colors button-icon-reroll" onclick={onReroll}>
                 <ArrowRight size={22}/>
             </button>
         {:else}
-            <button class="flex items-center hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic'} onclick={onReroll}>
+            <!-- Normal messages: ← counter → ↻ -->
+            <button class="flex items-center shrink-0 hover:text-blue-500 transition-colors button-icon-unreroll" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'} onclick={async () => {
+                if (totalPages <= 1) {
+                    if (await alertConfirm(language.noSwipesRerollConfirm)) onReroll()
+                } else {
+                    unReroll()
+                }
+            }}>
+                <ArrowLeft size={22}/>
+            </button>
+            {#if !DBState.db.hideMessagePageCount}
+                <span class="flex items-center text-xs text-textcolor2 shrink overflow-hidden whitespace-nowrap min-w-0" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'}>{currentPage}/{totalPages}</span>
+            {/if}
+            <button class="flex items-center shrink-0 hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'} onclick={async () => {
+                if (totalPages <= 1) {
+                    if (await alertConfirm(language.noSwipesRerollConfirm)) onReroll()
+                } else {
+                    onNextSwipe()
+                }
+            }}>
+                <ArrowRight size={22}/>
+            </button>
+            <button class="flex items-center shrink-0 hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'} onclick={async () => {
+                if (await alertConfirm(language.rerollConfirm)) onReroll()
+            }}>
                 <RefreshCcwIcon size={20}/>
             </button>
         {/if}
@@ -796,10 +826,24 @@
         </button>
     {/if}
 
+    {#if totalPages > 1}
+        <button class="flex items-center hover:text-red-500 transition-colors" onclick={async () => {
+            await sleep(1)
+            if(await alertConfirm(language.deleteRerollMessageConfirm)){
+                onDeleteSwipe()
+            }
+        }}>
+            <TrashIcon size={20}/>
+            {#if showNames}
+                <span class="ml-1">{language.deleteRerollMessage}</span>
+            {/if}
+        </button>
+    {/if}
+
     <button class="flex items-center hover:text-blue-500 transition-colors" onclick={async () => {
         await sleep(1)
         const currentChat = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage]
-        
+
         if(DBState.db.createFolderOnBranch && !currentChat.folderId){
             const folderId = v4()
             DBState.db.characters[selIdState.selId].chatFolders ??= []
@@ -1028,6 +1072,53 @@
 {#if disabled === true}
 <div class="w-full border-t-2 border-dashed border-blue-500"></div>
 {/if}
+{#if DBState.db.theme === ''}
+<!-- NodeOnly Standard: 전용 외부 구조 -->
+<div class="flex max-w-full justify-center risu-chat"
+     data-chat-index={idx}
+     data-chat-id={DBState.db.characters?.[selIdState.selId]?.chats?.[DBState.db.characters?.[selIdState.selId]?.chatPage]?.message?.[idx]?.chatId ?? ''}
+     style={isLastMemory ? `border-top:${DBState.db.memoryLimitThickness}px solid rgba(98, 114, 164, 0.7);` : ''}
+     onclickcapture={handleButtonTriggerWithin}>
+    <div class="text-textcolor grow max-w-full sm:px-4 py-4">
+        {#if !blankMessage}
+            <div class="flex flex-col w-full min-w-0 max-w-3xl mx-auto py-6 px-4 sm:px-8 bg-bgcolor sm:rounded-lg">
+                <!-- Header: icon + name -->
+                <div class="flex items-center gap-3 mb-4">
+                    {@render senderIcon({rounded: DBState.db.roundIcons})}
+                    {#if DBState.db.characters[selIdState.selId]?.chaId === "§playground" && DBState.db.characters[selIdState.selId]?.chats?.[DBState.db.characters[selIdState.selId]?.chatPage]?.message?.[idx]}
+                        <span class="text-lg sm:text-xl text-textcolor flex items-center">
+                            <span>{DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].role === 'char' ? 'Assistant' : 'User'}</span>
+                            <button class="ml-2 text-textcolor2 hover:text-textcolor" onclick={() => {
+                                DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].role = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].role === 'char' ? 'user' : 'char'
+                                ReloadChatPointer.update((v) => {
+                                    v[idx] = (v[idx] ?? 0) + 1
+                                    return v
+                                })
+                            }}><ArrowLeftRightIcon size="18" /></button>
+                        </span>
+                    {:else if !$HideIconStore}
+                        <span class="text-lg sm:text-xl text-textcolor">{name}</span>
+                    {/if}
+                </div>
+                <!-- Body: message text -->
+                <div class="mb-3 leading-relaxed">
+                    {@render textBox()}
+                </div>
+                <!-- Footer: geninfo + buttons -->
+                <div class="flex flex-wrap items-center justify-between pt-2 border-t border-darkborderc border-opacity-30 text-textcolor2 gap-2">
+                    <div class="min-w-0">
+                        {@render genInfo()}
+                    </div>
+                    <div class="w-full sm:w-auto ml-auto">
+                        {@render iconButtons()}
+                    </div>
+                </div>
+            </div>
+        {/if}
+    </div>
+</div>
+{:else}
+<!-- 기존 테마: 공유 외부 구조 -->
 <div class="flex max-w-full justify-center risu-chat"
      data-chat-index={idx}
      data-chat-id={DBState.db.characters?.[selIdState.selId]?.chats?.[DBState.db.characters?.[selIdState.selId]?.chatPage]?.message?.[idx]?.chatId ?? ''}
@@ -1088,6 +1179,31 @@
             </div>
         {:else if DBState.db.theme === 'customHTML' && !blankMessage}
             {@render renderGuiHtmlPart(RenderGUIHtml(DBState.db.guiHTML))}
+        {:else if DBState.db.theme === 'standardRisu' && !blankMessage}
+            {@render senderIcon({rounded: DBState.db.roundIcons})}
+            <span class="flex flex-col ml-4 w-full max-w-full min-w-0 text-black">
+                <div class="flexium items-center chat-width">
+                    {#if DBState.db.characters[selIdState.selId]?.chaId === "§playground" && !blankMessage && DBState.db.characters[selIdState.selId]?.chats?.[DBState.db.characters[selIdState.selId]?.chatPage]?.message?.[idx]}
+                        <span class="chat-width text-xl border-darkborderc flex items-center text-textcolor">
+                            <span>{DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].role === 'char' ? 'Assistant' : 'User'}</span>
+                            <button class="ml-2 text-textcolor2 hover:text-textcolor" onclick={() => {
+                                DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].role = DBState.db.characters[selIdState.selId].chats[DBState.db.characters[selIdState.selId].chatPage].message[idx].role === 'char' ? 'user' : 'char'
+                                ReloadChatPointer.update((v) => {
+                                    v[idx] = (v[idx] ?? 0) + 1
+                                    return v
+                                })
+                            }}><ArrowLeftRightIcon size="18" /></button>
+                        </span>
+                    {:else if !blankMessage && !$HideIconStore}
+                        <div class="chat-width text-xl unmargin text-textcolor flex items-center">
+                            <span>{name}</span>
+                        </div>
+                    {/if}
+                    {@render iconButtons()}
+                </div>
+                {@render genInfo()}
+                {@render textBox()}
+            </span>
         {:else}
             {@render senderIcon({rounded: DBState.db.roundIcons})}
             <span class="flex flex-col ml-4 w-full max-w-full min-w-0 text-black">
@@ -1116,6 +1232,7 @@
         {/if}
     </div>
 </div>
+{/if}
 
 {#if disabled}
 <div class={{

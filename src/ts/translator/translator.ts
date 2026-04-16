@@ -1,6 +1,11 @@
 import { get } from "svelte/store"
 import { parseChatML } from "../parser/chatML";
-import { getDatabase, type character, type customscript, type groupChat } from "../storage/database.svelte"
+import { getDatabase, type character, type customscript } from "../storage/database.svelte"
+import {
+    defaultTranslatorPrompt,
+    getCurrentTranslatorPresetFromState,
+    type TranslatorPreset,
+} from "./presets";
 import { globalFetch } from "../globalApi.svelte"
 import { alertError } from "../alert"
 import { requestChatData } from "../process/request/request"
@@ -42,6 +47,10 @@ async function setPersistentLLMCache(text: string, value: string) {
 }
 
 let waitTrans = 0
+
+export function getCurrentTranslatorPreset(): TranslatorPreset {
+    return getCurrentTranslatorPresetFromState(getDatabase())
+}
 
 export async function translate(text:string, reverse:boolean) {
     let db = getDatabase()
@@ -262,7 +271,7 @@ export function isExpTranslator(){
 }
 
 export async function translateHTML(html: string, reverse:boolean, charArg:simpleCharacterArgument|string = '', chatID:number, regenerate = false): Promise<string> {
-    let alwaysExistChar: character | groupChat | simpleCharacterArgument;
+    let alwaysExistChar: character | simpleCharacterArgument;
     if(charArg !== ''){
         if(typeof(charArg) === 'string'){
             const db = getDatabase()
@@ -542,7 +551,8 @@ async function translateLLM(text:string, arg:{to:string, from:string, regenerate
     console.log(translatorNote)
 
     let formated:OpenAIChat[] = []
-    let prompt = db.translatorPrompt || `You are a translator. translate the following html or text into {{slot}}. do not output anything other than the translation.`
+    const preset = getCurrentTranslatorPreset()
+    let prompt = preset.prompt || defaultTranslatorPrompt
     let parsedPrompt = parseChatML(prompt.replaceAll('{{slot::from}}', arg.from).replaceAll('{{slot}}', arg.to).replaceAll('{{solt::content}}', text).replaceAll('{{slot::content}}', text).replaceAll('{{slot::tnote}}', translatorNote))
     if(parsedPrompt){
         formated = parsedPrompt
@@ -565,7 +575,7 @@ async function translateLLM(text:string, arg:{to:string, from:string, regenerate
         bias: {},
         useStreaming: false,
         noMultiGen: true,
-        maxTokens: db.translatorMaxResponse,
+        maxTokens: preset.maxResponse,
     }, 'translate')
 
     if(rq.type === 'fail'){
@@ -649,7 +659,7 @@ export async function importLLMCacheFromJSON(data:Record<string, string>):Promis
 function applyEdittransRegex(
       text: string, 
       charArg: simpleCharacterArgument | string, 
-      alwaysExistChar: character | groupChat | simpleCharacterArgument
+      alwaysExistChar: character | simpleCharacterArgument
   ): string {
       if (charArg === '') return text
 

@@ -157,7 +157,6 @@ export function changeColorScheme(colorScheme: string){
             db.colorScheme = safeStructuredClone(colorShemes[colorScheme])
         }
         db.colorSchemeName = colorScheme
-        setDatabase(db)
         updateColorScheme()   
     } catch (error) {}
 }
@@ -194,7 +193,6 @@ export function changeColorSchemeType(type: 'light'|'dark'){
     try {
         let db = getDatabase()
         db.colorScheme.type = type
-        setDatabase(db)
         updateColorScheme()
         updateTextThemeAndCSS()
     } catch (error) {}
@@ -233,7 +231,6 @@ export async function importColorScheme(){
         changeColorScheme('custom')
         let db = getDatabase()
         db.colorScheme = colorScheme
-        setDatabase(db)
         updateColorScheme()
     }
     catch(e){

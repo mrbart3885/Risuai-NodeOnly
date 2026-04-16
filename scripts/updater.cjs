@@ -240,7 +240,7 @@ async function main() {
 
     // Phase 1: move old files to backup (safer than immediate delete)
     log('Replacing files...');
-    const keep = new Set(['save', '.installed-version', '.update-tmp', 'scripts']);
+    const keep = new Set(['save', 'backups', '.installed-version', '.update-tmp', 'scripts', '.env', '.npmrc', '.portable']);
     if (isWin || skipBinReplacement) keep.add('bin');
     const backupDir = path.join(tmpDir, 'backup');
     fs.mkdirSync(backupDir, { recursive: true });

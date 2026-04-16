@@ -403,7 +403,6 @@ export function promptConvertion(files:{ name: string, content: string, type:str
         preset.subModel = 'openrouter'
         const db = getDatabase()
         db.botPresets.push(preset)
-        setDatabase(db)
     
         alertNormal('Preset converted successfully. You can find it in bot setting presets')
         return
@@ -481,7 +480,6 @@ export function promptConvertion(files:{ name: string, content: string, type:str
 
     const db = getDatabase()
     db.botPresets.push(preset)
-    setDatabase(db)
 
     alertNormal('Preset converted successfully. You can find it in bot setting presets')
 }

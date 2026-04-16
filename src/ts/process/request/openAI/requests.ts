@@ -208,6 +208,9 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     if(aiModel === 'reverse_proxy'){
         requestModel = db.customProxyRequestModel
     }
+    if(aiModel === 'nanogpt'){
+        requestModel = db.nanogptRequestModel
+    }
 
     if(aiModel === 'openrouter' && db.openrouterRequestModel === 'risu/free'){
         openrouterRequestModel = await getFreeOpenRouterModels()
@@ -346,7 +349,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     let body:{
         [key:string]:any
     } = ({
-        model: aiModel === 'openrouter' ? openrouterRequestModel :
+        model: aiModel === 'nanogpt' ? db.nanogptRequestModel :
+            aiModel === 'openrouter' ? openrouterRequestModel :
             requestModel ===  'gpt35' ? 'gpt-3.5-turbo'
             : requestModel ===  'gpt35_0613' ? 'gpt-3.5-turbo-0613'
             : requestModel ===  'gpt35_16k' ? 'gpt-3.5-turbo-16k'
@@ -489,7 +493,8 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
         }
     }
 
-    let replacerURL = aiModel === 'openrouter' ? "https://openrouter.ai/api/v1/chat/completions" :
+    let replacerURL = aiModel === 'nanogpt' ? (db.nanogptUseSubscriptionEndpoint ? 'https://nano-gpt.com/api/subscription/v1/chat/completions' : 'https://nano-gpt.com/api/v1/chat/completions') :
+        aiModel === 'openrouter' ? "https://openrouter.ai/api/v1/chat/completions" :
         (arg.customURL) ?? ('https://api.openai.com/v1/chat/completions')
 
     if(arg.modelInfo?.endpoint){
@@ -520,7 +525,7 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     }
 
     let headers = {
-        "Authorization": "Bearer " + (arg.key ?? (aiModel === 'reverse_proxy' ?  db.proxyKey : (aiModel === 'openrouter' ? db.openrouterKey : db.openAIKey))),
+        "Authorization": "Bearer " + (arg.key ?? (aiModel === 'nanogpt' ? db.nanogptKey : aiModel === 'reverse_proxy' ?  db.proxyKey : (aiModel === 'openrouter' ? db.openrouterKey : db.openAIKey))),
         "Content-Type": "application/json"
     }
 
@@ -530,6 +535,9 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
     if(aiModel === 'openrouter'){
         headers["X-Title"] = 'RisuAI'
         headers["HTTP-Referer"] = 'https://risuai.xyz'
+    }
+    if(aiModel === 'nanogpt' && db.nanogptProvider){
+        headers["X-Provider"] = db.nanogptProvider
     }
     if(risuIdentify){
         headers["X-Proxy-Risu"] = 'RisuAI'
@@ -1189,6 +1197,16 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
     let reasoningContent = ""
     const db = getDatabase()
 
+    const appendStreamingFragment = (current:string, incoming?:string) => {
+        if(!incoming){
+            return current
+        }
+        if(incoming.length > current.length && incoming.startsWith(current)){
+            return incoming
+        }
+        return current + incoming
+    }
+
     return new TransformStream<Uint8Array, StreamResponseChunk>({
         transform(chunk, control) {
             const combined = new Uint8Array(dataUint.length + chunk.length);
@@ -1196,6 +1214,7 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
             combined.set(chunk, dataUint.length);
             dataUint = Buffer.from(combined);
             let JSONreaded:{[key:string]:string} = {}
+            reasoningContent = ""
                         try {
                 const datas = dataUint.toString().split('\n')
                 let readed:{[key:string]:string} = {}
@@ -1234,20 +1253,20 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                             }
                             const choices = JSON.parse(rawChunk).choices
                             for(const choice of choices){
-                                const chunk = choice.delta.content ?? choices.text
+                                const chunk = choice.delta.content ?? choice.text
                                 if(chunk){
                                     if(arg.multiGen){
                                         const ind = choice.index.toString()
                                         if(!readed[ind]){
                                             readed[ind] = ""
                                         }
-                                        readed[ind] += chunk
+                                        readed[ind] = appendStreamingFragment(readed[ind], chunk)
                                     }
                                     else{
                                         if(!readed["0"]){
                                             readed["0"] = ""
                                         }
-                                        readed["0"] += chunk
+                                        readed["0"] = appendStreamingFragment(readed["0"], chunk)
                                     }
                                 }
                                 // Check for tool calls in the delta
@@ -1281,14 +1300,15 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                                             toolCallsData[index].function.name = toolCall.function.name
                                         }
                                         if(toolCall.function?.arguments) {
-                                            toolCallsData[index].function.arguments += toolCall.function.arguments
+                                            toolCallsData[index].function.arguments = appendStreamingFragment(toolCallsData[index].function.arguments, toolCall.function.arguments)
                                         }
                                     }
                                     
                                     readed["__tool_calls"] = JSON.stringify(toolCallsData)
                                 }
-                                if(choice?.delta?.reasoning_content){
-                                    reasoningContent += choice.delta.reasoning_content
+                                const reasoningDelta = choice?.delta?.reasoning_content ?? choice?.delta?.reasoning
+                                if(reasoningDelta){
+                                    reasoningContent = appendStreamingFragment(reasoningContent, reasoningDelta)
                                 }
                             }
                         } catch (error) {}

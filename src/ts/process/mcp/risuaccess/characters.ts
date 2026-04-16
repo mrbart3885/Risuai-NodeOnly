@@ -1,6 +1,6 @@
 import { language } from 'src/lang'
 import { alertConfirm } from 'src/ts/alert'
-import { type character, type groupChat, type loreBook } from 'src/ts/storage/database.svelte'
+import { type character, type loreBook } from 'src/ts/storage/database.svelte'
 import { DBState } from 'src/ts/stores.svelte'
 import { pickHashRand } from 'src/ts/util'
 import { type MCPTool, MCPToolHandler, type RPCToolCallContent } from '../mcplib'
@@ -381,7 +381,7 @@ export class CharacterHandler extends MCPToolHandler {
   }
 
   async getCharacterInfo(id: string, fields: string[]): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -390,15 +390,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     let response: Record<string, any> = {}
 
     const fieldRemap = {
@@ -434,7 +425,7 @@ export class CharacterHandler extends MCPToolHandler {
   }
 
   async getCharacterLorebooks(id: string, count: number = 100, offset: number = 0): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -443,15 +434,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     if (count > 100) count = 100
     if (count < 1) count = 1
     if (offset < 0) offset = 0
@@ -474,7 +456,7 @@ export class CharacterHandler extends MCPToolHandler {
   }
 
   async getCharacterLorebook(id: string, entryNames: string[]): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -483,15 +465,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     const entries = char.globalLore.filter((entry) => {
       const displayName = entry.comment || 'Unnamed ' + pickHashRand(5515, entry.content)
       return entryNames.includes(displayName)
@@ -522,7 +495,7 @@ export class CharacterHandler extends MCPToolHandler {
   }
 
   async setCharacterInfo(id: string, data: any): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -531,15 +504,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     if (!(await this.promptAccess('risu-set-character-info', `modify character (${char.name}) information`))) {
       return [
         {
@@ -589,7 +553,7 @@ export class CharacterHandler extends MCPToolHandler {
     newName?: string,
     alwaysActive?: boolean
   ): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -598,15 +562,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     if (
       !(await this.promptAccess(
         'risu-set-character-lorebook',
@@ -672,7 +627,7 @@ export class CharacterHandler extends MCPToolHandler {
   }
 
   async deleteCharacterLorebook(id: string, name: string): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -681,15 +636,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     if (
       !(await this.promptAccess(
         'risu-delete-character-lorebook',
@@ -728,7 +674,7 @@ export class CharacterHandler extends MCPToolHandler {
   }
 
   async getCharacterRegexScripts(id: string): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -737,15 +683,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     const organized = (char.customscript || []).map((script) => {
       return {
         comment: script.comment || 'Unnamed ' + pickHashRand(5515, script.in + script.out),
@@ -775,7 +712,7 @@ export class CharacterHandler extends MCPToolHandler {
     flag?: string,
     ableFlag?: boolean
   ): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -784,15 +721,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     if (
       !(await this.promptAccess(
         'risu-set-character-regex-scripts',
@@ -852,7 +780,7 @@ export class CharacterHandler extends MCPToolHandler {
   }
 
   async deleteCharacterRegexScripts(id: string, name: string): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -861,15 +789,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     if (
       !(await this.promptAccess(
         'risu-delete-character-regex-scripts',
@@ -912,7 +831,7 @@ export class CharacterHandler extends MCPToolHandler {
   }
 
   async getCharacterAdditionalAssets(id: string): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -921,15 +840,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     const assets = (char.additionalAssets || []).map((asset) => ({
       name: asset[0] || 'Unnamed ' + pickHashRand(5515, asset[1] + asset[2]),
       path: asset[1],
@@ -945,7 +855,7 @@ export class CharacterHandler extends MCPToolHandler {
   }
 
   async deleteCharacterAdditionalAssets(id: string, assetName: string): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -954,15 +864,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     if (
       !(await this.promptAccess(
         'risu-delete-character-additional-assets',
@@ -1005,7 +906,7 @@ export class CharacterHandler extends MCPToolHandler {
   }
 
   async getCharacterLuaScript(id: string): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -1014,15 +915,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     const firstTrigger = char.triggerscript?.[0]
     if (firstTrigger?.effect?.[0]?.type === 'triggerlua' && firstTrigger.effect[0].code.trim().length > 0) {
       return [
@@ -1042,7 +934,7 @@ export class CharacterHandler extends MCPToolHandler {
   }
 
   async setCharacterLuaScript(id: string, code: string): Promise<RPCToolCallContent[]> {
-    const char: character | groupChat = getCharacter(id)
+    const char: character = getCharacter(id)
     if (!char) {
       return [
         {
@@ -1051,15 +943,6 @@ export class CharacterHandler extends MCPToolHandler {
         },
       ]
     }
-    if (char.type === 'group') {
-      return [
-        {
-          type: 'text',
-          text: `Error: The id pointed to a group chat, not a character.`,
-        },
-      ]
-    }
-
     if (!(await this.promptAccess('risu-set-character-lua-script', `modify character (${char.name}) lua script`))) {
       return [
         {

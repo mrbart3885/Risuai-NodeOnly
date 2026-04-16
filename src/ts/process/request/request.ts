@@ -142,7 +142,7 @@ export async function requestChatData(arg:requestDataArgument, model:ModelModeEx
             
             try{
                 const currentChar = getCurrentCharacter()
-                if(currentChar?.type !== 'group'){
+                if(currentChar){
                     const perf = performance.now()
                     const d = await runTrigger(currentChar, 'request', {
                         chat: getCurrentChat(),
@@ -403,7 +403,14 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
     switch(format){
         case LLMFormat.OpenAICompatible:
         case LLMFormat.Mistral:
+        case LLMFormat.NanoGPT:
             return requestOpenAI(targ)
+        case LLMFormat.NanoGPTResponses:
+            return requestOpenAIResponseAPI(targ)
+        case LLMFormat.NanoGPTMessages:
+            return requestClaude(targ)
+        case LLMFormat.NanoGPTLegacy:
+            return requestOpenAILegacyInstruct(targ)
         case LLMFormat.OpenAILegacyInstruct:
             return requestOpenAILegacyInstruct(targ)
         case LLMFormat.NovelAI:
@@ -915,7 +922,7 @@ async function requestKobold(arg:RequestDataArgumentExtended):Promise<requestDat
     if(!da.ok){
         return {
             type: "fail",
-            result: da.data,
+            result: (typeof da.data === 'string') ? da.data : JSON.stringify(da.data),
             noRetry: true
         }
     }

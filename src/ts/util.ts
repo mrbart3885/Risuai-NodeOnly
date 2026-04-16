@@ -190,10 +190,8 @@ export async function getCustomBackground(db:string){
 export function findCharacterbyId(id:string) {
     const db = getDatabase()
     for(const char of db.characters){
-        if(char.type !== 'group'){
-            if(char.chaId === id){
-                return char
-            }
+        if(char.chaId === id){
+            return char
         }
     }
     let unknown =createBlankChar()
@@ -243,10 +241,6 @@ export async function getEmotion(db:Database,chaEmotion:{[key:string]: [string, 
         return []
     }
     let charIdList:string[] = []
-
-    if(currentDat.type === 'group'){
-        return []
-    }
 
     charIdList = [currentDat.chaId]
 

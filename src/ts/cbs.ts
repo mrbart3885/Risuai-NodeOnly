@@ -149,7 +149,7 @@ export function registerCBS(arg:CBSRegisterArg) {
             const db = getDatabase()
             let selectedChar = getSelectedCharID()
             let currentChar = db.characters[selectedChar]
-            if(currentChar && currentChar.type !== 'group'){
+            if(currentChar){
                 return currentChar.nickname || currentChar.name
             }
             if(matcherArg.chara){
@@ -237,9 +237,6 @@ export function registerCBS(arg:CBSRegisterArg) {
             const db = getDatabase()
             const argChara = matcherArg.chara
             const achara = (argChara && typeof(argChara) !== 'string') ? argChara : (db.characters[getSelectedCharID()])
-            if(achara.type === 'group'){
-                return ""
-            }
             return risuChatParser(achara.personality, matcherArg)
         },
         alias: ['charpersona'],
@@ -252,9 +249,6 @@ export function registerCBS(arg:CBSRegisterArg) {
             const db = getDatabase()
             const argChara = matcherArg.chara
             const achara = (argChara && typeof(argChara) !== 'string') ? argChara : (db.characters[getSelectedCharID()])
-            if(achara.type === 'group'){
-                return ""
-            }
             return risuChatParser(achara.desc, matcherArg)
         },
         alias: ['chardesc'],
@@ -267,9 +261,6 @@ export function registerCBS(arg:CBSRegisterArg) {
             const db = getDatabase()
             const argChara = matcherArg.chara
             const achara = (argChara && typeof(argChara) !== 'string') ? argChara : (db.characters[getSelectedCharID()])
-            if(achara.type === 'group'){
-                return ""
-            }
             return risuChatParser(achara.scenario, matcherArg)
         },
         alias: [],
@@ -282,9 +273,6 @@ export function registerCBS(arg:CBSRegisterArg) {
             const db = getDatabase()
             const argChara = matcherArg.chara
             const achara = (argChara && typeof(argChara) !== 'string') ? argChara : (db.characters[getSelectedCharID()])
-            if(achara.type === 'group'){
-                return ""
-            }
             return risuChatParser(achara.exampleMessage, matcherArg)
         },
         alias: ['examplemessage', 'example_dialogue'],
@@ -319,7 +307,7 @@ export function registerCBS(arg:CBSRegisterArg) {
             const achara = (argChara && typeof(argChara) !== 'string') ? argChara : (db.characters[getSelectedCharID()])
             const selchar = db.characters[getSelectedCharID()]
             const chat = selchar.chats[selchar.chatPage]
-            const characterLore = (achara.type === 'group') ? [] : (achara.globalLore ?? [])
+            const characterLore = achara.globalLore ?? []
             const chatLore = chat.localLore ?? []
             const fullLore = characterLore.concat(chatLore.concat(getModuleLorebooks()))
             return makeArray(fullLore.map((v) => {
@@ -1339,7 +1327,7 @@ export function registerCBS(arg:CBSRegisterArg) {
         callback: (str, matcherArg, args, vars) => {
             const db = getDatabase()
             const selchar = db.characters[getSelectedCharID()]
-            if(!selchar || selchar.type === 'group'){
+            if(!selchar){
                 return ''
             }
             return makeArray(selchar.additionalAssets?.map((f) => {

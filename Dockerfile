@@ -29,14 +29,25 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm build
 
 # ------------------------------------------------------------------------------------------
 
-FROM ${NODE_IMAGE} AS runtime
+FROM base AS runtime
+ARG TARGETARCH
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=6001
 
-COPY package.json ./
-COPY --from=deps /app/node_modules ./node_modules
+# Install cloudflared for remote access tunnel support
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH}" \
+       -o /usr/local/bin/cloudflared \
+    && chmod +x /usr/local/bin/cloudflared \
+    && apt-get purge -y curl \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package.json .
+COPY --from=deps /app/node_modules /app/node_modules
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/dist ./dist
 

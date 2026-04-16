@@ -102,6 +102,8 @@ vi.mock('./storage/database.svelte', () => ({
     setDatabase: setDatabaseMock,
     getDatabase: getDatabaseMock,
     defaultSdDataFunc: vi.fn(() => ({})),
+    purgeUnsupportedGroupChats: vi.fn(() => 0),
+    isChatStub: vi.fn(() => false),
 }))
 
 vi.mock('./storage/risuSave', () => ({

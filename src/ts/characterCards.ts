@@ -1,6 +1,6 @@
 import { writable, type Writable } from "svelte/store"
 import { alertCardExport, alertConfirm, alertError, alertInput, alertNormal, alertStore, alertTOS, alertWait } from "./alert"
-import { defaultSdDataFunc, type character, setDatabase, type customscript, type loreSettings, type loreBook, type triggerscript, importPreset, type groupChat, getDatabase, setDatabaseLite, appVer } from "./storage/database.svelte"
+import { defaultSdDataFunc, type character, setDatabase, type customscript, type loreSettings, type loreBook, type triggerscript, importPreset, getDatabase, setDatabaseLite, appVer } from "./storage/database.svelte"
 import { checkNullish, decryptBuffer, isKnownUri, selectFileByDom, sleep } from "./util"
 import { language } from "src/lang"
 import { v4 as uuidv4, v4 } from 'uuid';
@@ -417,7 +417,6 @@ export async function characterURLImport() {
             }
         }
         db.modules.push(importData)
-        setDatabase(db)
         alertNormal(language.successImport)
         SettingsMenuIndex.set(14)
         settingsOpen.set(true)
@@ -455,7 +454,6 @@ export async function characterURLImport() {
         md.id = v4()
         const db = getDatabase()
         db.modules.push(md)
-        setDatabase(db)
         alertNormal(language.successImport)
         SettingsMenuIndex.set(14)
         settingsOpen.set(true)
@@ -513,7 +511,6 @@ export async function characterURLImport() {
             md.id = v4()
             const db = getDatabase()
             db.modules.push(md)
-            setDatabase(db)
             alertNormal(language.successImport)
             SettingsMenuIndex.set(14)
             settingsOpen.set(true)
@@ -614,10 +611,6 @@ function convertOffSpecCards(charaData:OldTavernChar|CharacterCardV2Risu, imgp:s
 export async function exportChar(charaID:number):Promise<string> {
     const db = getDatabase({snapshot: true})
     let char = safeStructuredClone(db.characters[charaID])
-
-    if(char.type === 'group'){
-        return ''
-    }
 
     if(!char.image){
         const res = await fetch('/none.webp')
@@ -946,7 +939,6 @@ async function importCharacterCardSpec(card:CharacterCardV2Risu|CharacterCardV3,
     db.characters.push(char)
     
 
-    setDatabase(db)
 
     alertNormal(language.importedCharacter)
     return true
@@ -1710,11 +1702,7 @@ export async function getHubResources(id:string) {
     return Buffer.from(await (res).arrayBuffer())
 }
 
-export function isCharacterHasAssets(char:character|groupChat){
-    if(char.type === 'group'){
-        return false
-    }
-
+export function isCharacterHasAssets(char:character){
     if(char.additionalAssets && char.additionalAssets.length > 0){
         return true
     }

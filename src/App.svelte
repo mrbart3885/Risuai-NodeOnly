@@ -65,7 +65,6 @@
             const module = await readModule(Buffer.from(data))
             const db = getDatabase()
             db.modules.push(module)
-            setDatabase(db)
             alertNormal(language.successImport)
         } else {
             await importCharacterProcess({

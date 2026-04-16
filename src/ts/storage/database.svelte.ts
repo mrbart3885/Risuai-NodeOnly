@@ -12,6 +12,8 @@ import { defaultColorScheme, type ColorScheme } from '../gui/colorscheme';
 import type { PromptItem, PromptSettings } from '../process/prompt';
 import type { OobaChatCompletionRequestParams } from '../model/ooba';
 import { type HypaV3Settings, type HypaV3Preset, createHypaV3Preset } from '../process/memory/hypav3'
+import { normalizeTranslatorPresetState, type TranslatorPreset } from '../translator/presets'
+import { safeStructuredClone } from '../polyfill';
 
 //APP_VERSION_POINT is to locate the app version in the database file for version bumping
 export let appVer = "2026.2.291" //<APP_VERSION_POINT>
@@ -368,6 +370,12 @@ export function setDatabase(data:Database){
     data.ainconfig ??= safeStructuredClone(defaultAIN)
     data.openrouterKey ??= ''
     data.openrouterRequestModel ??= 'openai/gpt-3.5-turbo'
+    data.nanogptKey ??= ''
+    data.nanogptRequestModel ??= ''
+    data.nanogptRequestModelName ??= ''
+    data.nanogptProvider ??= ''
+    data.nanogptSubscriptionState ??= ''
+    data.nanogptUseSubscriptionEndpoint ??= false
     data.NAIsettings ??= safeStructuredClone(prebuiltNAIpresets)
     data.assetWidth ??= -1
     data.animationSpeed ??= 0.4
@@ -562,6 +570,7 @@ export function setDatabase(data:Database){
         }
     }
     data.hypaV3PresetId ??= 0
+    normalizeTranslatorPresetState(data)
     data.showDeprecatedTriggerV2 ??= false
     data.returnCSSError ??= true
     data.realmDirectOpen ??= false
@@ -620,7 +629,6 @@ export function setDatabase(data:Database){
     data.rememberToolUsage ??= true
     data.simplifiedToolUse ??= false
     data.streamGeminiThoughts ??= false
-    data.sourcemapTranslate ??= false
     data.settingsCloseButtonSize ??= 24
     data.showModelInSidebar ??= true
     data.showPresetInSidebar ??= true
@@ -630,6 +638,7 @@ export function setDatabase(data:Database){
     data.hideLoadout ??= true
     data.hideEasyPanel ??= true
     data.hideAllImages ??= false
+    data.hideMessagePageCount ??= false
     data.ImagenModel ??= 'imagen-4.0-generate-001'
     data.ImagenImageSize ??= '1K'
     data.ImagenAspectRatio ??= '1:1'
@@ -659,6 +668,7 @@ export function setDatabase(data:Database){
     data.dynamicModelRegistry ??= true
     data.saveSignatures ??= false
     data.enableRisuaiProTools ??= false
+    data.useNodeOnlyScrollButton ??= true
     data.keepSessionAlive ??= 'off'
     data.copilot ??= { githubTokens: [], keyRotate: 'sequential', machineId: '', vsCodeVersion: '', chatVersion: '' }
     data.copilot.vsCodeVersion ??= ''
@@ -690,7 +700,7 @@ export function getDatabase(options:getDatabaseOptions = {}):Database{
     return DBState.db as Database
 }
 
-export function getCurrentCharacter(options:getDatabaseOptions = {}):character|groupChat{
+export function getCurrentCharacter(options:getDatabaseOptions = {}):character{
     const db = getDatabase(options)
     if(!db.characters){
         db.characters = []
@@ -699,14 +709,14 @@ export function getCurrentCharacter(options:getDatabaseOptions = {}):character|g
     return char
 }
 
-export function setCurrentCharacter(char:character|groupChat){
+export function setCurrentCharacter(char:character){
     if(!DBState.db.characters){
         DBState.db.characters = []
     }
     DBState.db.characters[get(selectedCharID)] = char
 }
 
-export function getCharacterByIndex(index:number,options:getDatabaseOptions = {}):character|groupChat{
+export function getCharacterByIndex(index:number,options:getDatabaseOptions = {}):character{
     const db = getDatabase(options)
     if(!db.characters){
         db.characters = []
@@ -715,7 +725,7 @@ export function getCharacterByIndex(index:number,options:getDatabaseOptions = {}
     return char
 }
 
-export function setCharacterByIndex(index:number,char:character|groupChat){
+export function setCharacterByIndex(index:number,char:character){
     if(!DBState.db.characters){
         DBState.db.characters = []
     }
@@ -753,7 +763,7 @@ function parseToggleKeysFromTemplate(template:string){
     return Array.from(keys)
 }
 
-function getEnabledModuleDefinitions(db:Database, char:character|groupChat, chat:Chat){
+function getEnabledModuleDefinitions(db:Database, char:character, chat:Chat){
     const ids = [
         ...(db.enabledModules ?? []),
         ...(char.modules ?? []),
@@ -790,7 +800,7 @@ export interface TogglePreset {
     promptPresetName?: string        // name of the prompt preset active when saved
 }
 
-export function getToggleKeys(db:Database = getDatabase(), char:character|groupChat = getCurrentCharacter(), chat:Chat = getCurrentChat()):string[]{
+export function getToggleKeys(db:Database = getDatabase(), char:character = getCurrentCharacter(), chat:Chat = getCurrentChat()):string[]{
     const moduleToggleTemplate = getEnabledModuleDefinitions(db, char, chat)
         .map((module) => module.customModuleToggle ?? '')
         .filter(Boolean)
@@ -865,7 +875,7 @@ export interface DynamicOutput {
 }
 
 export interface Database{
-    characters: (character|groupChat)[],
+    characters: character[],
     apiType: string
     openAIKey: string
     proxyKey:string
@@ -1009,6 +1019,12 @@ export interface Database{
     openrouterRequestModel:string
     openrouterKey:string
     openrouterMiddleOut:boolean
+    nanogptKey:string
+    nanogptRequestModel:string
+    nanogptRequestModelName:string
+    nanogptProvider:string
+    nanogptSubscriptionState:string
+    nanogptUseSubscriptionEndpoint:boolean
     openrouterFallback:boolean
     selectedPersona:number
     personas:{
@@ -1060,6 +1076,8 @@ export interface Database{
     allowAllExtentionFiles?:boolean
     translatorPrompt:string
     translatorMaxResponse:number
+    translatorPresets: TranslatorPreset[]
+    translatorPresetId: number
     top_p: number,
     google: {
         accessToken: string
@@ -1296,11 +1314,11 @@ export interface Database{
         reference_image: string
         reference_base64image: string
     }
-    sourcemapTranslate:boolean
     settingsCloseButtonSize:number
     promptDiffPrefs:PromptDiffPrefs
     enableBookmark?: boolean
     hideAllImages?: boolean
+    hideMessagePageCount?: boolean
     autoScrollToNewMessage?: boolean
     alwaysScrollToNewMessage?: boolean
     newMessageButtonStyle?: string
@@ -1313,6 +1331,7 @@ export interface Database{
     blockquoteStyling?:boolean
     dynamicModelRegistry?:boolean
     enableRisuaiProTools?:boolean
+    useNodeOnlyScrollButton?:boolean
     epEnabled?:boolean
     seperateParametersByModel?:boolean
     disableSeperateParameterChangeOnPresetChange?:boolean
@@ -1521,6 +1540,8 @@ export interface character{
     prebuiltAssetStyle?:string
     prebuiltAssetExclude?:string[]
     modules?:string[]
+    coldstorage?:string
+    coldStoragedChats?:string[]
 }
 
 
@@ -1530,7 +1551,6 @@ export interface loreSettings{
     recursiveScanning: boolean
     fullWordMatching?: boolean
 }
-
 
 export interface groupChat{ 
     type: 'group'
@@ -1600,6 +1620,28 @@ export interface groupChat{
     modules?:string[]
 }
 
+export function purgeUnsupportedGroupChats(db: Database): number {
+    const before = db.characters.length
+    db.characters = db.characters.filter((char): char is character => (char as any)?.type !== 'group')
+    if (db.characterOrder?.length) {
+        const validIds = new Set(db.characters.map((char) => char.chaId))
+        const nextOrder: (string | folder)[] = []
+        for (const entry of db.characterOrder) {
+            if (typeof entry === 'string') {
+                if (validIds.has(entry)) {
+                    nextOrder.push(entry)
+                }
+                continue
+            }
+            const data = entry.data.filter((id) => validIds.has(id))
+            if (data.length > 0) {
+                nextOrder.push({ ...entry, data })
+            }
+        }
+        db.characterOrder = nextOrder
+    }
+    return before - db.characters.length
+}
 export interface botPreset{
     name?:string
     apiType?: string
@@ -1742,6 +1784,7 @@ export interface themePreset{
     showFirstMessagePages: boolean
     hideRealm: boolean
     hideAllImages?: boolean
+    hideMessagePageCount?: boolean
     showFolderName: boolean
     customBackground: string
     playMessage: boolean
@@ -1971,6 +2014,8 @@ export interface Message{
     otherUser?:boolean
     disabled?:false|true|'allBefore'
     isComment?:boolean
+    swipes?: string[]
+    swipeId?: number
 }
 
 export interface MessageGenerationInfo{
@@ -2154,9 +2199,9 @@ export const themePresetTemplate: themePreset = {
     },
     font: 'default',
     customFont: '',
-    zoomsize: 100,
-    lineHeight: 1.25,
-    iconsize: 100,
+    zoomsize: 120,
+    lineHeight: 1.30,
+    iconsize: 70,
     textAreaSize: 0,
     textAreaTextSize: 0,
     sideBarSize: 0,
@@ -2168,6 +2213,7 @@ export const themePresetTemplate: themePreset = {
     showFirstMessagePages: false,
     hideRealm: false,
     hideAllImages: false,
+    hideMessagePageCount: false,
     showFolderName: false,
     customBackground: '',
     playMessage: false,
@@ -2304,7 +2350,6 @@ export function saveCurrentPreset(){
         pres[db.botPresetsId] = savedPreset
     }
     db.botPresets = pres
-    setDatabase(db)
 }
 
 export function copyPreset(id:number){
@@ -2314,7 +2359,6 @@ export function copyPreset(id:number){
     const newPres = safeStructuredClone(pres[id])
     newPres.name += " Copy"
     db.botPresets.push(newPres)
-    setDatabase(db)
 }
 
 export function changeToPreset(id =0, savecurrent = true){
@@ -2326,7 +2370,6 @@ export function changeToPreset(id =0, savecurrent = true){
     const newPres = pres[id]
     db.botPresetsId = id
     db = setPreset(db, newPres)
-    setDatabase(db)
     const chat = getCurrentChat()
     if(chat){
         loadTogglesFromChat(chat)
@@ -2484,6 +2527,7 @@ export function saveCurrentThemePreset(){
         showFirstMessagePages: db.showFirstMessagePages,
         hideRealm: db.hideRealm,
         hideAllImages: db.hideAllImages,
+        hideMessagePageCount: db.hideMessagePageCount,
         showFolderName: db.showFolderName,
         customBackground: db.customBackground,
         playMessage: db.playMessage,
@@ -2517,7 +2561,6 @@ export function saveCurrentThemePreset(){
         pres[db.themePresetsId] = saved
     }
     db.themePresets = pres
-    setDatabase(db)
 }
 
 export function changeToThemePreset(id = 0, savecurrent = true){
@@ -2553,6 +2596,7 @@ export function changeToThemePreset(id = 0, savecurrent = true){
     db.settingsCloseButtonSize = p.settingsCloseButtonSize ?? db.settingsCloseButtonSize
     db.showMemoryLimit = p.showMemoryLimit ?? db.showMemoryLimit
     db.showFirstMessagePages = p.showFirstMessagePages ?? db.showFirstMessagePages
+    db.hideMessagePageCount = p.hideMessagePageCount ?? db.hideMessagePageCount
     db.hideRealm = p.hideRealm ?? db.hideRealm
     db.hideAllImages = p.hideAllImages ?? db.hideAllImages
     db.showFolderName = p.showFolderName ?? db.showFolderName
@@ -2578,7 +2622,6 @@ export function changeToThemePreset(id = 0, savecurrent = true){
     db.menuSideBar = p.menuSideBar ?? db.menuSideBar
     db.notification = p.notification ?? db.notification
     db.useChatSticker = p.useChatSticker ?? db.useChatSticker
-    setDatabase(db)
 }
 
 export function copyThemePreset(id: number){
@@ -2587,7 +2630,6 @@ export function copyThemePreset(id: number){
     const newPres = safeStructuredClone(db.themePresets[id])
     newPres.name += " Copy"
     db.themePresets.push(newPres)
-    setDatabase(db)
 }
 
 export async function downloadThemePreset(id: number, type: 'json'|'risutheme' = 'json'){
@@ -2645,7 +2687,6 @@ export async function importThemePreset(f: {
     let db = getDatabase()
     pre.name = pre.name ?? "Imported Theme"
     db.themePresets.push(pre)
-    setDatabase(db)
     alertNormal(language.successImport)
 }
 
@@ -2759,7 +2800,6 @@ export async function importPreset(f:{
         pr.NAISettings.mirostat_tau = pre.parameters.mirostat_tau
         pr.name = pre.name ?? "Imported"
         db.botPresets.push(pr)
-        setDatabase(db)
         return
     }
 
@@ -2865,7 +2905,6 @@ export async function importPreset(f:{
         }
         pr.name = "Imported ST Preset"
         db.botPresets.push(pr)
-        setDatabase(db)
         return
     }
     pre.name ??= "Imported"
@@ -2873,5 +2912,4 @@ export async function importPreset(f:{
         db.botPresets = []
     }
     db.botPresets.push(pre)
-    setDatabase(db)
 }

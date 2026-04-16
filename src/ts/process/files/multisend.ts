@@ -44,7 +44,6 @@ async function sendPofile(arg:sendFileArg){
             })
             currentChar.chats[currentChar.chatPage] = currentChat
             db.characters[get(selectedCharID)] = currentChar
-            setDatabase(db)
             doingChat.set(false)
             await sendChat(-1);
             currentChar = db.characters[get(selectedCharID)]

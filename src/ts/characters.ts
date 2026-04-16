@@ -22,7 +22,6 @@ import { extractChatFromHtmlExport, normalizeImportedChat } from "./chatImport";
 export function createNewCharacter() {
     let db = getDatabase()
     db.characters.push(createBlankChar())
-    setDatabase(db)
     checkCharOrder()
     return db.characters.length - 1
 }
@@ -72,7 +71,7 @@ export async function selectCharImg(charIndex:number) {
     const type = getImageType(img)
 
     try {
-        if(type === 'PNG' && db.characters[charIndex].type === 'character'){
+        if(type === 'PNG'){
             const gen = PngChunk.readGenerator(img)
             const allowedChunk = [
                 'parameters', 'Comment', 'Title', 'Description', 'Author', 'Software', 'Source', 'Disclaimer', 'Warning', 'Copyright',
@@ -105,7 +104,6 @@ export async function selectCharImg(charIndex:number) {
     const imgp = await saveImage(img)
     dumpCharImage(charIndex)
     db.characters[charIndex].image = imgp
-    setDatabase(db)
 }
 
 export function dumpCharImage(charIndex:number) {
@@ -123,7 +121,6 @@ export function dumpCharImage(charIndex:number) {
     })
     char.image = ''
     db.characters[charIndex] = char
-    setDatabase(db)
 }
 
 export function changeCharImage(charIndex:number,changeIndex:number) {
@@ -134,7 +131,6 @@ export function changeCharImage(charIndex:number,changeIndex:number) {
     dumpCharImage(charIndex)
     char.image = image
     db.characters[charIndex] = char
-    setDatabase(db)
 }
 
 
@@ -153,11 +149,8 @@ export async function addCharEmotion(charId:number) {
         const imgp = await saveImage(img)
         const name = f.name.replace('.png','').replace('.webp','')
         let dbChar = db.characters[charId]
-        if(dbChar.type !== 'group'){
-            dbChar.emotionImages.push([name,imgp])
-            db.characters[charId] = dbChar
-        }
-        setDatabase(db)
+        dbChar.emotionImages.push([name,imgp])
+        db.characters[charId] = dbChar
     }
     addingEmotion.set(false)
 }
@@ -165,11 +158,8 @@ export async function addCharEmotion(charId:number) {
 export function rmCharEmotion(charId:number, emotionId:number) {
     let db = getDatabase()
     let dbChar = db.characters[charId]
-    if(dbChar.type !== 'group'){
-        dbChar.emotionImages.splice(emotionId, 1)
-        db.characters[charId] = dbChar
-    }
-    setDatabase(db)
+    dbChar.emotionImages.splice(emotionId, 1)
+    db.characters[charId] = dbChar
 }
 
 
@@ -347,9 +337,7 @@ export async function exportChat(page:number){
                 }
             }).join('\n\n')
 
-            if(char.type !== 'group'){
-                stringl = `--${char.name}\n${char.firstMessage}\n\n` + stringl
-            }
+            stringl = `--${char.name}\n${char.firstMessage}\n\n` + stringl
 
             await downloadFile(`${char.name}_${date}_chat`.replace(/[<>:"/\\|?*\.\,]/g, "") + '.txt', Buffer.from(stringl, 'utf-8'))
 
@@ -408,7 +396,6 @@ export async function importChat(){
 
             db.characters[selectedID].chats.unshift(newChat)
             changeChatTo(0)
-            setDatabase(db)
             alertNormal(language.successImport)
         }
         else if(dat.name.endsWith('json')){
@@ -551,63 +538,61 @@ export function characterFormatUpdate(indexOrCharacter:number|character, arg:{
     if(!cha.chaId){
         cha.chaId = uuidv4()
     }
-    if(cha.type !== 'group'){
-        if(checkNullish(cha.sdData)){
-            cha.sdData = defaultSdDataFunc()
-        }
-        if(checkNullish(cha.utilityBot)){
-            cha.utilityBot = false
-        }
-        cha.triggerscript = cha.triggerscript ?? []
-        cha.alternateGreetings = cha.alternateGreetings ?? []
-        cha.exampleMessage = cha.exampleMessage ?? ''
-        cha.creatorNotes = cha.creatorNotes ?? ''
-        cha.systemPrompt = cha.systemPrompt ?? ''
-        cha.tags = cha.tags ?? []
-        cha.creator = cha.creator ?? ''
-        cha.characterVersion = cha.characterVersion ?? ''
-        cha.personality = cha.personality ?? ''
-        cha.scenario = cha.scenario ?? ''
-        cha.firstMsgIndex = cha.firstMsgIndex ?? -1
-        cha.additionalData = cha.additionalData ?? {
-            tag: [],
-            creator: '',
-            character_version: ''
-        }
-        cha.voicevoxConfig = cha.voicevoxConfig ?? {
-            SPEED_SCALE: 1,
-            PITCH_SCALE: 0,
-            INTONATION_SCALE: 1,
-            VOLUME_SCALE: 1
-        }
-        if(cha.postHistoryInstructions){
-            cha.chats[cha.chatPage].note += "\n" + cha.postHistoryInstructions
-            cha.chats[cha.chatPage].note = cha.chats[cha.chatPage].note.trim()
-            cha.postHistoryInstructions = null
-        }
-        cha.additionalText ??= ''
-        cha.depth_prompt ??= {
-            depth: 0,
-            prompt: ''
-        }
-        cha.hfTTS ??= {
-            model: '',
-            language: 'en'
-        }
-        cha.backgroundHTML ??= ''
-        cha.backgroundCSS ??= ''
-        cha.creation_date ??= Date.now()
-        cha.globalLore = updateLorebooks(cha.globalLore)
-        if(!cha.newGenData){
-            cha = updateInlayScreen(cha)
-        }
-        // Migrate legacy 'none' value to '' for UI dropdown compatibility
-        // Using '' because it's falsy, so `if (ttsMode)` correctly detects enabled TTS
-        if (cha.ttsMode === 'none') {
-            cha.ttsMode = ''
-        }
-        cha.ttsMode ??= ''
+    if(checkNullish(cha.sdData)){
+        cha.sdData = defaultSdDataFunc()
     }
+    if(checkNullish(cha.utilityBot)){
+        cha.utilityBot = false
+    }
+    cha.triggerscript = cha.triggerscript ?? []
+    cha.alternateGreetings = cha.alternateGreetings ?? []
+    cha.exampleMessage = cha.exampleMessage ?? ''
+    cha.creatorNotes = cha.creatorNotes ?? ''
+    cha.systemPrompt = cha.systemPrompt ?? ''
+    cha.tags = cha.tags ?? []
+    cha.creator = cha.creator ?? ''
+    cha.characterVersion = cha.characterVersion ?? ''
+    cha.personality = cha.personality ?? ''
+    cha.scenario = cha.scenario ?? ''
+    cha.firstMsgIndex = cha.firstMsgIndex ?? -1
+    cha.additionalData = cha.additionalData ?? {
+        tag: [],
+        creator: '',
+        character_version: ''
+    }
+    cha.voicevoxConfig = cha.voicevoxConfig ?? {
+        SPEED_SCALE: 1,
+        PITCH_SCALE: 0,
+        INTONATION_SCALE: 1,
+        VOLUME_SCALE: 1
+    }
+    if(cha.postHistoryInstructions){
+        cha.chats[cha.chatPage].note += "\n" + cha.postHistoryInstructions
+        cha.chats[cha.chatPage].note = cha.chats[cha.chatPage].note.trim()
+        cha.postHistoryInstructions = null
+    }
+    cha.additionalText ??= ''
+    cha.depth_prompt ??= {
+        depth: 0,
+        prompt: ''
+    }
+    cha.hfTTS ??= {
+        model: '',
+        language: 'en'
+    }
+    cha.backgroundHTML ??= ''
+    cha.backgroundCSS ??= ''
+    cha.creation_date ??= Date.now()
+    cha.globalLore = updateLorebooks(cha.globalLore)
+    if(!cha.newGenData){
+        cha = updateInlayScreen(cha)
+    }
+    // Migrate legacy 'none' value to '' for UI dropdown compatibility
+    // Using '' because it's falsy, so `if (ttsMode)` correctly detects enabled TTS
+    if (cha.ttsMode === 'none') {
+        cha.ttsMode = ''
+    }
+    cha.ttsMode ??= ''
     if(checkNullish(cha.customscript)){
         cha.customscript = []
     }
@@ -647,6 +632,7 @@ export function updateLorebooks(book:loreBook[]){
 
 }
 
+// SYNC: server/node/server.cjs promoteFailedColdStorageStub() mirrors these defaults.
 export function createBlankChar():character{
     return {
         name: '',
@@ -725,7 +711,6 @@ export async function removeChar(index:number,name:string, type:'normal'|'perman
     checkCharOrder()
     db.characters = chars
     requiresFullEncoderReload.state = true
-    setDatabase(db)
     selectedCharID.set(-1)
     if (removedChar) {
         await removeUnusedCharacterAssets(removedChar, getDatabase())
@@ -774,12 +759,6 @@ export function changeChar(index: number, arg:{
       return
     }
     const char = getDatabase().characters[index]
-    if(char && char.type === 'group'){
-      // Allow selecting group to show deprecation UI, but skip format update
-      reseter();
-      selectedCharID.set(index);
-      return
-    }
     reseter();
     chatDeselected.set(false)
     characterFormatUpdate(index, {

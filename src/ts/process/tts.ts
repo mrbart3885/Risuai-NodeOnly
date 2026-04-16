@@ -12,9 +12,6 @@ export async function sayTTS(character:character,text:string) {
     try {
         if(!character){
             const v = getCurrentCharacter()
-            if(v.type === 'group'){
-                return
-            }
             character = v
         }
 

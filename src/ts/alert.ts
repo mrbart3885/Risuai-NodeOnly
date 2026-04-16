@@ -31,45 +31,62 @@ export const alertStore = {
 // Shared acceptance cache for both global startup TOS and Realm download confirmation.
 const TOS_ACCEPTANCE_STORAGE_KEY = 'tos2'
 
-export function alertError(msg: string | Error) {
+export function alertError(msg: unknown) {
     console.error(`[NodeOnly v${nodeOnlyVer}]`, msg)
     const db = getDatabase()
 
     let stackTrace: string | undefined = undefined; 
+    let errorMessage = ''
 
-    if (typeof(msg) !== 'string') {
+    if (typeof(msg) === 'string') {
+        errorMessage = msg
+    } else {
         try{
             if (msg instanceof Error) {
                 stackTrace = msg.stack
-                msg = msg.message
+                errorMessage = msg.message
+            } else if (msg && typeof msg === 'object') {
+                const errorLike = msg as { message?: unknown, stack?: unknown }
+                if (typeof errorLike.stack === 'string') {
+                    stackTrace = errorLike.stack
+                }
+                if (typeof errorLike.message === 'string') {
+                    errorMessage = errorLike.message
+                }
+                if (!errorMessage) {
+                    errorMessage = JSON.stringify(msg) ?? `${msg}`
+                }
             } else {
-                msg = JSON.stringify(msg)
+                errorMessage = JSON.stringify(msg) ?? `${msg}`
             }
         } catch {
-            msg = `${msg}`
+            errorMessage = `${msg}`
         }
     }
 
-    msg = msg.trim()
+    errorMessage = errorMessage.trim()
+    if (!errorMessage) {
+        errorMessage = 'Unknown error'
+    }
 
     const ignoredErrors = [
         '{}'
     ]
 
-    if(ignoredErrors.includes(msg)){
+    if(ignoredErrors.includes(errorMessage)){
         return
     }
 
     let submsg = ''
 
     //check if it's a known error
-    if(msg.includes('Failed to fetch') || msg.includes("NetworkError when attempting to fetch resource.")){
+    if(errorMessage.includes('Failed to fetch') || errorMessage.includes("NetworkError when attempting to fetch resource.")){
         submsg =    db.usePlainFetch ? language.errors.networkFetchPlain : language.errors.networkFetch
     }
 
     alertStoreImported.set({
         'type': 'error',
-        'msg': msg,
+        'msg': errorMessage,
         'submsg': submsg,
         'stackTrace': stackTrace
     })

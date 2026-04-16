@@ -47,7 +47,7 @@
                     image: c.image,
                     index: i,
                     type: c.type,
-                    name: c.type === 'group' ? `[Group] ${c.name}` : c.name,
+                    name: c.name,
                     desc: c.creatorNotes ?? 'No description'
                 })
             }

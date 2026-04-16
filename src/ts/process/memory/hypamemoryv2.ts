@@ -1,4 +1,5 @@
 import { type HypaModel, localModels, getPersistedHypaVector, setPersistedHypaVector, contextHash } from "./hypamemory";
+import { isContextModel, getContextProvider } from "./contextualEmbedding";
 import { TaskRateLimiter, TaskCanceledError } from "./taskRateLimiter";
 import { runEmbedding } from "../transformers";
 import { globalFetch } from "src/ts/globalApi.svelte";
@@ -108,8 +109,9 @@ export class HypaProcessorV2<TMetadata> {
     const resultMap: Map<string, EmbeddingResult<TMetadata>> = new Map();
     const toEmbed: EmbeddingText<TMetadata>[] = [];
 
-    const voyageCtx = new Map<string, string[]>();
-    if (this.options.model === 'voyageContext3' && saveToMemory) {
+    const ctxProvider = isContextModel(this.options.model) ? getContextProvider(this.options.model) : null;
+    const ctxGroups = new Map<string, string[]>();
+    if (ctxProvider && saveToMemory) {
       const groups = new Map<TMetadata, EmbeddingText<TMetadata>[]>();
       for (const item of ebdTexts) {
         const g = groups.get(item.metadata) || [];
@@ -119,7 +121,7 @@ export class HypaProcessorV2<TMetadata> {
       for (const [, g] of groups) {
         const texts = g.map(item => item.content);
         for (const item of g) {
-          voyageCtx.set(item.id, texts);
+          ctxGroups.set(item.id, texts);
         }
       }
     }
@@ -135,7 +137,7 @@ export class HypaProcessorV2<TMetadata> {
       }
 
       try {
-        const cached = await getPersistedHypaVector(this.getCacheKey(content, voyageCtx.get(id))) as EmbeddingResult<TMetadata> | undefined;
+        const cached = await getPersistedHypaVector(this.getCacheKey(content, ctxGroups.get(id))) as EmbeddingResult<TMetadata> | undefined;
 
         if (cached) {
           // Debug log for cache hit
@@ -163,6 +165,28 @@ export class HypaProcessorV2<TMetadata> {
 
     await Promise.all(loadPromises);
 
+    if (ctxProvider && toEmbed.length > 0 && saveToMemory) {
+      const missMetadatas = new Set(
+        toEmbed.map((item) => item.metadata).filter(Boolean)
+      );
+
+      const additionalItems = ebdTexts.filter(
+        (item) =>
+          item.metadata &&
+          missMetadatas.has(item.metadata) &&
+          !toEmbed.some((e) => e.id === item.id)
+      );
+
+      for (const item of additionalItems) {
+        resultMap.delete(item.id);
+        if (this.vectors.has(item.id)) {
+          this.vectors.delete(item.id);
+        }
+      }
+
+      toEmbed.push(...additionalItems);
+    }
+
     if (toEmbed.length === 0) {
       return ebdTexts.map((item) => resultMap.get(item.id));
     }
@@ -178,7 +202,46 @@ export class HypaProcessorV2<TMetadata> {
 
     const chunks = this.chunkArray(toEmbed, chunkSize);
 
-    if (this.isLocalModel()) {
+    if (ctxProvider && saveToMemory) {
+      const metadataGroups = new Map<TMetadata, EmbeddingText<TMetadata>[]>();
+      for (const item of toEmbed) {
+        const key = item.metadata;
+        const group = metadataGroups.get(key) || [];
+        group.push(item);
+        metadataGroups.set(key, group);
+      }
+
+      const groupEntries = Array.from(metadataGroups.entries());
+      const groups = groupEntries.map(([, group]) =>
+        group.map((item) => item.content)
+      );
+
+      const results = await ctxProvider.embedDocumentGroups(groups);
+
+      for (let i = 0; i < groupEntries.length; i++) {
+        const [, group] = groupEntries[i];
+        const embeddings = results[i];
+
+        for (let j = 0; j < group.length; j++) {
+          const { id, content, metadata } = group[j];
+          const embedding = embeddings[j];
+
+          const ebdResult: EmbeddingResult<TMetadata> = {
+            id, content, embedding, metadata
+          };
+
+          await setPersistedHypaVector(this.getCacheKey(content, ctxGroups.get(id)), {
+            content, embedding
+          });
+
+          if (saveToMemory) {
+            this.vectors.set(id, ebdResult);
+          }
+
+          resultMap.set(id, ebdResult);
+        }
+      }
+    } else if (this.isLocalModel()) {
       // Local model: Sequential processing
       for (let i = 0; i < chunks.length; i++) {
         // Progress callback
@@ -200,7 +263,7 @@ export class HypaProcessorV2<TMetadata> {
           };
 
           // Save to DB
-          await setPersistedHypaVector(this.getCacheKey(content, voyageCtx.get(id)), {
+          await setPersistedHypaVector(this.getCacheKey(content, ctxGroups.get(id)), {
             content,
             embedding,
           } as any);
@@ -254,7 +317,7 @@ export class HypaProcessorV2<TMetadata> {
           };
 
           // Save to DB
-          await setPersistedHypaVector(this.getCacheKey(content, voyageCtx.get(id)), {
+          await setPersistedHypaVector(this.getCacheKey(content, ctxGroups.get(id)), {
             content,
             embedding,
           } as any);
@@ -306,8 +369,9 @@ export class HypaProcessorV2<TMetadata> {
         ? `-${db.hypaCustomSettings.model.trim()}`
         : "";
 
-    const ctxSuffix = contextTexts && contextTexts.length > 1
-      ? `|ctx:${contextHash(contextTexts)}`
+    const ctxProvider = isContextModel(this.options.model) ? getContextProvider(this.options.model) : null;
+    const ctxSuffix = ctxProvider
+      ? ctxProvider.getCacheKeySuffix(contextTexts)
       : "";
 
     return `${content}|${this.options.model}${suffix}${ctxSuffix}`;
@@ -325,7 +389,7 @@ export class HypaProcessorV2<TMetadata> {
     }
 
     // WASM
-    const cpuCores = navigator.hardwareConcurrency || 4;
+    const cpuCores = (navigator as Navigator).hardwareConcurrency || 4;
     const baseChunkSize = isMobile ? Math.floor(cpuCores / 2) : cpuCores;
 
     return Math.min(baseChunkSize, 10);
@@ -411,34 +475,9 @@ export class HypaProcessorV2<TMetadata> {
         "https://api.openai.com/v1/embeddings",
         fetchArgs
       );
-    } else if (this.options.model === 'voyageContext3') {
-      const apiKey = db.voyageApiKey?.trim();
-      if (!apiKey) {
-        throw new Error('Voyage Context 3 requires a Voyage API Key');
-      }
-
-      const voyageResponse = await globalFetch(
-        "https://api.voyageai.com/v1/contextualizedembeddings",
-        {
-          headers: {
-            "Authorization": "Bearer " + apiKey,
-            "Content-Type": "application/json"
-          },
-          body: {
-            "inputs": contents.map(s => [s]),
-            "model": "voyage-context-3",
-            "input_type": inputType
-          }
-        }
-      );
-
-      if (!voyageResponse.ok || !voyageResponse.data.data) {
-        throw new Error(JSON.stringify(voyageResponse.data));
-      }
-
-      return voyageResponse.data.data.map(
-        (group: { data: { embedding: EmbeddingVector }[] }) => group.data[0].embedding
-      );
+    } else if (isContextModel(this.options.model)) {
+      const provider = getContextProvider(this.options.model);
+      return await provider.embedQueries(contents);
     } else {
       throw new Error(`Unsupported model: ${this.options.model}`);
     }

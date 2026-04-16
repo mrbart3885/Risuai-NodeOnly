@@ -4,6 +4,7 @@ import wasm from "vite-plugin-wasm";
 import strip from '@rollup/plugin-strip';
 import tailwindcss from '@tailwindcss/vite'
 import { readFileSync } from 'fs';
+import { configDefaults } from 'vitest/config';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
@@ -71,7 +72,7 @@ export default defineConfig(({command, mode}) => {
     build: {
       target:'baseline-widely-available',
       // don't minify for debug builds
-      minify: process.env.TAURI_ENV_DEBUG === 'true' ? false : 'esbuild',
+      minify: process.env.TAURI_ENV_DEBUG === 'true' ? false : 'oxc',
       // produce sourcemaps for debug builds
       sourcemap: process.env.TAURI_ENV_DEBUG === 'true',
       chunkSizeWarningLimit: 2000,
@@ -93,6 +94,9 @@ export default defineConfig(({command, mode}) => {
     },
     worker: {
       format: 'es'
+    },
+    test: {
+      exclude: [...configDefaults.exclude, 'test/compat/**/*.test.ts'],
     }
 }
 });

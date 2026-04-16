@@ -4,7 +4,7 @@
     import Sortable from 'sortablejs/modular/sortable.core.esm.js';
     import { DownloadIcon, PencilIcon, HardDriveUploadIcon, MenuIcon, TrashIcon, SplitIcon, FolderPlusIcon, BookmarkCheckIcon, PackageIcon } from "@lucide/svelte";
 
-    import type { Chat, ChatFolder, character, groupChat } from "src/ts/storage/database.svelte";
+    import type { Chat, ChatFolder, character } from "src/ts/storage/database.svelte";
     import { ensureChatHydrated } from "src/ts/storage/chatStorage";
     import { DBState, ReloadGUIPointer } from 'src/ts/stores.svelte';
     import { selectedCharID, chatDeselected } from "src/ts/stores.svelte";
@@ -26,7 +26,7 @@
     import { changeChatTo, createChatCopyName, requestImmediateSave } from "src/ts/globalApi.svelte";
 
     interface Props {
-        chara: character | groupChat;
+        chara: character;
     }
 
     let { chara = $bindable() }: Props = $props();

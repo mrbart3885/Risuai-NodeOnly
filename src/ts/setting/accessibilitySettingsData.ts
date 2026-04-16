@@ -25,13 +25,6 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['ask', 'removal', 'confirm', 'delete']
     },
     {
-        id: 'acc.swipe',
-        type: 'check',
-        labelKey: 'SwipeRegenerate',
-        bindKey: 'swipe',
-        keywords: ['swipe', 'regenerate', 'gesture']
-    },
-    {
         id: 'acc.instantRemove',
         type: 'check',
         labelKey: 'instantRemove',
@@ -202,5 +195,13 @@ export const accessibilitySettingsItems: SettingItem[] = [
         labelKey: 'enableRisuaiProTools',
         bindKey: 'enableRisuaiProTools',
         keywords: ['pro', 'tools', 'accessibility'],
+    },
+    {
+        id: 'acc.useNodeOnlyScrollButton',
+        type: 'check',
+        labelKey: 'useNodeOnlyScrollButton',
+        bindKey: 'useNodeOnlyScrollButton',
+        helpKey: 'useNodeOnlyScrollButton',
+        keywords: ['scroll', 'button', 'navigate', 'message'],
     }
 ];

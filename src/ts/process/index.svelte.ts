@@ -20,7 +20,6 @@ import { additionalInformations } from "./embedding/addinfo";
 import { getInlayAsset } from "./files/inlays";
 import { getGenerationModelString } from "./models/modelString";
 import { runInlayScreen } from "./inlayScreen";
-import { addRerolls } from "./prereroll";
 import { runImageEmbedding } from "./transformers";
 import { runLuaEditTrigger } from "./scriptings";
 import { getModelInfo, LLMFlags } from "../model/modellist";
@@ -246,11 +245,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
     }
     else{
         caculatedChatTokens += 3
-    }
-
-    if(nowChatroom.type === 'group'){
-        alertError('Group chat is no longer supported.')
-        return false
     }
 
     currentChar = nowChatroom
@@ -694,7 +688,7 @@ export async function sendChat(chatProcessIndex = -1,arg:{
 
     let chats:OpenAIChat[] = examples
 
-    if(!DBState.db.aiModel.startsWith('novelai') || DBState.db?.promptSettings?.trimStartNewChat){
+    if(!DBState.db.aiModel.startsWith('novelai') && !DBState.db?.promptSettings?.trimStartNewChat){
         chats.push({
             role: 'system',
             content: '[Start a new chat]',
@@ -1459,8 +1453,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             return false
         }
 
-        addRerolls(generationId, Object.values(lastResponseChunk))
-
         DBState.db.characters[selectedChar].chats[selectedChat] = runCurrentChatFunction(DBState.db.characters[selectedChar].chats[selectedChat])
         currentChat = DBState.db.characters[selectedChar].chats[selectedChat]        
         const triggerResult = await runTrigger(currentChar, 'output', {chat:currentChat})
@@ -1543,10 +1535,6 @@ export async function sendChat(chatProcessIndex = -1,arg:{
             if(DBState.db.ttsAutoSpeech){
                 await sayTTS(currentChar, result)
             }
-        }
-
-        if(mrerolls.length >1){
-            addRerolls(generationId, mrerolls)
         }
 
         DBState.db.characters[selectedChar].chats[selectedChat] = runCurrentChatFunction(DBState.db.characters[selectedChar].chats[selectedChat])

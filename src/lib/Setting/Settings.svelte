@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { AccessibilityIcon, ActivityIcon, PackageIcon, BotIcon, BoxIcon, CodeIcon, ContactIcon, ContainerIcon, LanguagesIcon, MonitorIcon, Sailboat, UserIcon, CircleXIcon, KeyboardIcon, SparkleIcon } from "@lucide/svelte";
+    import { AccessibilityIcon, ActivityIcon, PackageIcon, BotIcon, BoxIcon, CodeIcon, ContactIcon, ContainerIcon, LanguagesIcon, MonitorIcon, MonitorSmartphoneIcon, Sailboat, UserIcon, CircleXIcon, KeyboardIcon, SparkleIcon } from "@lucide/svelte";
     import { language } from "src/lang";
     import DisplaySettings from "./Pages/DisplaySettings.svelte";
     import UserSettings from "./Pages/UserSettings.svelte";
@@ -23,6 +23,7 @@
   import { isLite } from "src/ts/lite";
     import HotkeySettings from "./Pages/HotkeySettings.svelte";
     import NodeOnlySettings from "./Pages/NodeOnlySettings.svelte";
+    import RemoteAccessSettings from "./Pages/RemoteAccessSettings.svelte";
     import PluginDefinedIcon from "../Others/PluginDefinedIcon.svelte";
 
     let openLoreList = $state(false)
@@ -145,6 +146,15 @@
                         <span>{language.nodeOnlySettings}</span>
                     </button>
                     <button class="flex gap-2 items-center hover:text-textcolor"
+                        class:text-textcolor={$SettingsMenuIndex === 21}
+                        class:text-textcolor2={$SettingsMenuIndex !== 21}
+                        onclick={() => {
+                        $SettingsMenuIndex = 21
+                    }}>
+                        <MonitorSmartphoneIcon />
+                        <span>{language.remoteAccess}</span>
+                    </button>
+                    <button class="flex gap-2 items-center hover:text-textcolor"
                         class:text-textcolor={$SettingsMenuIndex === 6}
                         class:text-textcolor2={$SettingsMenuIndex !== 6}
                         onclick={() => {
@@ -162,6 +172,11 @@
                         <BoxIcon />
                         <span>{language.supporterThanks}</span>
                     </button>
+                    {#if additionalSettingsMenu.length > 0}
+                        <div class="border-t border-selected mt-2 pt-2">
+                            <span class="text-textcolor2 text-xs ml-1">{language.plugin}</span>
+                        </div>
+                    {/if}
                     {#each additionalSettingsMenu as menu}
                         <button class="flex gap-2 items-center hover:text-textcolor text-textcolor2"
                             onclick={() => {
@@ -241,6 +256,8 @@
                         <HotkeySettings/>
                     {:else if $SettingsMenuIndex === 20}
                         <NodeOnlySettings/>
+                    {:else if $SettingsMenuIndex === 21}
+                        <RemoteAccessSettings/>
                     {:else if $SettingsMenuIndex === 77}
                         <ThanksPage/>
                     {/if}

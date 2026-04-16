@@ -238,7 +238,6 @@ export async function importModule(){
             const buf = Buffer.from(fileData)
             const module = await readModule(buf)
             db.modules.push(module)
-            setDatabase(db)
         } catch (error) {
             console.error(error)
             alertError(language.errors.noData)
@@ -264,7 +263,6 @@ export async function importModule(){
                 }
             }
             db.modules.push(importData)
-            setDatabase(db)
             return
         }
         // importData.type === 'risu' in conflict with HypaV3 preset exports
@@ -278,7 +276,6 @@ export async function importModule(){
                 id: v4()
             }
             db.modules.push(importModule)
-            setDatabase(db)
             return
         }
         if(importData.entries){
@@ -290,7 +287,6 @@ export async function importModule(){
                 id: v4()
             }
             db.modules.push(importModule)
-            setDatabase(db)
             return
         }
         if(importData.type === 'regex'  && importData.data){
@@ -302,7 +298,6 @@ export async function importModule(){
                 id: v4()
             }
             db.modules.push(importModule)
-            setDatabase(db)
             return
         }
     } catch (error) {
@@ -350,6 +345,9 @@ export function getModules(){
     const currentChat = getCurrentChat()
     const character = getCurrentCharacter()
     const db = getDatabase()
+    if (!db) {
+        return []
+    }
     let ids = db.enabledModules ?? []
     if (currentChat){
         ids = ids.concat(currentChat.modules ?? [])
@@ -469,10 +467,6 @@ export async function applyModule() {
     if (!currentChar) {
         return
     }
-    if(currentChar.type === 'group'){
-        return
-    }
-
     if (module.lorebook) {
         for (const lore of module.lorebook) {
             currentChar.globalLore.push(lore)

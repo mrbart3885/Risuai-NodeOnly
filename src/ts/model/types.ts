@@ -68,7 +68,11 @@ export const LLMFormat = {
     Horde: 16,
     AWSBedrockClaude: 17,
     OpenAIResponseAPI: 18,
-    Echo: 19
+    Echo: 19,
+    NanoGPT: 20,
+    NanoGPTResponses: 21,
+    NanoGPTMessages: 22,
+    NanoGPTLegacy: 23
 } as const;
 export type LLMFormat = (typeof LLMFormat)[keyof typeof LLMFormat];
 

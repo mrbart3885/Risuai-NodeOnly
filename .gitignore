@@ -45,11 +45,14 @@ recc.md
 __pycache__/
 .tauri/
 dist.zip
-/scripts/
+/scripts/*
 !/scripts/updater.cjs
+!/scripts/portable/
 .env
 /server/node/ssl/certificate
+/bin/
 
 
 # Due to Cargo.lock makes the project build fail, we ignore it
 Cargo.lock
+test/fixtures/

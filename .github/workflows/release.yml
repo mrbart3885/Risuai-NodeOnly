@@ -96,7 +96,12 @@ jobs:
       - name: Extract version
         id: version
         shell: bash
-        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+        run: |
+          if [[ "$GITHUB_REF_NAME" == v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(node -e "console.log(require('./portable/package.json').version)")" >> $GITHUB_OUTPUT
+          fi
 
       - name: Download Node.js binary (Windows)
         if: matrix.platform == 'win'
@@ -130,11 +135,108 @@ jobs:
           cp "node-v${NODE_VERSION}-darwin-arm64/bin/node" portable/bin/node
           chmod +x portable/bin/node
 
-      - name: Add launcher scripts (Windows)
+      - name: Download cloudflared (Windows)
         if: matrix.platform == 'win'
         shell: bash
         run: |
-          printf '@echo off\r\nsetlocal\r\ntitle RisuAI NodeOnly\r\nset PORT=6001\r\nstart "" "http://localhost:%%PORT%%"\r\n"%%~dp0bin\\node.exe" "%%~dp0server\\node\\server.cjs"\r\npause\r\n' > portable/RisuAI.bat
+          curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -o portable/bin/cloudflared.exe
+
+      - name: Download cloudflared (Linux)
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64" -o portable/bin/cloudflared
+          chmod +x portable/bin/cloudflared
+
+      - name: Download cloudflared (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-arm64.tgz" -o cloudflared.tgz
+          tar -xzf cloudflared.tgz
+          mv cloudflared portable/bin/cloudflared
+          chmod +x portable/bin/cloudflared
+
+      - name: Build Windows launcher (.exe)
+        if: matrix.platform == 'win'
+        shell: bash
+        run: |
+          node scripts/portable/png2ico.cjs \
+            portable/dist/logo_16.png \
+            portable/dist/logo_32.png \
+            portable/dist/logo_256.png \
+            scripts/portable/icon.ico
+          cd scripts/portable
+          GCC_DIR="$(dirname "$(which gcc)")"
+          "$GCC_DIR/windres" launcher.rc -O coff -o launcher.res
+          gcc -municode -O2 -o ../../portable/RisuAI.exe launcher.c launcher.res -lshell32
+          rm -f launcher.res icon.ico
+
+      - name: Create macOS app bundle
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          APP="portable/RisuAI.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          ICONSET="$(mktemp -d)/AppIcon.iconset"
+          mkdir -p "$ICONSET"
+          for size in 16 32 128 256 512; do
+            sips -z $size $size portable/dist/logo_512.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null 2>&1
+          done
+          for size in 32 64 256 512; do
+            half=$((size / 2))
+            sips -z $size $size portable/dist/logo_512.png --out "$ICONSET/icon_${half}x${half}@2x.png" >/dev/null 2>&1
+          done
+          cp "$ICONSET/icon_512x512.png" "$ICONSET/icon_512x512@2x.png"
+          iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+          cat > "$APP/Contents/Info.plist" << PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>RisuAI</string>
+              <key>CFBundleName</key>
+              <string>RisuAI NodeOnly</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.risuai.nodeonly</string>
+              <key>CFBundleVersion</key>
+              <string>${VERSION}</string>
+              <key>CFBundleShortVersionString</key>
+              <string>${VERSION}</string>
+              <key>CFBundleIconFile</key>
+              <string>AppIcon</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>11.0</string>
+          </dict>
+          </plist>
+          PLIST
+          cat > "$APP/Contents/MacOS/RisuAI" << 'LAUNCHER'
+          #!/bin/bash
+          PORTABLE_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+          cd "$PORTABLE_DIR"
+          PORT="${PORT:-6001}"
+          if [ ! -f "bin/node" ]; then
+              osascript -e 'display dialog "RisuAI.app must remain inside the RisuAI portable folder." buttons {"OK"} default button 1 with icon stop'
+              exit 1
+          fi
+          (sleep 2 && open "http://localhost:$PORT") &
+          osascript << ENDSCRIPT
+          tell application "Terminal"
+              activate
+              do script "cd '$PORTABLE_DIR' && PORT=$PORT exec ./bin/node server/node/server.cjs"
+          end tell
+          ENDSCRIPT
+          LAUNCHER
+          chmod +x "$APP/Contents/MacOS/RisuAI"
+
+      - name: Add update script (Windows)
+        if: matrix.platform == 'win'
+        shell: bash
+        run: |
           printf '@echo off\r\n"%%~dp0bin\\node.exe" "%%~dp0scripts\\updater.cjs"\r\nif errorlevel 1 goto :fail\r\nif exist "%%~dp0.update-tmp" (\r\nif exist "%%~dp0.update-tmp\\new-bin\\" (\r\nxcopy /E /I /Y "%%~dp0.update-tmp\\new-bin\\*" "%%~dp0bin\\" >nul\r\nif errorlevel 1 goto :fail\r\n) else (\r\nif not exist "%%~dp0.update-tmp\\skip-bin-update" goto :fail\r\n)\r\nif not exist "%%~dp0.update-tmp\\latest-version" goto :fail\r\ncopy /Y "%%~dp0.update-tmp\\latest-version" "%%~dp0.installed-version" >nul\r\nif errorlevel 1 goto :fail\r\nrmdir /s /q "%%~dp0.update-tmp" 2>nul\r\n)\r\necho Update complete.\r\npause\r\nexit /b 0\r\n:fail\r\necho Update finalization failed. Existing installation was left in place where possible.\r\npause\r\nexit /b 1\r\n' > portable/update.bat
 
       - name: Add launcher scripts (Unix)
@@ -162,11 +264,12 @@ jobs:
           EOF
           chmod +x portable/start.sh portable/update.sh
 
-      - name: Add updater script
+      - name: Add updater script and portable marker
         shell: bash
         run: |
           mkdir -p portable/scripts
           cp scripts/updater.cjs portable/scripts/updater.cjs 2>/dev/null || true
+          touch portable/.portable
 
       - name: Package portable (Windows)
         if: matrix.platform == 'win'

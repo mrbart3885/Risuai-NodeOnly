@@ -1,0 +1,51 @@
+/* NodeOnly Standard Theme
+ * .nodeonly-standard 클래스가 default-chat-screen에 붙을 때만 적용
+ * RisuAI 색상 변수를 사용하여 설정 연동 유지
+ *
+ * 색상 구조:
+ *   메시지 카드 / 제작자 코멘트 = bgcolor (밝은 쪽)
+ *   바깥 배경 / 입력창           = bgcolor 25% + darkbg (거의 darkbg)
+ *   사이드바                     = darkbg (가장 어두움)
+ */
+
+/* 채팅 영역 전체 배경 */
+.nodeonly-standard {
+  background-color: color-mix(
+    in srgb,
+    var(--risu-theme-bgcolor) 25%,
+    var(--risu-theme-darkbg)
+  );
+}
+
+/* 메시지 바깥 배경 */
+.nodeonly-standard .risu-chat {
+  background-color: color-mix(
+    in srgb,
+    var(--risu-theme-bgcolor) 25%,
+    var(--risu-theme-darkbg)
+  );
+}
+
+/* 채팅 입력창 배경 */
+.nodeonly-standard .sticky.pt-2.pb-2 {
+  background-color: color-mix(
+    in srgb,
+    var(--risu-theme-bgcolor) 25%,
+    var(--risu-theme-darkbg)
+  ) !important;
+}
+
+/* 제작자 코멘트 박스 (메시지 카드와 동일한 bgcolor) */
+.nodeonly-standard .bg-darkbg.rounded-md {
+  background-color: var(--risu-theme-bgcolor) !important;
+  max-width: 48rem;
+  margin-inline: auto;
+}
+
+/* genInfo: 좌측 정렬, 모바일에서 모델명 위 + 아이콘 아래로 줄바꿈 */
+.nodeonly-standard .risu-chat .flex.flex-col.items-end {
+  align-items: flex-start;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}

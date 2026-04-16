@@ -96,6 +96,9 @@ pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 info "Building..."
 NODE_OPTIONS="--max-old-space-size=4096" pnpm build
 
+info "Removing dev dependencies..."
+pnpm prune --prod
+
 echo "$LATEST" > "$SCRIPT_DIR/.installed-version"
 
 info "Update complete! $CURRENT → $LATEST"

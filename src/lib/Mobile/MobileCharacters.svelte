@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { type character, type groupChat } from "src/ts/storage/database.svelte";
+    import { type character } from "src/ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import BarIcon from "../SideBars/BarIcon.svelte";
     import { addCharacter, changeChar, getCharImage } from "src/ts/characters";
@@ -44,9 +44,9 @@
         return agoFormatter.format(-year, 'year');
     }
 
-    function sortChar(char: (character|groupChat)[]) {
+    function sortChar(char: (character)[]) {
         return char.map((c, i) => ({
-                name: c.type === 'group' ? `[Group] ${c.name || "Unnamed"}` : (c.name || "Unnamed"),
+                name: c.name || "Unnamed",
                 image: c.image,
                 chats: c.chats.length,
                 i: i,

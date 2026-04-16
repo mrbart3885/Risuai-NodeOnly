@@ -89,13 +89,56 @@ fi
 cd "$INSTALL_DIR"
 
 info "Installing dependencies..."
-pnpm install --prod --frozen-lockfile 2>/dev/null || pnpm install --prod
+pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
 info "Building..."
 NODE_OPTIONS="--max-old-space-size=4096" pnpm build
 
+info "Removing dev dependencies..."
+pnpm prune --prod
+
 # Write version marker for update script
 echo "$TAG" > "$INSTALL_DIR/.installed-version"
+
+# ── Optional: install cloudflared for remote access ──────────────────────────
+if ! command -v cloudflared >/dev/null 2>&1; then
+    printf "Install cloudflared for remote access? [y/N]: "
+    read -r cfanswer
+    if [ "$cfanswer" = "y" ] || [ "$cfanswer" = "Y" ]; then
+        CF_OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        CF_ARCH_RAW=$(uname -m)
+        case "$CF_ARCH_RAW" in
+            x86_64)  CF_ARCH="amd64" ;;
+            aarch64|arm64) CF_ARCH="arm64" ;;
+            *) warn "Unsupported architecture $CF_ARCH_RAW for cloudflared. Skipping."; CF_ARCH="" ;;
+        esac
+        if [ -n "$CF_ARCH" ]; then
+            CF_DEST="$INSTALL_DIR/bin/cloudflared"
+            mkdir -p "$INSTALL_DIR/bin"
+            if [ "$CF_OS" = "darwin" ]; then
+                CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-${CF_ARCH}.tgz"
+                info "Installing cloudflared..."
+                if curl -fsSL "$CF_URL" -o /tmp/cloudflared.tgz 2>/dev/null; then
+                    tar -xzf /tmp/cloudflared.tgz -C "$INSTALL_DIR/bin/"
+                    chmod +x "$CF_DEST"
+                    rm -f /tmp/cloudflared.tgz
+                    info "cloudflared installed successfully."
+                else
+                    warn "Failed to install cloudflared. Remote access feature will be unavailable."
+                fi
+            else
+                CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CF_ARCH}"
+                info "Installing cloudflared..."
+                if curl -fsSL "$CF_URL" -o "$CF_DEST" 2>/dev/null; then
+                    chmod +x "$CF_DEST"
+                    info "cloudflared installed successfully."
+                else
+                    warn "Failed to install cloudflared. Remote access feature will be unavailable."
+                fi
+            fi
+        fi
+    fi
+fi
 
 # ── Done ───────────────────────────────────────────────────────────────────────
 

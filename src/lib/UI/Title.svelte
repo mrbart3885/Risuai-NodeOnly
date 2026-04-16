@@ -14,6 +14,9 @@ let specialDay = $state('')
     if( today.getMonth() === 3 && today.getDate() === 1){
         specialDay = 'aprilFool'
     }
+    if( today.getMonth() === 2 && today.getDate() === 21 ){
+        specialDay = 'nodeonlyAnniversary'
+    }
     if( today.getMonth() === 3 && today.getDate() === 13 ){
         specialDay = 'anniversary'
     }
@@ -37,6 +40,26 @@ let specialDay = $state('')
     const onClick = () => {
         if(specialDay === 'newYear'){
 
+        }
+    }
+
+    function getNumberPostfix(num: number): string {
+        const lastDigit = num % 10
+        const lastTwoDigits = num % 100
+
+        if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+            return 'th'
+        }
+
+        switch (lastDigit) {
+            case 1:
+                return 'st'
+            case 2:
+                return 'nd'
+            case 3:
+                return 'rd'
+            default:
+                return 'th'
         }
     }
 
@@ -95,12 +118,21 @@ let specialDay = $state('')
     {/if}
 </h2>
 
+{#if specialDay === 'nodeonlyAnniversary'}
+    <h1>
+        <span class="text-2xl font-extralight italic text-amber-400 hover:text-amber-600 transition">NodeOnly {
+            new Date().getFullYear() - 2026
+        }{getNumberPostfix(new Date().getFullYear() - 2026)} Anniversary!</span>
+    </h1>
+{/if}
 {#if specialDay === 'anniversary'}
     <h1>
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <span class="text-2xl font-extralight italic text-amber-400 hover:text-amber-600 cursor-pointer transition" role="button" tabindex="-1" onclick={() => {
             openURL('https://risuai.net')
-        }}>Happy 2nd Anniversary!</span>
+        }}>Happy {
+            new Date().getFullYear() - 2023
+        }{getNumberPostfix(new Date().getFullYear() - 2023)} Anniversary!</span>
     </h1>
 {/if}
 {#if clicks >= 5}
