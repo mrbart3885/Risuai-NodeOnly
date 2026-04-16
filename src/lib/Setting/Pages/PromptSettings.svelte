@@ -127,7 +127,6 @@
     document.removeEventListener('keydown', handleKeyDown)
   })
 </script>
-<SettingPage title={language.promptTemplate}>
 {#if mode === 'independent'}
     <div class="flex w-full rounded-md border border-selected">
         <button onclick={() => {
@@ -341,4 +340,3 @@
     </Accordion>
 
 {/if}
-</SettingPage>
