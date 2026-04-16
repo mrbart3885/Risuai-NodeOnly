@@ -22,7 +22,7 @@
     import { alertError, alertInput, alertConfirm, alertNormal } from "src/ts/alert";
     import { createHypaV3Preset } from "src/ts/process/memory/hypav3";
 
-    let submenu = $state(DBState.db.useLegacyGUI ? -1 : 0);
+    let submenu = $state(0);
 
     // HypaV3
     $effect(() => {
@@ -223,33 +223,31 @@
     // End wavespeed
 </script>
 <SettingPage title={language.otherBots}>
-{#if submenu !== -1}
-    <div class="flex w-full rounded-md border border-darkborderc mb-4">
-        <button onclick={() => {
-            submenu = 0
-        }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 0}>
-            <span>{language.longTermMemory}</span>
-        </button>
-        <button onclick={() => {
-            submenu = 1
-        }} class="p2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 1}>
-            <span>TTS</span>
-        </button>
-        <button onclick={() => {
-            submenu = 2
-        }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 2}>
-            <span>{language.emotionImage}</span>
-        </button>
-        <button onclick={() => {
-            submenu = 3
-        }} class="p-2 flex-1" class:bg-darkbutton={submenu === 3}>
-            <span>{language.imageGeneration}</span>
-        </button>
-    </div>
-{/if}
+<div class="flex w-full rounded-md border border-darkborderc mb-4">
+    <button onclick={() => {
+        submenu = 0
+    }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 0}>
+        <span>{language.longTermMemory}</span>
+    </button>
+    <button onclick={() => {
+        submenu = 1
+    }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 1}>
+        <span>TTS</span>
+    </button>
+    <button onclick={() => {
+        submenu = 2
+    }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 2}>
+        <span>{language.emotionImage}</span>
+    </button>
+    <button onclick={() => {
+        submenu = 3
+    }} class="p-2 flex-1" class:bg-darkbutton={submenu === 3}>
+        <span>{language.imageGeneration}</span>
+    </button>
+</div>
 
-{#if submenu === 3 || submenu === -1}
-    <Accordion name={language.imageGeneration} styled disabled={submenu !== -1}>
+{#if submenu === 3}
+    <Accordion name={language.imageGeneration} styled disabled>
         <span class="text-textcolor mt-2">{language.imageGeneration} {language.provider} <Help key="sdProvider"/></span>
         <SelectInput className="mt-2 mb-4" bind:value={DBState.db.sdProvider}>
             <OptionInput value="" >None</OptionInput>
@@ -931,8 +929,8 @@
     </Accordion>
 {/if}
 
-{#if submenu === 1 || submenu === -1}
-<Accordion name="TTS" styled disabled={submenu !== -1}>
+{#if submenu === 1}
+<Accordion name="TTS" styled disabled>
     <span class="text-textcolor mt-2">Auto Speech</span>
     <CheckInput bind:check={DBState.db.ttsAutoSpeech}/>
 
@@ -957,8 +955,8 @@
 </Accordion>
 {/if}
 
-{#if submenu === 2 || submenu === -1}
-<Accordion name={language.emotionImage} styled disabled={submenu !== -1}>
+{#if submenu === 2}
+<Accordion name={language.emotionImage} styled disabled>
     <span class="text-textcolor mt-2">{language.emotionMethod}</span>
 
     <SelectInput className="mt-2 mb-4" bind:value={DBState.db.emotionProcesser}>
@@ -968,8 +966,8 @@
 </Accordion>
 {/if}
 
-{#if submenu === 0 || submenu === -1}
-    <Accordion name={language.longTermMemory} styled disabled={submenu !== -1}>
+{#if submenu === 0}
+    <Accordion name={language.longTermMemory} styled disabled>
         <span class="text-textcolor mt-4">{language.type}</span>
 
         <SelectInput className="mb-4" value={
