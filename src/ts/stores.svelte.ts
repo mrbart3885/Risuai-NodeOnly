@@ -21,6 +21,7 @@ export const SizeStore = writable({
 })
 
 export const loadedStore = writable(false)
+export const isTouchDevice = writable(typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches)
 export const DynamicGUI = writable(false)
 export const sideBarClosing = writable(false)
 export const sideBarStore = writable(window.innerWidth > 1024)

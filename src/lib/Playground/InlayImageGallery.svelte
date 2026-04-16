@@ -2,6 +2,8 @@
   import { onDestroy } from 'svelte'
   import { SvelteSet } from 'svelte/reactivity'
   import { ChevronLeft, ChevronRight, X, Download, Trash2, Info, ImageIcon } from '@lucide/svelte'
+  import SelectInput from "../UI/GUI/SelectInput.svelte";
+  import OptionInput from "../UI/GUI/OptionInput.svelte";
 
   import { language } from 'src/lang'
   import { alertConfirm, alertError, alertNormal } from 'src/ts/alert'
@@ -333,43 +335,43 @@
 
   {#if allItems.length > 0}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-      <label class="flex flex-col gap-1 text-xs text-textcolor2">
+      <div class="flex flex-col gap-1 text-xs text-textcolor2">
         <span>{language.playground.inlaySort}</span>
-        <select bind:value={sortKey} class="rounded border border-darkborderc bg-darkbg px-2 py-1.5 text-textcolor text-sm">
-          <option value="updated-desc">{language.playground.inlaySortUpdatedDesc}</option>
-          <option value="updated-asc">{language.playground.inlaySortUpdatedAsc}</option>
-          <option value="created-desc">{language.playground.inlaySortCreatedDesc}</option>
-          <option value="created-asc">{language.playground.inlaySortCreatedAsc}</option>
-        </select>
-      </label>
-      <label class="flex flex-col gap-1 text-xs text-textcolor2">
+        <SelectInput bind:value={sortKey} size="sm">
+          <OptionInput value="updated-desc">{language.playground.inlaySortUpdatedDesc}</OptionInput>
+          <OptionInput value="updated-asc">{language.playground.inlaySortUpdatedAsc}</OptionInput>
+          <OptionInput value="created-desc">{language.playground.inlaySortCreatedDesc}</OptionInput>
+          <OptionInput value="created-asc">{language.playground.inlaySortCreatedAsc}</OptionInput>
+        </SelectInput>
+      </div>
+      <div class="flex flex-col gap-1 text-xs text-textcolor2">
         <span>{language.character}</span>
-        <select bind:value={characterFilter} class="rounded border border-darkborderc bg-darkbg px-2 py-1.5 text-textcolor text-sm">
-          <option value="">{language.none}</option>
+        <SelectInput bind:value={characterFilter} size="sm">
+          <OptionInput value="">{language.none}</OptionInput>
           {#each characterIndex as char (char.chaId)}
-            <option value={char.chaId}>{char.name}</option>
+            <OptionInput value={char.chaId}>{char.name}</OptionInput>
           {/each}
-        </select>
-      </label>
-      <label class="flex flex-col gap-1 text-xs text-textcolor2">
+        </SelectInput>
+      </div>
+      <div class="flex flex-col gap-1 text-xs text-textcolor2">
         <span>{language.Chat}</span>
-        <select bind:value={chatFilter} class="rounded border border-darkborderc bg-darkbg px-2 py-1.5 text-textcolor text-sm" disabled={!characterFilter}>
-          <option value="">{language.none}</option>
+        <SelectInput bind:value={chatFilter} size="sm">
+          <OptionInput value="">{language.none}</OptionInput>
           {#each availableChats as chat (chat.id)}
-            <option value={chat.id}>{chat.name}</option>
+            <OptionInput value={chat.id}>{chat.name}</OptionInput>
           {/each}
-        </select>
-      </label>
-      <label class="flex flex-col gap-1 text-xs text-textcolor2">
+        </SelectInput>
+      </div>
+      <div class="flex flex-col gap-1 text-xs text-textcolor2">
         <span>{language.playground.inlayFilter}</span>
-        <select bind:value={specialFilter} class="rounded border border-darkborderc bg-darkbg px-2 py-1.5 text-textcolor text-sm">
-          <option value="all">{language.playground.inlayFilterAll}</option>
-          <option value="meta-missing">{language.playground.inlayFilterMetaMissing}</option>
-          <option value="orphan-character">{language.playground.inlayFilterOrphanCharacter}</option>
-          <option value="orphan-chat">{language.playground.inlayFilterOrphanChat}</option>
-          <option value="orphan-message">{language.playground.inlayFilterOrphanMessage}</option>
-        </select>
-      </label>
+        <SelectInput bind:value={specialFilter} size="sm">
+          <OptionInput value="all">{language.playground.inlayFilterAll}</OptionInput>
+          <OptionInput value="meta-missing">{language.playground.inlayFilterMetaMissing}</OptionInput>
+          <OptionInput value="orphan-character">{language.playground.inlayFilterOrphanCharacter}</OptionInput>
+          <OptionInput value="orphan-chat">{language.playground.inlayFilterOrphanChat}</OptionInput>
+          <OptionInput value="orphan-message">{language.playground.inlayFilterOrphanMessage}</OptionInput>
+        </SelectInput>
+      </div>
     </div>
   {/if}
 </header>
