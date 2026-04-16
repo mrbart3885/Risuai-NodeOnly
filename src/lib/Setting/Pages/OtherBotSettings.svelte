@@ -1,6 +1,7 @@
 <script lang="ts">
     import Check from "src/lib/UI/GUI/CheckInput.svelte";
     import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
+    import SettingTabs from "src/lib/UI/GUI/SettingTabs.svelte";
     import { language } from "src/lang";
     import Help from "src/lib/Others/Help.svelte";
     import { selectSingleFile } from "src/ts/util";
@@ -223,28 +224,12 @@
     // End wavespeed
 </script>
 <SettingPage title={language.otherBots}>
-<div class="flex w-full rounded-md border border-darkborderc mb-4">
-    <button onclick={() => {
-        submenu = 0
-    }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 0}>
-        <span>{language.longTermMemory}</span>
-    </button>
-    <button onclick={() => {
-        submenu = 1
-    }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 1}>
-        <span>TTS</span>
-    </button>
-    <button onclick={() => {
-        submenu = 2
-    }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 2}>
-        <span>{language.emotionImage}</span>
-    </button>
-    <button onclick={() => {
-        submenu = 3
-    }} class="p-2 flex-1" class:bg-darkbutton={submenu === 3}>
-        <span>{language.imageGeneration}</span>
-    </button>
-</div>
+<SettingTabs tabs={[
+    { label: language.longTermMemory, value: 0 },
+    { label: 'TTS', value: 1 },
+    { label: language.emotionImage, value: 2 },
+    { label: language.imageGeneration, value: 3 },
+]} bind:selected={submenu} />
 
 {#if submenu === 3}
     <Accordion name={language.imageGeneration} styled disabled>

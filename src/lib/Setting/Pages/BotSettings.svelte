@@ -2,6 +2,7 @@
 
     import Check from "src/lib/UI/GUI/CheckInput.svelte";
     import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
+    import SettingTabs from "src/lib/UI/GUI/SettingTabs.svelte";
     import { language } from "src/lang";
     import Help from "src/lib/Others/Help.svelte";
     
@@ -123,28 +124,12 @@
     });
 </script>
 <SettingPage title={language.chatBot}>
-<div class="flex w-full rounded-md border border-darkborderc mb-4">
-    <button onclick={() => {
-        submenu = 0
-    }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 0}>
-        <span>{language.model}</span>
-    </button>
-    <button onclick={() => {
-        submenu = 1
-    }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 1}>
-        <span>{language.parameters}</span>
-    </button>
-    <button onclick={() => {
-        submenu = 2
-    }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 2}>
-        <span>{language.prompt}</span>
-    </button>
-    <button onclick={() => {
-        submenu = 3
-    }} class="p-2 flex-1" class:bg-darkbutton={submenu === 3}>
-        <span>{language.others}</span>
-    </button>
-</div>
+<SettingTabs tabs={[
+    { label: language.model, value: 0 },
+    { label: language.parameters, value: 1 },
+    { label: language.prompt, value: 2 },
+    { label: language.others, value: 3 },
+]} bind:selected={submenu} />
 
 {#if submenu === 0}
     <span class="text-textcolor mt-4">{language.model} <Help key="model"/></span>
