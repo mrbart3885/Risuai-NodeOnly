@@ -29,6 +29,12 @@
         <OptionInput value="low">Low</OptionInput>
         <OptionInput value="medium">Medium</OptionInput>
         <OptionInput value="high">High</OptionInput>
+        <OptionInput value="xhigh">XHigh</OptionInput>
         <OptionInput value="max">Max</OptionInput>
+    </SelectInput>
+    <span class="text-textcolor">{language.adaptiveThinkingDisplay ?? 'Thinking Display'}</span>
+    <SelectInput bind:value={value.adaptive_thinking_display}>
+        <OptionInput value="summarized">Summarized</OptionInput>
+        <OptionInput value="omitted">Omitted</OptionInput>
     </SelectInput>
 {/if}

@@ -360,22 +360,35 @@ export async function requestClaude(arg:RequestDataArgumentExtended):Promise<req
     })
 
     // Handle thinking mode: off, adaptive, or budget
+    const supportsLegacyThinking = arg.modelInfo.flags.includes(LLMFlags.claudeThinking)
+    const supportsAdaptiveThinking = arg.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking)
+
+    const applyAdaptiveThinking = () => {
+        delete body.thinking
+        body.thinking = {
+            type: 'adaptive',
+            display: db.adaptiveThinkingDisplay ?? 'summarized',
+        }
+        body.output_config = { effort: db.adaptiveThinkingEffort ?? 'high' }
+    }
+
     if(db.thinkingType === 'off'){
         delete body.thinking
     }
-    else if(db.thinkingType === 'adaptive' && arg.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking)){
-        // Adaptive thinking mode
-        delete body.thinking
-        body.thinking = { type: 'adaptive' }
-        body.output_config = { effort: db.adaptiveThinkingEffort ?? 'high' }
-    }
-    else if(body?.thinking?.budget_tokens === 0){
-        delete body.thinking
+    else if(db.thinkingType === 'adaptive' && supportsAdaptiveThinking){
+        applyAdaptiveThinking()
     }
     else if(body?.thinking?.budget_tokens && body?.thinking?.budget_tokens > 0){
-        body.thinking.type = 'enabled'
+        if(supportsLegacyThinking){
+            body.thinking.type = 'enabled'
+        } else if(supportsAdaptiveThinking){
+            // Model dropped legacy budget thinking (e.g. Claude 4.7+); fall back to adaptive
+            applyAdaptiveThinking()
+        } else {
+            delete body.thinking
+        }
     }
-    else if(body?.thinking?.budget_tokens === null){
+    else {
         delete body.thinking
     }
 

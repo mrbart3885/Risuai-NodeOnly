@@ -1356,6 +1356,7 @@ export const languageKorean = {
     "thinkingTokens": "사고 토큰",
     "thinkingType": "사고 모드",
     "adaptiveThinkingEffort": "적응형 사고 수준",
+    "adaptiveThinkingDisplay": "사고 내용 표시",
     "antiServerOverload": "서버 과부하 방지",
     "localActivationInGlobalLorebook": "글로벌 로어북에서 로컬 활성화",
     "cachePoint": "캐시 포인트",

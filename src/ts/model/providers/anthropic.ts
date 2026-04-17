@@ -3,6 +3,7 @@ import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, ClaudeParameters, type 
 export const AnthropicModels: LLMModel[] = [
 
     // Claude 4.7 (No Date)
+    // Breaking changes from 4.6: no legacy thinking budgets, no temperature/top_p/top_k (400 error).
     {
         name: "Claude 4.7 Opus",
         id: 'claude-opus-4-7',
@@ -13,10 +14,10 @@ export const AnthropicModels: LLMModel[] = [
             LLMFlags.hasImageInput,
             LLMFlags.hasFirstSystemPrompt,
             LLMFlags.hasStreaming,
-            LLMFlags.claudeThinking,
-            LLMFlags.claudeAdaptiveThinking
+            LLMFlags.claudeAdaptiveThinking,
+            LLMFlags.claudeNoSamplingParams
         ],
-        parameters: [...ClaudeParameters, 'thinking_tokens'],
+        parameters: [],
         tokenizer: LLMTokenizer.Claude,
         recommended: true
     },

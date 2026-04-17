@@ -1470,6 +1470,7 @@ export const languageEnglish = {
     thinkingTokens: "Thinking Tokens",
     thinkingType: "Thinking Mode",
     adaptiveThinkingEffort: "Adaptive Thinking Effort",
+    adaptiveThinkingDisplay: "Thinking Display",
     antiServerOverload: "Anti-Server Overload",
     localActivationInGlobalLorebook: "Local Activation in Global Lorebook",
     cachePoint: "Cache Point",

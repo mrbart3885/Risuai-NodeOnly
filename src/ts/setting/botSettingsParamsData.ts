@@ -176,10 +176,27 @@ export const modelSpecificParameterItems: SettingItem[] = [
                 { value: 'low', label: 'Low' },
                 { value: 'medium', label: 'Medium' },
                 { value: 'high', label: 'High' },
+                { value: 'xhigh', label: 'XHigh' },
                 { value: 'max', label: 'Max' },
             ]
         },
         keywords: ['adaptive', 'thinking', 'effort'],
+    },
+    {
+        id: 'params.adaptiveThinkingDisplay',
+        type: 'segmented',
+        labelKey: 'adaptiveThinkingDisplay',
+        bindKey: 'adaptiveThinkingDisplay',
+        condition: (ctx) =>
+            ctx.modelInfo.flags.includes(LLMFlags.claudeAdaptiveThinking) &&
+            ctx.db.thinkingType === 'adaptive',
+        options: {
+            segmentOptions: [
+                { value: 'summarized', label: 'Summarized' },
+                { value: 'omitted', label: 'Omitted' },
+            ]
+        },
+        keywords: ['adaptive', 'thinking', 'display', 'summarized', 'omitted'],
     },
     {
         id: 'params.topK',

@@ -579,6 +579,7 @@ export function setDatabase(data:Database){
     data.useExperimentalGoogleTranslator ??= false
     data.thinkingType ??= 'budget'
     data.adaptiveThinkingEffort ??= 'high'
+    data.adaptiveThinkingDisplay ??= 'summarized'
     if(data.antiClaudeOverload){ //migration
         data.antiClaudeOverload = false
         data.antiServerOverloads = true
@@ -1224,7 +1225,8 @@ export interface Database{
     useExperimentalGoogleTranslator:boolean
     thinkingTokens: number
     thinkingType: 'off' | 'budget' | 'adaptive'
-    adaptiveThinkingEffort: 'low' | 'medium' | 'high' | 'max'
+    adaptiveThinkingEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    adaptiveThinkingDisplay: 'summarized' | 'omitted'
     antiServerOverloads: boolean
     hypaCustomSettings: {
         url: string,
@@ -1362,7 +1364,8 @@ export interface SeparateParameters{
     reasoning_effort?:number
     thinking_tokens?:number
     thinking_type?: 'off' | 'budget' | 'adaptive'
-    adaptive_thinking_effort?: 'low' | 'medium' | 'high' | 'max'
+    adaptive_thinking_effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    adaptive_thinking_display?: 'summarized' | 'omitted'
     outputImageModal?:boolean
     verbosity?:number
 }
@@ -1723,7 +1726,8 @@ export interface botPreset{
     reasonEffort?:number
     thinkingTokens?:number
     thinkingType?: 'off' | 'budget' | 'adaptive'
-    adaptiveThinkingEffort?: 'low' | 'medium' | 'high' | 'max'
+    adaptiveThinkingEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+    adaptiveThinkingDisplay?: 'summarized' | 'omitted'
     outputImageModal?:boolean
     seperateModelsForAxModels?:boolean
     seperateModels?:{
@@ -2329,6 +2333,7 @@ export function saveCurrentPreset(){
         thinkingTokens: db.thinkingTokens ?? null,
         thinkingType: db.thinkingType ?? 'budget',
         adaptiveThinkingEffort: db.adaptiveThinkingEffort ?? 'high',
+        adaptiveThinkingDisplay: db.adaptiveThinkingDisplay ?? 'summarized',
         outputImageModal: db.outputImageModal ?? false,
         seperateModelsForAxModels: db.doNotChangeSeperateModels ? false : db.seperateModelsForAxModels ?? false,
         seperateModels: db.doNotChangeSeperateModels ? null : safeStructuredClone(db.seperateModels),
@@ -2455,6 +2460,7 @@ export function setPreset(db:Database, newPres: botPreset){
     db.thinkingTokens = newPres.thinkingTokens ?? null
     db.thinkingType = newPres.thinkingType ?? 'budget'
     db.adaptiveThinkingEffort = newPres.adaptiveThinkingEffort ?? 'high'
+    db.adaptiveThinkingDisplay = newPres.adaptiveThinkingDisplay ?? 'summarized'
     db.outputImageModal = newPres.outputImageModal ?? false
     if(!db.doNotChangeSeperateModels){
         db.seperateModelsForAxModels = newPres.seperateModelsForAxModels ?? false
