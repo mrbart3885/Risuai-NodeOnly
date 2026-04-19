@@ -505,8 +505,8 @@ export const LLMModels: LLMModel[] = [
     // NanoGPT — single provider entry; model list fetched on demand via getNanoGPTModels()
     {
         id: 'nanogpt',
-        name: 'NanoGPT',
-        fullName: 'NanoGPT',
+        name: 'NanoGPT (Custom)',
+        fullName: 'NanoGPT (Custom)',
         provider: LLMProvider.NanoGPT,
         format: LLMFormat.NanoGPT,
         flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasImageInput, LLMFlags.hasStreaming, LLMFlags.OAICompletionTokens],
@@ -885,7 +885,7 @@ export function getModelList<T extends boolean>(arg:{
     if(arg.groupedByProvider){
         let group: GetModelListGroup[] = []
         for(let model of models){
-            if(model.provider === LLMProvider.AsIs || model.provider === LLMProvider.NanoGPT){
+            if(model.provider === LLMProvider.AsIs){
                 group.push({
                     providerName: '@as-is',
                     models: [model]

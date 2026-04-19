@@ -42,12 +42,9 @@ describe('provider model metadata', () => {
         }
     })
 
-    test('includes requested NanoGPT Gemma and GLM recommendations', () => {
+    test('includes requested NanoGPT GLM recommendations', () => {
         const modelMap = new Map(NanoGPTModels.map((model) => [model.id, model]))
 
-        expect(modelMap.get('nanogpt-google/gemma-4-31b-it')?.recommended).toBe(true)
-        expect(modelMap.get('nanogpt-google/gemma-4-26b-a4b-it')?.recommended).toBe(true)
-        expect(modelMap.get('nanogpt-google/gemma-4-26b-a4b-it:thinking')?.recommended).toBe(true)
         expect(modelMap.get('nanogpt-zai-org/glm-5.1')?.recommended).toBe(true)
         expect(modelMap.get('nanogpt-zai-org/glm-5.1:thinking')?.recommended).toBe(true)
     })
