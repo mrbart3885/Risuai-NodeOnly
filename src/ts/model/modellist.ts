@@ -580,6 +580,9 @@ export async function registerCopilotModelsDynamic() {
             if (isAnthropic) {
                 flags.push(LLMFlags.hasFirstSystemPrompt)
                 if (model.supportsThinking) {
+                    // TODO: gate on model id — Claude 4.7+ rejects legacy thinking budgets.
+                    // If Copilot's /models ever serves opus/sonnet 4.7+ here, this branch
+                    // will emit a 400. Mirror the static entry's adaptive-only shape.
                     flags.push(LLMFlags.claudeThinking, LLMFlags.claudeAdaptiveThinking)
                 }
             } else {

@@ -103,6 +103,9 @@ function getSessionId(): string {
 
 // ── Header Builder ───────────────────────────────────────────────────
 
+// Browsers strip `User-Agent` and `Sec-Fetch-*` from fetch() — these only
+// take effect on Tauri/Electron/server runtimes. The web build still works
+// because GitHub Copilot accepts the browser's auto-injected values.
 function buildHeaders(tidToken: string): Record<string, string> {
     const requestId = v4()
     return {
