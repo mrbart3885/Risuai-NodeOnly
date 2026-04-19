@@ -4,6 +4,25 @@ export const CopilotModels: LLMModel[] = [
 
     // ── Anthropic (via Copilot) ─────────────────────────────────────
 
+    // Claude 4.7: no legacy thinking budgets, no temperature/top_p/top_k (400 error).
+    {
+        name: "Claude 4.7 Opus",
+        id: 'copilot-claude-opus-4.7',
+        internalID: 'claude-opus-4.7',
+        shortName: "GH Copilot Opus 4.7",
+        provider: LLMProvider.Copilot,
+        format: LLMFormat.Anthropic,
+        flags: [
+            LLMFlags.hasImageInput,
+            LLMFlags.hasFirstSystemPrompt,
+            LLMFlags.hasStreaming,
+            LLMFlags.claudeAdaptiveThinking,
+            LLMFlags.claudeNoSamplingParams
+        ],
+        parameters: [],
+        tokenizer: LLMTokenizer.Claude,
+        recommended: true
+    },
     {
         name: "Claude 4.6 Opus",
         id: 'copilot-claude-opus-4.6',

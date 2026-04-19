@@ -505,8 +505,8 @@ export const LLMModels: LLMModel[] = [
     // NanoGPT — single provider entry; model list fetched on demand via getNanoGPTModels()
     {
         id: 'nanogpt',
-        name: 'NanoGPT',
-        fullName: 'NanoGPT',
+        name: 'NanoGPT (Custom)',
+        fullName: 'NanoGPT (Custom)',
         provider: LLMProvider.NanoGPT,
         format: LLMFormat.NanoGPT,
         flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasImageInput, LLMFlags.hasStreaming, LLMFlags.OAICompletionTokens],
@@ -580,6 +580,9 @@ export async function registerCopilotModelsDynamic() {
             if (isAnthropic) {
                 flags.push(LLMFlags.hasFirstSystemPrompt)
                 if (model.supportsThinking) {
+                    // TODO: gate on model id — Claude 4.7+ rejects legacy thinking budgets.
+                    // If Copilot's /models ever serves opus/sonnet 4.7+ here, this branch
+                    // will emit a 400. Mirror the static entry's adaptive-only shape.
                     flags.push(LLMFlags.claudeThinking, LLMFlags.claudeAdaptiveThinking)
                 }
             } else {
@@ -885,7 +888,7 @@ export function getModelList<T extends boolean>(arg:{
     if(arg.groupedByProvider){
         let group: GetModelListGroup[] = []
         for(let model of models){
-            if(model.provider === LLMProvider.AsIs || model.provider === LLMProvider.NanoGPT){
+            if(model.provider === LLMProvider.AsIs){
                 group.push({
                     providerName: '@as-is',
                     models: [model]
