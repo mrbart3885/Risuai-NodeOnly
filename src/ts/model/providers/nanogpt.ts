@@ -244,54 +244,6 @@ export const NanoGPTModels: LLMModel[] = [
         tokenizer: LLMTokenizer.tiktokenO200Base,
     },
 
-    // ── Google Gemma (via NanoGPT) ──────────────────────────────────
-
-    {
-        name: "Gemma 4 31B Instruct",
-        id: 'nanogpt-google/gemma-4-31b-it',
-        internalID: 'google/gemma-4-31b-it',
-        shortName: "NanoGPT Gemma 4 31B",
-        provider: LLMProvider.NanoGPT,
-        format: LLMFormat.OpenAICompatible,
-        flags: [
-            LLMFlags.hasFullSystemPrompt,
-            LLMFlags.hasStreaming,
-        ],
-        parameters: OpenAIParameters,
-        tokenizer: LLMTokenizer.tiktokenO200Base,
-        recommended: true,
-    },
-    {
-        name: "Gemma 4 26B A4B Instruct",
-        id: 'nanogpt-google/gemma-4-26b-a4b-it',
-        internalID: 'google/gemma-4-26b-a4b-it',
-        shortName: "NanoGPT Gemma 4 26B",
-        provider: LLMProvider.NanoGPT,
-        format: LLMFormat.OpenAICompatible,
-        flags: [
-            LLMFlags.hasFullSystemPrompt,
-            LLMFlags.hasStreaming,
-        ],
-        parameters: OpenAIParameters,
-        tokenizer: LLMTokenizer.tiktokenO200Base,
-        recommended: true,
-    },
-    {
-        name: "Gemma 4 26B A4B Thinking",
-        id: 'nanogpt-google/gemma-4-26b-a4b-it:thinking',
-        internalID: 'google/gemma-4-26b-a4b-it:thinking',
-        shortName: "NanoGPT Gemma 4 26B Think",
-        provider: LLMProvider.NanoGPT,
-        format: LLMFormat.OpenAICompatible,
-        flags: [
-            LLMFlags.hasFullSystemPrompt,
-            LLMFlags.hasStreaming,
-        ],
-        parameters: OpenAIParameters,
-        tokenizer: LLMTokenizer.tiktokenO200Base,
-        recommended: true,
-    },
-
     // ── ZAI (via NanoGPT) ───────────────────────────────────────────
 
     {

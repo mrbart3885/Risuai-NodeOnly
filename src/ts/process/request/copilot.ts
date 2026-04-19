@@ -10,8 +10,8 @@ import { requestOpenAI, requestOpenAIResponseAPI } from './openAI/requests'
 
 const COPILOT_API = 'https://api.individual.githubcopilot.com'
 const GITHUB_API = 'https://api.github.com'
-const DEFAULT_VS_CODE_VERSION = '1.111.0'
-const DEFAULT_CHAT_VERSION = '0.39.2'
+const DEFAULT_VS_CODE_VERSION = '1.116.0'
+const DEFAULT_CHAT_VERSION = '0.43.0'
 const COPILOT_PROXY_POLICY = 'always' as const
 
 function getVersions(): { vsCode: string, chat: string } {
@@ -25,6 +25,11 @@ function getVersions(): { vsCode: string, chat: string } {
 function getUserAgent(): string {
     const { vsCode } = getVersions()
     return `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/${vsCode} Chrome/142.0.7444.265 Electron/39.6.0 Safari/537.36`
+}
+
+function getCopilotChatUserAgent(): string {
+    const { chat } = getVersions()
+    return `GitHubCopilotChat/${chat}`
 }
 
 // ── Token Cache ──────────────────────────────────────────────────────
@@ -98,15 +103,18 @@ function getSessionId(): string {
 
 // ── Header Builder ───────────────────────────────────────────────────
 
+// Browsers strip `User-Agent` and `Sec-Fetch-*` from fetch() — these only
+// take effect on Tauri/Electron/server runtimes. The web build still works
+// because GitHub Copilot accepts the browser's auto-injected values.
 function buildHeaders(tidToken: string): Record<string, string> {
     const requestId = v4()
     return {
         'Authorization': `Bearer ${tidToken}`,
         'Content-Type': 'application/json',
         'Copilot-Integration-Id': 'vscode-chat',
-        'Editor-Version': `vscode/${getVersions().vsCode}`,
+        'Editor-version': `vscode/${getVersions().vsCode}`,
         'Editor-plugin-version': `copilot-chat/${getVersions().chat}`,
-        'User-Agent': getUserAgent(),
+        'User-Agent': getCopilotChatUserAgent(),
         'Vscode-Machineid': getMachineId(),
         'Editor-Device-Id': getMachineId(),
         'Vscode-Sessionid': getSessionId(),
@@ -118,6 +126,9 @@ function buildHeaders(tidToken: string): Record<string, string> {
         'X-Initiator': 'user',
         'X-Github-Api-Version': '2025-10-01',
         'X-Vscode-User-Agent-Library-Version': 'electron-fetch',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-Mode': 'no-cors',
+        'Sec-Fetch-Dest': 'empty',
     }
 }
 
