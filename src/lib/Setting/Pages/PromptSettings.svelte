@@ -1,6 +1,7 @@
 <script lang="ts">
     import { ArrowLeft, PlusIcon, TrashIcon } from "@lucide/svelte";
     import { language } from "src/lang";
+    import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
     import PromptDataItem from "src/lib/UI/PromptDataItem.svelte";
     import { tokenizePreset, type PromptItem } from "src/ts/process/prompt";
     import { templateCheck } from "src/ts/process/templates/templateCheck";
@@ -127,13 +128,6 @@
   })
 </script>
 {#if mode === 'independent'}
-    <h2 class="mb-2 text-2xl font-bold mt-2 items-center flex">
-        <button class="mr-2 text-textcolor2 hover:text-textcolor" onclick={onGoBack}>
-            <ArrowLeft />
-        </button>
-        {language.promptTemplate}
-    </h2>
-
     <div class="flex w-full rounded-md border border-selected">
         <button onclick={() => {
             subMenu = 0

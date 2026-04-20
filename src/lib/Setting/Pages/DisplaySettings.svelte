@@ -1,5 +1,7 @@
 <script lang="ts">
     import { language } from "src/lang";
+    import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
+    import SettingTabs from "src/lib/UI/GUI/SettingTabs.svelte";
     import { saveImage } from "src/ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import { changeFullscreen, selectSingleFile } from "src/ts/util";
@@ -23,32 +25,17 @@
         changeColorScheme((e.target as HTMLInputElement).value)
     }
 
-    let submenu = $state(DBState.db.useLegacyGUI ? -1 : 0)
+    let submenu = $state(0)
 </script>
 
-<h2 class="mb-2 text-2xl font-bold mt-2">{language.display}</h2>
+<SettingPage title={language.display}>
+<SettingTabs tabs={[
+    { label: language.theme, value: 0 },
+    { label: language.sizeAndSpeed, value: 1 },
+    { label: language.others, value: 2 },
+]} bind:selected={submenu} />
 
-{#if submenu !== -1}
-    <div class="flex w-full rounded-md border border-darkborderc mb-4 overflow-x-auto h-16 min-h-16 overflow-y-clip">
-        <button onclick={() => {
-            submenu = 0
-        }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 0}>
-            <span>{language.theme}</span>
-        </button>
-        <button onclick={() => {
-            submenu = 1
-        }} class="p2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 1}>
-            <span>{language.sizeAndSpeed}</span>
-        </button>
-        <button onclick={() => {
-            submenu = 2
-        }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 2}>
-            <span>{language.others}</span>
-        </button>
-    </div>
-{/if}
-
-{#if submenu === 0 || submenu === -1}
+{#if submenu === 0}
     <Button onclick={() => {$openThemePresetList = true}} className="mt-4">{language.themePresets}</Button>
     <span class="text-textcolor mt-4">{language.theme}</span>
     <SelectInput className="mt-2" bind:value={DBState.db.theme}>
@@ -204,7 +191,7 @@
 
 {/if}
 
-{#if submenu === 1 || submenu === -1}
+{#if submenu === 1}
 
     <span class="text-textcolor mt-4">{language.UISize}</span>
     <SliderInput  min={50} max={200} bind:value={DBState.db.zoomsize} marginBottom/>
@@ -243,7 +230,7 @@
 
 {/if}
 
-{#if submenu === 2 || submenu === -1}
+{#if submenu === 2}
 
     <div class="flex items-center mt-2">
         <Check bind:check={DBState.db.fullScreen} onChange={changeFullscreen} name={language.fullscreen}/>
@@ -366,10 +353,6 @@
     </div>
 
     <div class="flex items-center mt-2">
-        <Check bind:check={DBState.db.useLegacyGUI} name={language.useLegacyGUI}/>
-    </div>
-
-    <div class="flex items-center mt-2">
         <Check bind:check={DBState.db.hideApiKey} name={language.hideApiKeys}/>
     </div>
 
@@ -437,3 +420,4 @@
     {/if}
 
 {/if}
+</SettingPage>

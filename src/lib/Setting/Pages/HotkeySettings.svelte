@@ -1,10 +1,12 @@
 <script lang="ts">
     import { language } from "src/lang";
     import { DBState } from "src/ts/stores.svelte";
+    import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
 
     
 </script>
 
+<SettingPage title={language.hotkey}>
 {#if window.innerWidth < 768}
     <span class="text-red-500">
         {language.screenTooSmall}
@@ -71,3 +73,4 @@
         </tbody>
     </table>
 {/if}
+</SettingPage>

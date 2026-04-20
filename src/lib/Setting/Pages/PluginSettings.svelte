@@ -1,6 +1,7 @@
 <script lang="ts">
     import { PlusIcon, TrashIcon, LinkIcon, CodeXmlIcon, PowerIcon, PowerOffIcon } from "@lucide/svelte";
     import { language } from "src/lang";
+    import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
     import { alertConfirm, alertMd, alertSelect } from "src/ts/alert";
     import { TriangleAlert } from '@lucide/svelte';
 
@@ -18,8 +19,7 @@
     let showParams = $state([])
 </script>
 
-<h2 class="mb-2 text-2xl font-bold mt-2">{language.plugin}</h2>
-
+<SettingPage title={language.plugin}>
 <span class="text-draculared text-xs mb-4">{language.pluginWarn}</span>
 
 <div class="border-solid border-darkborderc p-2 flex flex-col border-1">
@@ -278,3 +278,4 @@
         <CodeXmlIcon />
     </button>
 </div>
+</SettingPage>

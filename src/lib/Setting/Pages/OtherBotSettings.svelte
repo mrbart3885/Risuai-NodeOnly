@@ -1,5 +1,7 @@
 <script lang="ts">
     import Check from "src/lib/UI/GUI/CheckInput.svelte";
+    import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
+    import SettingTabs from "src/lib/UI/GUI/SettingTabs.svelte";
     import { language } from "src/lang";
     import Help from "src/lib/Others/Help.svelte";
     import { selectSingleFile } from "src/ts/util";
@@ -21,7 +23,7 @@
     import { alertError, alertInput, alertConfirm, alertNormal } from "src/ts/alert";
     import { createHypaV3Preset } from "src/ts/process/memory/hypav3";
 
-    let submenu = $state(DBState.db.useLegacyGUI ? -1 : 0);
+    let submenu = $state(0);
 
     // HypaV3
     $effect(() => {
@@ -221,36 +223,16 @@
     });
     // End wavespeed
 </script>
-<h2 class="mb-2 text-2xl font-bold mt-2">{language.otherBots}</h2>
+<SettingPage title={language.otherBots}>
+<SettingTabs tabs={[
+    { label: language.longTermMemory, value: 0 },
+    { label: 'TTS', value: 1 },
+    { label: language.emotionImage, value: 2 },
+    { label: language.imageGeneration, value: 3 },
+]} bind:selected={submenu} />
 
-
-{#if submenu !== -1}
-    <div class="flex w-full rounded-md border border-darkborderc mb-4">
-        <button onclick={() => {
-            submenu = 0
-        }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 0}>
-            <span>{language.longTermMemory}</span>
-        </button>
-        <button onclick={() => {
-            submenu = 1
-        }} class="p2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 1}>
-            <span>TTS</span>
-        </button>
-        <button onclick={() => {
-            submenu = 2
-        }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 2}>
-            <span>{language.emotionImage}</span>
-        </button>
-        <button onclick={() => {
-            submenu = 3
-        }} class="p-2 flex-1" class:bg-darkbutton={submenu === 3}>
-            <span>{language.imageGeneration}</span>
-        </button>
-    </div>
-{/if}
-
-{#if submenu === 3 || submenu === -1}
-    <Accordion name={language.imageGeneration} styled disabled={submenu !== -1}>
+{#if submenu === 3}
+    <Accordion name={language.imageGeneration} styled disabled>
         <span class="text-textcolor mt-2">{language.imageGeneration} {language.provider} <Help key="sdProvider"/></span>
         <SelectInput className="mt-2 mb-4" bind:value={DBState.db.sdProvider}>
             <OptionInput value="" >None</OptionInput>
@@ -932,8 +914,8 @@
     </Accordion>
 {/if}
 
-{#if submenu === 1 || submenu === -1}
-<Accordion name="TTS" styled disabled={submenu !== -1}>
+{#if submenu === 1}
+<Accordion name="TTS" styled disabled>
     <span class="text-textcolor mt-2">Auto Speech</span>
     <CheckInput bind:check={DBState.db.ttsAutoSpeech}/>
 
@@ -958,8 +940,8 @@
 </Accordion>
 {/if}
 
-{#if submenu === 2 || submenu === -1}
-<Accordion name={language.emotionImage} styled disabled={submenu !== -1}>
+{#if submenu === 2}
+<Accordion name={language.emotionImage} styled disabled>
     <span class="text-textcolor mt-2">{language.emotionMethod}</span>
 
     <SelectInput className="mt-2 mb-4" bind:value={DBState.db.emotionProcesser}>
@@ -969,8 +951,8 @@
 </Accordion>
 {/if}
 
-{#if submenu === 0 || submenu === -1}
-    <Accordion name={language.longTermMemory} styled disabled={submenu !== -1}>
+{#if submenu === 0}
+    <Accordion name={language.longTermMemory} styled disabled>
         <span class="text-textcolor mt-4">{language.type}</span>
 
         <SelectInput className="mb-4" value={
@@ -993,13 +975,11 @@
         {#if DBState.db.hypaV3}
             <span class="max-w-full mb-6 text-sm text-wrap wrap-break-word text-textcolor2">{language.hypaV3Settings.descriptionLabel}</span>
             <span class="text-textcolor">Preset</span>
-            <select class={"border border-darkborderc focus:border-borderc rounded-md shadow-xs text-textcolor bg-transparent focus:ring-borderc focus:ring-2 focus:outline-hidden transition-colors duration-200 text-md px-4 py-2 mb-1"}
-                bind:value={DBState.db.hypaV3PresetId}
-            >
+            <SelectInput className="mb-1" bind:value={DBState.db.hypaV3PresetId}>
                 {#each DBState.db.hypaV3Presets as preset, i}
-                    <option class="bg-darkbg appearance-none" value={i}>{preset.name}</option>
+                    <OptionInput value={i}>{preset.name}</OptionInput>
                 {/each}
-            </select>
+            </SelectInput>
 
             <div class="flex items-center mb-8">
                 <button class="mr-2 text-textcolor2 hover:text-green-500 cursor-pointer" onclick={() => {
@@ -1237,3 +1217,4 @@
 
     </Accordion>
 {/if}
+</SettingPage>

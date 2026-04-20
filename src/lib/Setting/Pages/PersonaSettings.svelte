@@ -1,5 +1,6 @@
 <script lang="ts">
     import { language } from "src/lang";
+    import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
     import BaseRoundedButton from "src/lib/UI/BaseRoundedButton.svelte";
     import Button from "src/lib/UI/GUI/Button.svelte";
     import Check from "src/lib/UI/GUI/CheckInput.svelte";
@@ -68,8 +69,7 @@
         }
     })
 </script>
-<h2 class="mb-2 text-2xl font-bold mt-2">{language.persona}</h2>
-
+<SettingPage title={language.persona}>
 {#key sorted}
 <div class="p-4 rounded-md border-darkborderc border mb-2 flex-wrap flex gap-2 w-full max-w-full min-w-0" bind:this={ele}>
     {#each DBState.db.personas as persona, i}
@@ -165,3 +165,4 @@
         </div>
     </div>
 </div>
+</SettingPage>

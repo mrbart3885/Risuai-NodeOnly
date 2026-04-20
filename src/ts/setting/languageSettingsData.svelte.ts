@@ -15,13 +15,6 @@ import { downloadFile } from '../globalApi.svelte';
 export const langState = $state({ changed: false });
 
 export const languageSettingsItems: SettingItem[] = [
-    {
-        id: 'lang.header',
-        type: 'header',
-        labelKey: 'language',
-        options: { level: 'h2' },
-    },
-
     // UI Language
     {
         id: 'lang.uiLanguage',

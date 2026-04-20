@@ -1,7 +1,6 @@
 
 import type { SettingItem } from './types';
 export const advancedSettingsItems: SettingItem[] = [
-    { type: 'header', id: 'adv.header', labelKey: 'advancedSettings', options: { level: 'h2' }, classes: '!mb-0' },
     { type: 'header', id: 'adv.warn', labelKey: 'advancedSettingsWarn', options: { level: 'warning' } },
 
     // LoreBook Settings

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { language } from "src/lang";
+    import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
     
     import { DBState } from 'src/ts/stores.svelte';
     import Button from "src/lib/UI/GUI/Button.svelte";
@@ -37,7 +38,7 @@
     })
 </script>
 {#if mode === 0}
-    <h2 class="mb-2 text-2xl font-bold mt-2">{language.modules}</h2>
+    <SettingPage title={language.modules}>
 
     <TextInput className="mt-4" placeholder={language.search} bind:value={moduleSearch} />
 
@@ -145,15 +146,17 @@
             <HardDriveUpload  />
         </button>
     </div>
+    </SettingPage>
 {:else if mode === 1}
-    <h2 class="mb-2 text-2xl font-bold mt-2">{language.createModule}</h2>
+    <SettingPage title={language.createModule}>
     <ModuleMenu bind:currentModule={tempModule}/>
     <Button className="mt-6" onclick={() => {
         DBState.db.modules.push(tempModule)
         mode = 0
     }}>{language.createModule}</Button>
+    </SettingPage>
 {:else if mode === 2}
-    <h2 class="mb-2 text-2xl font-bold mt-2">{language.editModule}</h2>
+    <SettingPage title={language.editModule}>
     <ModuleMenu bind:currentModule={tempModule}/>
     {#if tempModule.name !== ''}
         <Button className="mt-6" onclick={() => {
@@ -161,4 +164,5 @@
             mode = 0
         }}>{language.editModule}</Button>
     {/if}
+    </SettingPage>
 {/if}

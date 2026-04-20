@@ -1,6 +1,7 @@
 <script lang="ts">
     import { language } from "src/lang";
     import { openURL } from "src/ts/globalApi.svelte";
+    import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
 
 
     interface supporters{
@@ -33,7 +34,7 @@
     }
 </script>
 
-<h2 class="text-2xl font-bold mt-2">{language.supporterThanks}</h2>
+<SettingPage title={language.supporterThanks}>
 <span class="mb-2 text-textcolor2">{language.supporterThanksDesc}</span>
 
 <!-- Patreon Button -->
@@ -110,7 +111,7 @@
         {/each}
     </div>
 {/await}
-
+</SettingPage>
 
 <style>
 

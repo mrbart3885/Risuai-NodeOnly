@@ -8,14 +8,6 @@ import type { SettingItem } from './types';
 import { language } from "src/lang";
 
 export const accessibilitySettingsItems: SettingItem[] = [
-    // Header
-    {
-        id: 'acc.header',
-        type: 'header',
-        labelKey: 'accessibility',
-        options: { level: 'h2' }
-    },
-    
     // Checkboxes
     {
         id: 'acc.askRemoval',

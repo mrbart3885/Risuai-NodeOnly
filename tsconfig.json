@@ -13,6 +13,10 @@
 
     /* Module Resolution */
     "baseUrl": ".",
+    "paths": {
+      "$lib": ["./src/lib"],
+      "$lib/*": ["./src/lib/*"]
+    },
     "resolveJsonModule": true,
     "esModuleInterop": true,
 

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { language } from "src/lang";
+    import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
     import { forageStorage } from "src/ts/globalApi.svelte";
     import { alertConfirm } from "src/ts/alert";
     import Button from "src/lib/UI/GUI/Button.svelte";
@@ -103,8 +104,8 @@
     });
 </script>
 
+<SettingPage title={language.remoteAccess}>
 <div class="flex flex-col gap-4">
-    <h2 class="mb-2 text-2xl font-bold mt-2">{language.remoteAccess}</h2>
     <p class="text-sm text-textcolor2">{language.remoteAccessDesc}</p>
 
     {#if status === 'loading'}
@@ -177,3 +178,4 @@
         </div>
     {/if}
 </div>
+</SettingPage>

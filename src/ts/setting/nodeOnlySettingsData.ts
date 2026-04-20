@@ -4,8 +4,6 @@ import { loadPlugins } from '../plugins/plugins.svelte';
 import { getCurrentChat, getDatabase, loadTogglesFromChat } from '../storage/database.svelte';
 
 export const nodeOnlySettingsItems: SettingItem[] = [
-    { type: 'header', id: 'nodeonly.header', labelKey: 'nodeOnlySettings', options: { level: 'h2' }, classes: '!mb-0' },
-
     // Sidebar
     { id: 'nodeonly.showModelInSidebar', type: 'check', labelKey: 'showModelInSidebar', bindKey: 'showModelInSidebar', helpKey: 'showModelInSidebar', classes: 'mt-4' },
     { id: 'nodeonly.showPresetInSidebar', type: 'check', labelKey: 'showPresetInSidebar', bindKey: 'showPresetInSidebar', helpKey: 'showPresetInSidebar', classes: 'mt-4' },

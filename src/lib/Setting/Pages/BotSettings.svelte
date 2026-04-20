@@ -1,6 +1,8 @@
 <script lang="ts">
 
     import Check from "src/lib/UI/GUI/CheckInput.svelte";
+    import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
+    import SettingTabs from "src/lib/UI/GUI/SettingTabs.svelte";
     import { language } from "src/lang";
     import Help from "src/lib/Others/Help.svelte";
     
@@ -107,7 +109,7 @@
         console.log('Vertex AI token cleared');
     }
 
-    let submenu = $state(DBState.db.useLegacyGUI ? -1 : 0)
+    let submenu = $state(0)
     let modelInfo = $derived(getModelInfo(DBState.db.aiModel))
     let subModelInfo = $derived(getModelInfo(DBState.db.subModel))
     let nanogptInputMode = $state<'list' | 'manual'>(DBState.db.nanogptRequestModel && !DBState.db.nanogptRequestModelName ? 'manual' : 'list')
@@ -121,34 +123,15 @@
         }
     });
 </script>
-<h2 class="mb-2 text-2xl font-bold mt-2">{language.chatBot}</h2>
+<SettingPage title={language.chatBot}>
+<SettingTabs tabs={[
+    { label: language.model, value: 0 },
+    { label: language.parameters, value: 1 },
+    { label: language.prompt, value: 2 },
+    { label: language.others, value: 3 },
+]} bind:selected={submenu} />
 
-{#if submenu !== -1}
-    <div class="flex w-full rounded-md border border-darkborderc mb-4">
-        <button onclick={() => {
-            submenu = 0
-        }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 0}>
-            <span>{language.model}</span>
-        </button>
-        <button onclick={() => {
-            submenu = 1
-        }} class="p2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 1}>
-            <span>{language.parameters}</span>
-        </button>
-        <button onclick={() => {
-            submenu = 2
-        }} class="p-2 flex-1 border-r border-darkborderc" class:bg-darkbutton={submenu === 2}>
-            <span>{language.prompt}</span>
-        </button>
-        <button onclick={() => {
-            submenu = 3
-        }} class="p-2 flex-1" class:bg-darkbutton={submenu === 3}>
-            <span>{language.others}</span>
-        </button>
-    </div>
-{/if}
-
-{#if submenu === 0 || submenu === -1}
+{#if submenu === 0}
     <span class="text-textcolor mt-4">{language.model} <Help key="model"/></span>
     <ModelList bind:value={DBState.db.aiModel}/>
 
@@ -391,7 +374,7 @@
     {/if}
 {/if}
 
-{#if submenu === 1 || submenu === -1}
+{#if submenu === 1}
     <!-- Data-driven basic parameters -->
     <SettingRenderer items={allBasicParameterItems} {modelInfo} {subModelInfo} />
     {#if DBState.db.aiModel === 'textgen_webui' || DBState.db.aiModel === 'mancer' || DBState.db.aiModel.startsWith('local_') || DBState.db.aiModel.startsWith('hf:::')}
@@ -526,7 +509,7 @@
     <SeparateParametersSection />
 {/if}
 
-{#if submenu === 3 || submenu === -1}
+{#if submenu === 3}
     <Accordion styled name="Bias " help="bias">
         <table class="contain w-full max-w-full tabler">
             <tbody>
@@ -625,9 +608,7 @@
 
     <Accordion styled name={language.promptTemplate}>
         {#if DBState.db.promptTemplate}
-            {#if submenu !== -1}
-                <PromptSettings mode='inline' subMenu={1} />
-            {/if}
+            <PromptSettings mode='inline' subMenu={1} />
         {:else}
             <Check check={false} name={language.usePromptTemplate} onChange={() => {
                 DBState.db.promptTemplate = []
@@ -727,12 +708,10 @@
             <UploadIcon />
         </button>
     </Accordion>
-    {#if submenu !== -1}
-        <Button onclick={() => {$openPresetList = true}} className="mt-4">{language.presets}</Button>
-    {/if}
+    <Button onclick={() => {$openPresetList = true}} className="mt-4">{language.presets}</Button>
 {/if}
 
-{#if submenu === 2 || submenu === -1}
+{#if submenu === 2}
     {#if !DBState.db.promptTemplate}
         <span class="text-textcolor">{language.mainPrompt} <Help key="mainprompt"/></span>
         <TextAreaInput fullwidth autocomplete="off" height={"32"} bind:value={DBState.db.mainPrompt}></TextAreaInput>
@@ -754,11 +733,4 @@
 {/if}
 
 
-{#if DBState.db.promptTemplate && submenu === -1}
-    <div class="mt-2">
-        <Button onclick={goPromptTemplate} size="sm">{language.promptTemplate}</Button>
-    </div>
-{/if}
-{#if submenu === -1}
-    <Button onclick={() => {$openPresetList = true}} className="mt-4">{language.presets}</Button>
-{/if}
+</SettingPage>
