@@ -179,6 +179,9 @@ importers:
       svelte-awesome-color-picker:
         specifier: ^4.1.0
         version: 4.1.0(svelte@5.55.3)
+      svelte-sonner:
+        specifier: ^1.1.0
+        version: 1.1.0(svelte@5.55.3)
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
@@ -2665,6 +2668,11 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
+  runed@0.28.0:
+    resolution: {integrity: sha512-k2xx7RuO9hWcdd9f+8JoBeqWtYrm5CALfgpkg2YDB80ds/QE4w0qqu34A7fqiAwiBBSBQOid7TLxwxVC27ymWQ==}
+    peerDependencies:
+      svelte: ^5.7.0
+
   runed@0.35.1:
     resolution: {integrity: sha512-2F4Q/FZzbeJTFdIS/PuOoPRSm92sA2LhzTnv6FXhCoENb3huf5+fDuNOg1LNvGOouy3u/225qxmuJvcV3IZK5Q==}
     peerDependencies:
@@ -2835,6 +2843,11 @@ packages:
     peerDependencies:
       svelte: ^4.0.0 || ^5.0.0-next.0
       typescript: '>=5.0.0'
+
+  svelte-sonner@1.1.0:
+    resolution: {integrity: sha512-3lYM6ZIqWe+p9vwwWHGWP/ZdvHiUtzURsud2quIxivrX4rvpXh6i+geBGn0m3JS6KwW6W8VgbOl3xQMcDuh6gg==}
+    peerDependencies:
+      svelte: ^5.0.0
 
   svelte-toolbelt@0.10.6:
     resolution: {integrity: sha512-YWuX+RE+CnWYx09yseAe4ZVMM7e7GRFZM6OYWpBKOb++s+SQ8RBIMMe+Bs/CznBMc0QPLjr+vDBxTAkozXsFXQ==}
@@ -5198,6 +5211,11 @@ snapshots:
       fsevents: 2.3.3
     optional: true
 
+  runed@0.28.0(svelte@5.55.3):
+    dependencies:
+      esm-env: 1.2.2
+      svelte: 5.55.3
+
   runed@0.35.1(svelte@5.55.3):
     dependencies:
       dequal: 2.0.3
@@ -5432,6 +5450,11 @@ snapshots:
       typescript: 5.9.3
     transitivePeerDependencies:
       - picomatch
+
+  svelte-sonner@1.1.0(svelte@5.55.3):
+    dependencies:
+      runed: 0.28.0(svelte@5.55.3)
+      svelte: 5.55.3
 
   svelte-toolbelt@0.10.6(svelte@5.55.3):
     dependencies:

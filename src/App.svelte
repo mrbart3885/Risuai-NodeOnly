@@ -34,6 +34,7 @@
     import PopupList from './lib/UI/PopupList.svelte';
     import EasyPanel from './lib/Others/ProTools/EasyPanel.svelte';
     import LoadingOverlay from './lib/Others/LoadingOverlay.svelte';
+    import Toaster from './lib/UI/GUI/Toaster.svelte';
     import sendSound from './etc/send.mp3'
 
     let gridOpen = $state(false)
@@ -249,4 +250,5 @@
     {#if popUpEditorStore.open}
         <PopupEditor />
     {/if}
+    <Toaster />
 </main>
