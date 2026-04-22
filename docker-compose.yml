@@ -6,8 +6,8 @@ services:
     image: ${RISU_IMAGE:-ghcr.io/blissful-y0/rsnd-risuai-nodeonly:latest}
     restart: always
     init: true
-    ports:
-      - ${RISU_PORT:-6001}:6001
+    expose:
+      - "6001"
     environment:
       NODE_ENV: production
       PORT: 6001
@@ -17,5 +17,54 @@ services:
     volumes:
       - risuai-save:/app/save
 
+  caddy:
+    container_name: caddy
+    build:
+      context: .
+      dockerfile: caddy.Dockerfile
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - CF_API_TOKEN=${CF_API_TOKEN}
+
+  watchtower:
+    container_name: watchtower
+    image: containrrr/watchtower
+    restart: always
+    expose:
+      - "8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DOCKER_API_VERSION=1.44
+      - WATCHTOWER_HTTP_API_UPDATE=true
+      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_TOKEN}
+      - WATCHTOWER_HTTP_API_PERIODIC_POLLS=0
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_CLEANUP=true
+      - REPO_USER=blissful-y0
+      - REPO_PASS=${GHCR_TOKEN}
+
+  cloudflared-deploy:
+    container_name: cloudflared-deploy
+    image: cloudflare/cloudflared:latest
+    restart: always
+    depends_on:
+      - watchtower
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ./cloudflared/credentials.json:/etc/cloudflared/credentials.json:ro
+
 volumes:
   risuai-save:
+    external: true
+    name: risuai_risuai-save
+  caddy-data:
+  caddy-config:
