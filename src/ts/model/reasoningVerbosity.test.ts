@@ -28,8 +28,8 @@ describe('reasoning and verbosity helpers', () => {
         expect(dbVerbosityToApi(1)).toBe('medium')
     })
 
-    test('sends reasoning effort exactly as selected without model-based correction', () => {
-        expect(dbReasoningEffortToApi(-1)).toBe('none')
+    test('omits reasoning_effort for "none" and returns the selected level otherwise', () => {
+        expect(dbReasoningEffortToApi(-1)).toBeUndefined()
         expect(dbReasoningEffortToApi(0)).toBe('low')
         expect(dbReasoningEffortToApi(1)).toBe('medium')
         expect(dbReasoningEffortToApi(2)).toBe('high')
