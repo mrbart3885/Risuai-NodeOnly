@@ -51,6 +51,7 @@ dist.zip
 .env
 /server/node/ssl/certificate
 /bin/
+/cloudflared/credentials.json
 
 
 # Due to Cargo.lock makes the project build fail, we ignore it

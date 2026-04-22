@@ -1,0 +1,6 @@
+risu.shinyacal.shop {
+	reverse_proxy risuai:6001
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+	}
+}

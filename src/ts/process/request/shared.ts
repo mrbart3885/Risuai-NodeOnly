@@ -70,7 +70,7 @@ export function applyParameters(
                 continue
             }
 
-            let value: number | string = 0
+            let value: number | string | undefined = 0
             if (parameter === 'top_k' && arg.ignoreTopKIfZero && sepParams[parameter] === 0) {
                 continue
             }
