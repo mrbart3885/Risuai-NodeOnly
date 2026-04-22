@@ -1,0 +1,7 @@
+tunnel: 66130d59-07c4-4560-b048-b13c5c3c8ca1
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: deploy.shinyacal.shop
+    service: http://watchtower:8080
+  - service: http_status:404
