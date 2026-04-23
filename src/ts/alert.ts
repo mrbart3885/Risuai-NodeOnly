@@ -202,23 +202,44 @@ export function doingAlert(){
 // the message; blocking equivalents (alertError, alertConfirm, alertInput)
 // stay in place for cases that require user acknowledgement.
 
+// Clear any in-flight wait/progress modal before showing a notify*. The legacy
+// alertNormal side-effect of overwriting alertStore used to do this implicitly;
+// without it, a lingering "Loading..." modal stays on screen after the toast
+// fires. Only clears transitional states — input/ask/etc. stay intact.
+//
+// TODO(refactor): this is a workaround for the two-layer UI state (alertStore
+// modals + sonner toasts). The cleaner fix is migrating wait/progress to
+// sonner's toast.loading/toast.promise and dropping them from alertStore, so
+// the two systems do not need explicit coordination. Tracked for a follow-up
+// branch, out of scope for the alert-to-notify migration.
+function clearTransitionalAlert() {
+    const current = get(alertStoreImported).type
+    if (current === 'wait' || current === 'wait2' || current === 'progress') {
+        alertStoreImported.set({ type: 'none', msg: '' })
+    }
+}
+
 export function notifyError(msg: string, opts?: NotifyOptions) {
+    clearTransitionalAlert()
     addLog({ level: 'error', message: msg, description: opts?.description, source: opts?.source })
     toast.error(msg, opts?.description ? { description: opts.description } : undefined)
 }
 
 export function notifyWarning(msg: string, opts?: NotifyOptions) {
+    clearTransitionalAlert()
     addLog({ level: 'warning', message: msg, description: opts?.description, source: opts?.source })
     toast.warning(msg, opts?.description ? { description: opts.description } : undefined)
 }
 
 export function notifyInfo(msg: string, opts?: NotifyOptions) {
+    clearTransitionalAlert()
     addLog({ level: 'info', message: msg, description: opts?.description, source: opts?.source })
     toast.info(msg, opts?.description ? { description: opts.description } : undefined)
 }
 
 export function notifySuccess(msg: string, opts?: Pick<NotifyOptions, 'description'>) {
     // Intentionally not logged (decision 4-2): success feedback has low timeline value.
+    clearTransitionalAlert()
     toast.success(msg, opts?.description ? { description: opts.description } : undefined)
 }
 
