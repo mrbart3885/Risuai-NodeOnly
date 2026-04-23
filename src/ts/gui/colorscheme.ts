@@ -2,7 +2,7 @@ import { get, writable } from "svelte/store";
 import { getDatabase, setDatabase } from "../storage/database.svelte";
 import { downloadFile } from "../globalApi.svelte";
 import { BufferToText, selectSingleFile } from "../util";
-import { alertError } from "../alert";
+import { notifyError } from "../alert";
 import { isLite } from "../lite";
 import { CustomCSSStore, SafeModeStore } from "../stores.svelte";
 
@@ -225,7 +225,7 @@ export async function importColorScheme(){
             typeof colorScheme.darkbutton !== 'string' ||
             typeof colorScheme.type !== 'string'
         ){
-            alertError('Invalid color scheme')
+            notifyError('Invalid color scheme')
             return
         }
         changeColorScheme('custom')
@@ -234,7 +234,7 @@ export async function importColorScheme(){
         updateColorScheme()
     }
     catch(e){
-        alertError('Invalid color scheme')
+        notifyError('Invalid color scheme')
         return
     
     }

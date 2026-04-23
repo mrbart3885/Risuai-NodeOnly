@@ -6,7 +6,7 @@
 // Server counterpart: server/node/server.cjs (createServerJwt, checkAuth,
 // /api/login, /api/token/refresh)
 import { language } from "src/lang"
-import { alertError, alertInput, waitAlert } from "../alert"
+import { alertInput, waitAlert, notifyError } from "../alert"
 import { decodeRisuSave, encodeRisuSaveLegacy } from "./risuSave"
 import { normalizeChat } from "./database.svelte"
 
@@ -102,7 +102,7 @@ export class NodeStorage{
         })
 
         if(response.status === 429){
-            alertError(`Too many attempts. Please wait and try again later.`)
+            notifyError(`Too many attempts. Please wait and try again later.`)
             await waitAlert()
             throw new Error('Too many login attempts')
         }

@@ -3,7 +3,7 @@
     import Help from "src/lib/Others/Help.svelte";
     import NumberInput from "src/lib/UI/GUI/NumberInput.svelte";
     import TextAreaInput from "src/lib/UI/GUI/TextAreaInput.svelte";
-    import { alertConfirm, alertError, alertInput, notifySuccess } from "src/ts/alert";
+    import { alertConfirm, alertError, alertInput, notifySuccess, notifyError } from "src/ts/alert";
     import { downloadFile } from "src/ts/globalApi.svelte";
     import { DBState } from "src/ts/stores.svelte";
     import {
@@ -62,7 +62,7 @@
             const presets = DBState.db.translatorPresets;
 
             if (presets.length === 0) {
-                alertError("There must be at least one preset.");
+                notifyError("There must be at least one preset.");
                 return;
             }
 
@@ -86,7 +86,7 @@
             const presets = DBState.db.translatorPresets;
 
             if (presets.length <= 1) {
-                alertError("There must be at least one preset.");
+                notifyError("There must be at least one preset.");
                 return;
             }
 
@@ -114,7 +114,7 @@
                 const presets = DBState.db.translatorPresets;
 
                 if (presets.length === 0) {
-                    alertError("There must be at least one preset.");
+                    notifyError("There must be at least one preset.");
                     return;
                 }
 

@@ -7,7 +7,7 @@
     import { onDestroy, onMount, tick } from "svelte";
     import { sleep, sortableOptions } from "src/ts/util";
     import { v4 } from "uuid";
-    import { alertError } from "src/ts/alert";
+    import { notifyError } from "src/ts/alert";
 
     let reinitializeSortable = false;
 
@@ -124,13 +124,13 @@
                 
                 // Basic condition check
                 if (!evt.from || !evt.to) {
-                    alertError('Error: \'evt.from\' or \'evt.to\' is null');
+                    notifyError('Error: \'evt.from\' or \'evt.to\' is null');
                     await recreateStb();
                     return;
                 }
                 
                 if (evt.oldIndex === undefined || evt.newIndex === undefined) {
-                    alertError('Error: oldIndex or newIndex is undefined');
+                    notifyError('Error: oldIndex or newIndex is undefined');
                     await recreateStb();
                     return;
                 }
@@ -232,7 +232,7 @@
                 
                 // For debugging: output drag and drop information
                 /*
-                alertError('=== Drag and Drop Debugging Info ===\n' +
+                notifyError('=== Drag and Drop Debugging Info ===\n' +
                           'finalNewIndex: ' + finalNewIndex + '\n' +
                           'realSourceIdx: ' + realSourceIdx + '\n' +
                           'newArray.length (제거 후): ' + newArray.length + '\n' +

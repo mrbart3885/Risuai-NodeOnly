@@ -14,7 +14,7 @@
     import TextInput from "../UI/GUI/TextInput.svelte";
 
     import { exportChat, importChat, exportAllChats } from "src/ts/characters";
-    import { alertChatOptions, alertConfirm, alertError, alertSelect, alertStore, notifySuccess } from "src/ts/alert";
+    import { alertChatOptions, alertConfirm, alertError, alertSelect, alertStore, notifySuccess, notifyError } from "src/ts/alert";
     import { findCharacterbyId, sleep, sortableOptions } from "src/ts/util";
 
     import { bookmarkListOpen, openModuleListStore } from "src/ts/stores.svelte";
@@ -333,7 +333,7 @@
                             }} class="text-textcolor2 hover:text-green-500 cursor-pointer" onclick={async (e) => {
                                 e.stopPropagation()
                                 if(chara.chats.length === 1){
-                                    alertError(language.errors.onlyOneChat)
+                                    notifyError(language.errors.onlyOneChat)
                                     return
                                 }
                                 const d = await alertConfirm(`${language.removeConfirm}${chat.name}`)
@@ -454,7 +454,7 @@
                     }} class="text-textcolor2 hover:text-green-500 cursor-pointer" onclick={async (e) => {
                         e.stopPropagation()
                         if(chara.chats.length === 1){
-                            alertError(language.errors.onlyOneChat)
+                            notifyError(language.errors.onlyOneChat)
                             return
                         }
                         const d = await alertConfirm(`${language.removeConfirm}${chat.name}`)

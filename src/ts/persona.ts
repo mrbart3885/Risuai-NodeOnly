@@ -1,6 +1,6 @@
 import { getDatabase, saveImage, setDatabase } from "./storage/database.svelte"
 import { selectSingleFile, sleep } from "./util"
-import { alertError, alertStore, notifySuccess } from "./alert"
+import { alertError, alertStore, notifySuccess, notifyError } from "./alert"
 import { AppendableBuffer, downloadFile, readImage } from "./globalApi.svelte"
 import { language } from "src/lang"
 import { reencodeImage } from "./process/files/inlays"
@@ -56,7 +56,7 @@ interface PersonaCard {
 export async function exportUserPersona() {
     let db = getDatabase({ snapshot: true })
     if ((!db.username) || (!db.personaPrompt)) {
-        alertError("username or persona prompt is empty")
+        notifyError("username or persona prompt is empty")
         return
     }
 

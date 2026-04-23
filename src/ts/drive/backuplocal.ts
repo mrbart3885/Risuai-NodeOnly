@@ -1,4 +1,4 @@
-import { alertError, alertStore, alertWait, alertMd, alertConfirm, waitAlert, notifySuccess, notifyInfo } from "../alert";
+import { alertError, alertStore, alertWait, alertMd, alertConfirm, waitAlert, notifySuccess, notifyInfo, notifyError } from "../alert";
 import { downloadFile, LocalWriter, forageStorage } from "../globalApi.svelte";
 import { encodeRisuSaveLegacy } from "../storage/risuSave";
 import { getDatabase, type Chat } from "../storage/database.svelte";
@@ -292,7 +292,7 @@ export async function CleanupMigratedFiles() {
         try {
             scan = await forageStorage.scanCleanup()
         } catch (error) {
-            alertError(error instanceof Error ? error.message : language.cleanupMigratedNotReady)
+            notifyError(error instanceof Error ? error.message : language.cleanupMigratedNotReady)
             return
         }
 
@@ -310,7 +310,7 @@ export async function CleanupMigratedFiles() {
         notifySuccess(language.cleanupMigratedSuccess(result.removed, formatBytes(result.freedBytes)))
     } catch (error) {
         console.error(error)
-        alertError(error instanceof Error ? error.message : 'Cleanup failed')
+        notifyError(error instanceof Error ? error.message : 'Cleanup failed')
     }
 }
 

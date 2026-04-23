@@ -1,6 +1,6 @@
 <script lang="ts">
     import { language } from "src/lang";
-    import { alertConfirm, alertError, alertWait, alertStore, waitAlert, notifySuccess } from "src/ts/alert";
+    import { alertConfirm, alertError, alertWait, alertStore, waitAlert, notifySuccess, notifyError } from "src/ts/alert";
     import { forageStorage, downloadFile } from "src/ts/globalApi.svelte";
     import { XIcon, RotateCcwIcon, DownloadIcon, TrashIcon } from "@lucide/svelte";
 
@@ -31,7 +31,7 @@
             const result = await forageStorage.listServerBackups();
             backups = result.backups;
         } catch (error) {
-            alertError(error instanceof Error ? error.message : 'Failed to load backups');
+            notifyError(error instanceof Error ? error.message : 'Failed to load backups');
         }
         loading = false;
     }
@@ -86,7 +86,7 @@
             }
             notifySuccess('Success');
         } catch (error) {
-            alertError(error instanceof Error ? error.message : 'Download failed');
+            notifyError(error instanceof Error ? error.message : 'Download failed');
         }
     }
 

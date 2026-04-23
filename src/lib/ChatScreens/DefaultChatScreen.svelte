@@ -13,7 +13,7 @@
     import { sleep } from "../../ts/util";
     import { language } from "../../lang";
     import { isExpTranslator, translate } from "../../ts/translator/translator";
-    import { alertError, alertWait, notifySuccess } from "../../ts/alert";
+    import { alertError, alertWait, notifySuccess, notifyError } from "../../ts/alert";
     import sendSound from '../../etc/send.mp3'
     import { processScript } from "src/ts/process/scripts";
     import CreatorQuote from "./CreatorQuote.svelte";
@@ -545,7 +545,7 @@
             loadPages = 10
         } catch (error) {
             console.error(error)
-            alertError("Error while taking screenshot")
+            notifyError("Error while taking screenshot")
         }
     }
 

@@ -19,7 +19,7 @@
   import TextAreaInput from "src/lib/UI/GUI/TextAreaInput.svelte";
   import Button from "src/lib/UI/GUI/Button.svelte";
   import { CustomGUISettingMenuStore, openThemePresetList } from "src/ts/stores.svelte";
-  import { alertError } from "src/ts/alert";
+  import { notifyError } from "src/ts/alert";
 
     const onSchemeInputChange = (e:Event) => {
         changeColorScheme((e.target as HTMLInputElement).value)
@@ -405,7 +405,7 @@
             if(hasPermission.state === 'denied'){
                 const permission = await Notification.requestPermission()
                 if(permission === 'denied'){
-                    alertError(language.permissionDenied)
+                    notifyError(language.permissionDenied)
                     DBState.db.notification = false
                 }
             }

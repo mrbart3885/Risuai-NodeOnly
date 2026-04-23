@@ -1,5 +1,5 @@
 <script>
-    import { alertConfirm, alertError } from "../../ts/alert";
+    import { alertConfirm, notifyError } from "../../ts/alert";
     import { language } from "../../lang";
     
     import { DBState } from 'src/ts/stores.svelte';
@@ -50,7 +50,7 @@
                     <div class="text-textcolor2 hover:text-green-500 cursor-pointer" role="button" tabindex="0" onclick={async (e) => {
                         e.stopPropagation()
                         if(DBState.db.characters[$selectedCharID].chats.length === 1){
-                            alertError(language.errors.onlyOneChat)
+                            notifyError(language.errors.onlyOneChat)
                             return
                         }
                         const d = await alertConfirm(`${language.removeConfirm}${chat.name}`)
