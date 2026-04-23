@@ -1658,4 +1658,28 @@ export const languageKorean = {
     remoteAccessQrHint: "QR 코드를 스캔하여 접속하세요",
     remoteAccessWarning: "QR 코드와 원격 링크를 절대로 다른 사람과 공유하지 마세요. 링크를 가진 누구나 서버에 자유롭게 접근할 수 있습니다. 실수로 공유한 경우, 원격 접속을 닫고 새 링크를 생성하세요.",
     remoteAccessInfo: "원격 접속을 닫거나 서버를 종료/재시작하면 링크가 만료되며, 다시 연결하면 새로운 링크가 생성됩니다. 이 페이지나 브라우저를 닫아도 원격 접속은 유지됩니다.",
+
+    // 시스템 로그 페이지
+    systemLogs: "시스템 로그",
+    systemLogsDesc: "서버 및 연결된 브라우저에서 발생한 에러, 경고, 정보 이벤트를 확인합니다.",
+    systemLogsEmpty: "로그가 없습니다",
+    systemLogsEmptyDesc: "에러나 경고가 발생하면 여기에 기록됩니다.",
+    systemLogsSearchPlaceholder: "메시지, 소스, 플랫폼, 기기 ID로 검색",
+    systemLogsLoadMore: "더 불러오기",
+    systemLogsRefresh: "새로고침",
+    systemLogsCopyAll: "보이는 항목 복사",
+    systemLogsCopyEntry: "복사",
+    systemLogsClearAll: "전체 삭제",
+    systemLogsClearConfirm: "모든 로그를 삭제할까요? 되돌릴 수 없습니다.",
+    systemLogsCopied: "클립보드에 복사됨",
+    systemLogsFiltered: (shown: number, total: number) => `${total}개 중 ${shown}개 표시`,
+    systemLogsLevelAll: "전체",
+    systemLogsLevelError: "에러",
+    systemLogsLevelWarning: "경고",
+    systemLogsLevelInfo: "정보",
+    systemLogsOriginAll: "전체",
+    systemLogsOriginClient: "클라이언트",
+    systemLogsOriginServer: "서버",
+    systemLogsFailedLoad: "로그를 불러오지 못했습니다",
+
 } satisfies DeepPartial<typeof import('./en').languageEnglish>

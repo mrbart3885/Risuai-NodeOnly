@@ -1811,6 +1811,30 @@ export const languageEnglish = {
     remoteAccessQrHint: "Scan QR code to connect",
     remoteAccessWarning: "Never share the QR code or link with others. Anyone with the link can freely access your server. If accidentally shared, close the connection and create a new one.",
     remoteAccessInfo: "The link expires when you close remote access or restart the server. A new link is generated each time. The connection stays active even if you close this page or browser.",
+
+    // System logs page
+    systemLogs: "System Logs",
+    systemLogsDesc: "View errors, warnings, and info events captured across this server and connected browsers.",
+    systemLogsEmpty: "No logs yet",
+    systemLogsEmptyDesc: "Errors and warnings will appear here as they occur.",
+    systemLogsSearchPlaceholder: "Search message, source, platform, or client ID",
+    systemLogsLoadMore: "Load more",
+    systemLogsRefresh: "Refresh",
+    systemLogsCopyAll: "Copy visible",
+    systemLogsCopyEntry: "Copy",
+    systemLogsClearAll: "Clear all",
+    systemLogsClearConfirm: "Delete all log entries? This cannot be undone.",
+    systemLogsCopied: "Copied to clipboard",
+    systemLogsFiltered: (shown: number, total: number) => `${shown} of ${total} shown`,
+    systemLogsLevelAll: "All levels",
+    systemLogsLevelError: "Error",
+    systemLogsLevelWarning: "Warning",
+    systemLogsLevelInfo: "Info",
+    systemLogsOriginAll: "All",
+    systemLogsOriginClient: "Client",
+    systemLogsOriginServer: "Server",
+    systemLogsFailedLoad: "Failed to load logs",
+
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;
