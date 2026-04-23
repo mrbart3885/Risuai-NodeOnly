@@ -8,13 +8,19 @@ import { requestOpenAI, requestOpenAIResponseAPI } from './openAI/requests'
 
 // ── Constants ────────────────────────────────────────────────────────
 
-const COPILOT_API = 'https://api.individual.githubcopilot.com'
 const GITHUB_API = 'https://api.github.com'
-const DEFAULT_VS_CODE_VERSION = '1.116.0'
-const DEFAULT_CHAT_VERSION = '0.43.0'
 const COPILOT_PROXY_POLICY = 'always' as const
 
-function getVersions(): { vsCode: string, chat: string } {
+// OpenCode simulation constants
+const OPENCODE_VERSION = '1.14.20'
+const AI_SDK_VERSION = '4.0.23'
+const BUN_VERSION = '1.3.11'
+
+// VSCode simulation defaults (overridable via db.copilot.vsCodeVersion / chatVersion)
+const DEFAULT_VS_CODE_VERSION = '1.117.0'
+const DEFAULT_CHAT_VERSION = '0.44.1'
+
+function getVsCodeVersions(): { vsCode: string, chat: string } {
     const db = getDatabase()
     return {
         vsCode: db.copilot?.vsCodeVersion || DEFAULT_VS_CODE_VERSION,
@@ -22,17 +28,126 @@ function getVersions(): { vsCode: string, chat: string } {
     }
 }
 
-function getUserAgent(): string {
-    const { vsCode } = getVersions()
-    return `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Code/${vsCode} Chrome/142.0.7444.265 Electron/39.6.0 Safari/537.36`
+// ── Target Profile System ────────────────────────────────────────────
+
+type TargetId = 'opencode' | 'vscode'
+
+interface TargetContext {
+    githubToken: string
+    tidToken?: string
+    sessionId: string
+    machineId: string
+    deviceId: string
+    requestId: string
 }
 
-function getCopilotChatUserAgent(): string {
-    const { chat } = getVersions()
-    return `GitHubCopilotChat/${chat}`
+interface ProbeContext {
+    githubToken: string
+    tidToken?: string
 }
 
-// ── Token Cache ──────────────────────────────────────────────────────
+interface SimulationTarget {
+    id: TargetId
+    apiEndpoint: string
+    tokenMode: 'github' | 'tid'
+    buildRequestHeaders: (ctx: TargetContext, format: LLMFormat, hasImage: boolean) => Record<string, string>
+    buildProbeHeaders: (ctx: ProbeContext) => Record<string, string>
+}
+
+const openCodeTarget: SimulationTarget = {
+    id: 'opencode',
+    apiEndpoint: 'https://api.githubcopilot.com',
+    tokenMode: 'github',
+    buildRequestHeaders(ctx, format, hasImage) {
+        const base = `opencode/${OPENCODE_VERSION}`
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${ctx.githubToken}`,
+            'User-Agent': `${base} ai-sdk/provider-utils/${AI_SDK_VERSION} runtime/bun/${BUN_VERSION}, ${base}`,
+            'Openai-Intent': 'conversation-edits',
+            'X-Initiator': 'user',
+            'x-session-affinity': ctx.sessionId,
+            'Sec-Fetch-Mode': 'cors',
+        }
+        if (format === LLMFormat.Anthropic) {
+            headers['anthropic-version'] = '2023-06-01'
+            headers['anthropic-beta'] = 'effort-2025-11-24,interleaved-thinking-2025-05-14'
+        }
+        if (hasImage) {
+            headers['Copilot-Vision-Request'] = 'true'
+        }
+        return headers
+    },
+    buildProbeHeaders({ githubToken }) {
+        return {
+            'Authorization': `Bearer ${githubToken}`,
+            'Accept': 'application/json',
+            'Accept-Language': '*',
+            'User-Agent': `opencode/${OPENCODE_VERSION}`,
+            'Sec-Fetch-Mode': 'cors',
+        }
+    },
+}
+
+const vsCodeTarget: SimulationTarget = {
+    id: 'vscode',
+    apiEndpoint: 'https://api.individual.githubcopilot.com',
+    tokenMode: 'tid',
+    buildRequestHeaders(ctx, format, hasImage) {
+        if (!ctx.tidToken) throw new Error('VSCode target requires a tid token')
+        const { vsCode, chat } = getVsCodeVersions()
+        const headers: Record<string, string> = {
+            'Authorization': `Bearer ${ctx.tidToken}`,
+            'Content-Type': 'application/json',
+            'Copilot-Integration-Id': 'vscode-chat',
+            'Editor-Device-Id': ctx.deviceId,
+            'Editor-plugin-version': `copilot-chat/${chat}`,
+            'Editor-version': `vscode/${vsCode}`,
+            'Openai-Intent': 'conversation-agent',
+            'User-Agent': `GitHubCopilotChat/${chat}`,
+            'Vscode-Machineid': ctx.machineId,
+            'Vscode-Sessionid': ctx.sessionId,
+            'X-Agent-Task-Id': ctx.requestId,
+            'X-Github-Api-Version': '2025-10-01',
+            'X-Initiator': 'user',
+            'X-Interaction-Id': ctx.requestId,
+            'X-Interaction-Type': 'conversation-panel',
+            'X-Request-Id': ctx.requestId,
+            'X-Vscode-User-Agent-Library-Version': 'electron-fetch',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-Mode': 'no-cors',
+            'Sec-Fetch-Dest': 'empty',
+        }
+        if (format === LLMFormat.Anthropic) {
+            headers['anthropic-version'] = '2023-06-01'
+        }
+        if (hasImage) {
+            headers['Copilot-Vision-Request'] = 'true'
+        }
+        return headers
+    },
+    buildProbeHeaders({ tidToken, githubToken }) {
+        // VSCode probe uses the tid bearer once obtained; fall back to github token
+        // only for the /copilot_internal/v2/token exchange itself.
+        return {
+            'Authorization': tidToken ? `Bearer ${tidToken}` : `token ${githubToken}`,
+            'Accept': 'application/json',
+            'User-Agent': `GitHubCopilotChat/${getVsCodeVersions().chat}`,
+        }
+    },
+}
+
+const TARGETS: Record<TargetId, SimulationTarget> = {
+    opencode: openCodeTarget,
+    vscode: vsCodeTarget,
+}
+
+function getActiveTarget(): SimulationTarget {
+    const id = getDatabase().copilot?.simulationTarget
+    return id === 'vscode' ? TARGETS.vscode : TARGETS.opencode
+}
+
+// ── Tid Token Cache (VSCode target only) ─────────────────────────────
 
 interface TidToken {
     token: string
@@ -51,30 +166,26 @@ async function getTidToken(githubToken: string): Promise<string> {
         method: 'GET',
         headers: {
             'Authorization': `token ${githubToken}`,
-            'User-Agent': getUserAgent(),
+            'User-Agent': `GitHubCopilotChat/${getVsCodeVersions().chat}`,
             'Accept': 'application/json',
         },
         proxyPolicy: COPILOT_PROXY_POLICY,
     })
 
-    // Fix #1: single text() call, sanitized error message
     if (!res.ok) {
-        const status = res.status
-        throw new Error(`Copilot token request failed (HTTP ${status}). Check your GitHub token.`)
+        throw new Error(`Copilot token request failed (HTTP ${res.status}). Check your GitHub token.`)
     }
 
     const data = await res.json()
-    const tid: TidToken = {
-        token: data.token,
-        expiresAt: data.expires_at * 1000
-    }
+    const tid: TidToken = { token: data.token, expiresAt: data.expires_at * 1000 }
     tidCache.set(githubToken, tid)
     return tid.token
 }
 
-// ── Machine ID (persisted to DB) ─────────────────────────────────────
+// ── Machine / Device ID (persisted) ──────────────────────────────────
 
 let cachedMachineId: string | null = null
+let cachedDeviceId: string | null = null
 
 function getMachineId(): string {
     if (cachedMachineId) return cachedMachineId
@@ -83,53 +194,66 @@ function getMachineId(): string {
         cachedMachineId = db.copilot.machineId
         return cachedMachineId
     }
-    // Fix #5: persist generated ID back to DB
     cachedMachineId = v4()
-    if (db.copilot) {
-        db.copilot.machineId = cachedMachineId
-    }
+    if (db.copilot) db.copilot.machineId = cachedMachineId
     return cachedMachineId
 }
 
-// ── Session ID (persisted per page session) ──────────────────────────
-
-let cachedSessionId: string | null = null
-
-// Fix #6: reuse session ID across requests (like real VSCode)
-function getSessionId(): string {
-    if (!cachedSessionId) cachedSessionId = v4()
-    return cachedSessionId
+function getDeviceId(): string {
+    if (cachedDeviceId) return cachedDeviceId
+    const db = getDatabase()
+    if (db.copilot?.deviceId) {
+        cachedDeviceId = db.copilot.deviceId
+        return cachedDeviceId
+    }
+    cachedDeviceId = v4()
+    if (db.copilot) db.copilot.deviceId = cachedDeviceId
+    return cachedDeviceId
 }
 
-// ── Header Builder ───────────────────────────────────────────────────
+// ── Session ID (per-target format) ───────────────────────────────────
 
-// Browsers strip `User-Agent` and `Sec-Fetch-*` from fetch() — these only
-// take effect on Tauri/Electron/server runtimes. The web build still works
-// because GitHub Copilot accepts the browser's auto-injected values.
-function buildHeaders(tidToken: string): Record<string, string> {
-    const requestId = v4()
-    return {
-        'Authorization': `Bearer ${tidToken}`,
-        'Content-Type': 'application/json',
-        'Copilot-Integration-Id': 'vscode-chat',
-        'Editor-version': `vscode/${getVersions().vsCode}`,
-        'Editor-plugin-version': `copilot-chat/${getVersions().chat}`,
-        'User-Agent': getCopilotChatUserAgent(),
-        'Vscode-Machineid': getMachineId(),
-        'Editor-Device-Id': getMachineId(),
-        'Vscode-Sessionid': getSessionId(),
-        'X-Request-Id': requestId,
-        'X-Agent-Task-Id': requestId,
-        'X-Interaction-Id': v4(),
-        'X-Interaction-Type': 'conversation-panel',
-        'Openai-Intent': 'conversation-agent',
-        'X-Initiator': 'user',
-        'X-Github-Api-Version': '2025-10-01',
-        'X-Vscode-User-Agent-Library-Version': 'electron-fetch',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-Mode': 'no-cors',
-        'Sec-Fetch-Dest': 'empty',
+const sessionIdByTarget = new Map<TargetId, string>()
+
+function generateOpenCodeSessionId(): string {
+    const mask = (1n << 48n) - 1n
+    const time = BigInt(Date.now()) * 0x1000n + 1n
+    const timeHex = (((~time) & mask)).toString(16).padStart(12, '0')
+
+    const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    let suffix = ''
+    while (suffix.length < 14) {
+        const bytes = crypto.getRandomValues(new Uint8Array(14 - suffix.length))
+        for (const b of bytes) {
+            if (b >= 248) continue
+            suffix += alphabet[b % 62]
+            if (suffix.length === 14) break
+        }
     }
+    return `ses_${timeHex}${suffix}`
+}
+
+function getSessionId(targetId: TargetId): string {
+    const existing = sessionIdByTarget.get(targetId)
+    if (existing) return existing
+    const fresh = targetId === 'opencode' ? generateOpenCodeSessionId() : v4()
+    sessionIdByTarget.set(targetId, fresh)
+    return fresh
+}
+
+async function buildContext(githubToken: string, target: SimulationTarget): Promise<TargetContext> {
+    const ctx: TargetContext = {
+        githubToken,
+        tidToken: undefined,
+        sessionId: getSessionId(target.id),
+        machineId: getMachineId(),
+        deviceId: getDeviceId(),
+        requestId: v4(),
+    }
+    if (target.tokenMode === 'tid') {
+        ctx.tidToken = await getTidToken(githubToken)
+    }
+    return ctx
 }
 
 // ── Key Rotation ─────────────────────────────────────────────────────
@@ -153,17 +277,37 @@ function advanceKey(): void {
     }
 }
 
+// ── Image Detection ──────────────────────────────────────────────────
+
+function hasImageContent(formated: any[] | undefined): boolean {
+    if (!Array.isArray(formated)) return false
+    for (const msg of formated) {
+        if (!msg) continue
+        if (Array.isArray(msg.content)) {
+            for (const c of msg.content) {
+                if (c?.type === 'image' || c?.type === 'image_url' || c?.image_url) return true
+            }
+        }
+        if (Array.isArray(msg.multimodals)) {
+            for (const m of msg.multimodals) {
+                if (m?.type === 'image') return true
+            }
+        }
+    }
+    return false
+}
+
 // ── Endpoint Selection ───────────────────────────────────────────────
 
-function getEndpoint(format: LLMFormat): string {
+function getEndpoint(target: SimulationTarget, format: LLMFormat): string {
     switch (format) {
         case LLMFormat.Anthropic:
-            return `${COPILOT_API}/v1/messages`
+            return `${target.apiEndpoint}/v1/messages`
         case LLMFormat.OpenAIResponseAPI:
-            return `${COPILOT_API}/responses`
+            return `${target.apiEndpoint}/responses`
         case LLMFormat.OpenAICompatible:
         default:
-            return `${COPILOT_API}/chat/completions`
+            return `${target.apiEndpoint}/chat/completions`
     }
 }
 
@@ -182,26 +326,26 @@ export async function requestCopilot(arg: RequestDataArgumentExtended): Promise<
         }
     }
 
+    const target = getActiveTarget()
     const maxAttempts = keyRotate === 'on-error' ? Math.max(tokens.length, 1) : 1
-
     const format = arg.modelInfo.format
-    const endpoint = getEndpoint(format)
+    const endpoint = getEndpoint(target, format)
+    const hasImage = hasImageContent(arg.formated)
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        // Fix #4: declare githubToken outside try so catch can access it
         let githubToken: string | undefined
         try {
             githubToken = getCurrentToken()
             if (keyRotate === 'sequential' && tokens.length > 1) {
                 advanceKey()
             }
-            const tidToken = await getTidToken(githubToken)
-            const copilotHeaders = buildHeaders(tidToken)
+            const ctx = await buildContext(githubToken, target)
+            const copilotHeaders = target.buildRequestHeaders(ctx, format, hasImage)
 
             const copilotArg: RequestDataArgumentExtended = {
                 ...arg,
                 customURL: endpoint,
-                key: tidToken,
+                key: ctx.tidToken ?? ctx.githubToken,
                 extraHeaders: copilotHeaders,
                 proxyPolicy: COPILOT_PROXY_POLICY,
             }
@@ -221,11 +365,10 @@ export async function requestCopilot(arg: RequestDataArgumentExtended): Promise<
                     break
             }
 
-            // Only rotate on auth/quota errors, not on bad payloads or model errors
             const isAuthError = result.type === 'fail' && /unauthorized|forbidden|token|quota|rate.limit|401|403|429/i.test(result.result)
             if (isAuthError && keyRotate === 'on-error' && attempt < maxAttempts - 1) {
                 advanceKey()
-                tidCache.delete(githubToken)
+                if (githubToken) tidCache.delete(githubToken)
                 continue
             }
 
@@ -251,11 +394,27 @@ export async function requestCopilot(arg: RequestDataArgumentExtended): Promise<
     }
 }
 
+// ── Probe helper (validate / list models) ────────────────────────────
+
+async function probeHeaders(githubToken: string, target: SimulationTarget): Promise<Record<string, string>> {
+    const tidToken = target.tokenMode === 'tid' ? await getTidToken(githubToken) : undefined
+    return target.buildProbeHeaders({ githubToken, tidToken })
+}
+
 // ── Token Validation ─────────────────────────────────────────────────
 
 export async function validateCopilotToken(githubToken: string): Promise<{valid: boolean, error?: string}> {
     try {
-        await getTidToken(githubToken)
+        const target = getActiveTarget()
+        const headers = await probeHeaders(githubToken, target)
+        const res = await fetchNative(`${target.apiEndpoint}/models`, {
+            method: 'GET',
+            headers,
+            proxyPolicy: COPILOT_PROXY_POLICY,
+        })
+        if (!res.ok) {
+            return { valid: false, error: `Token check failed (HTTP ${res.status})` }
+        }
         return { valid: true }
     } catch (e) {
         return { valid: false, error: e?.message ?? 'Unknown error' }
@@ -277,10 +436,9 @@ export interface CopilotModelInfo {
 
 export async function fetchCopilotModels(githubToken: string): Promise<{models: CopilotModelInfo[], error?: string}> {
     try {
-        const tidToken = await getTidToken(githubToken)
-        const headers = buildHeaders(tidToken)
-
-        const res = await fetchNative(`${COPILOT_API}/models`, {
+        const target = getActiveTarget()
+        const headers = await probeHeaders(githubToken, target)
+        const res = await fetchNative(`${target.apiEndpoint}/models`, {
             method: 'GET',
             headers,
             proxyPolicy: COPILOT_PROXY_POLICY,
@@ -333,7 +491,7 @@ export async function fetchCopilotUsage(githubToken: string): Promise<{usage: Co
             method: 'GET',
             headers: {
                 'Authorization': `token ${githubToken}`,
-                'User-Agent': getUserAgent(),
+                'User-Agent': `opencode/${OPENCODE_VERSION}`,
                 'Accept': 'application/json',
             },
             proxyPolicy: COPILOT_PROXY_POLICY,
