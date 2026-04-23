@@ -1,5 +1,6 @@
 import { fetchNative } from "src/ts/globalApi.svelte"
 import { LLMFormat } from "src/ts/model/modellist"
+import { LLMFlags } from "src/ts/model/types"
 import { getDatabase } from "src/ts/storage/database.svelte"
 import { v4 } from "uuid"
 import type { RequestDataArgumentExtended, requestDataResponse } from './request'
@@ -31,11 +32,15 @@ function getVsCodeVersions(): { vsCode: string, chat: string } {
 // ── Target Profile System ────────────────────────────────────────────
 
 type TargetId = 'opencode' | 'vscode'
+type Initiator = 'user' | 'agent'
 
 interface TargetContext {
     githubToken: string
     tidToken?: string
     sessionId: string
+    parentSessionId?: string
+    initiator: Initiator
+    usesAdaptiveEffort: boolean
     machineId: string
     deviceId: string
     requestId: string
@@ -54,6 +59,12 @@ interface SimulationTarget {
     buildProbeHeaders: (ctx: ProbeContext) => Record<string, string>
 }
 
+function buildAnthropicBetaHeader(usesAdaptiveEffort: boolean): string {
+    return usesAdaptiveEffort
+        ? 'effort-2025-11-24,interleaved-thinking-2025-05-14'
+        : 'interleaved-thinking-2025-05-14'
+}
+
 const openCodeTarget: SimulationTarget = {
     id: 'opencode',
     apiEndpoint: 'https://api.githubcopilot.com',
@@ -65,13 +76,15 @@ const openCodeTarget: SimulationTarget = {
             'Authorization': `Bearer ${ctx.githubToken}`,
             'User-Agent': `${base} ai-sdk/provider-utils/${AI_SDK_VERSION} runtime/bun/${BUN_VERSION}, ${base}`,
             'Openai-Intent': 'conversation-edits',
-            'X-Initiator': 'user',
+            'x-initiator': ctx.initiator,
             'x-session-affinity': ctx.sessionId,
-            'Sec-Fetch-Mode': 'cors',
+        }
+        if (ctx.parentSessionId) {
+            headers['x-parent-session-id'] = ctx.parentSessionId
         }
         if (format === LLMFormat.Anthropic) {
             headers['anthropic-version'] = '2023-06-01'
-            headers['anthropic-beta'] = 'effort-2025-11-24,interleaved-thinking-2025-05-14'
+            headers['anthropic-beta'] = buildAnthropicBetaHeader(ctx.usesAdaptiveEffort)
         }
         if (hasImage) {
             headers['Copilot-Vision-Request'] = 'true'
@@ -81,10 +94,8 @@ const openCodeTarget: SimulationTarget = {
     buildProbeHeaders({ githubToken }) {
         return {
             'Authorization': `Bearer ${githubToken}`,
-            'Accept': 'application/json',
-            'Accept-Language': '*',
+            'Accept': '*/*',
             'User-Agent': `opencode/${OPENCODE_VERSION}`,
-            'Sec-Fetch-Mode': 'cors',
         }
     },
 }
@@ -109,7 +120,7 @@ const vsCodeTarget: SimulationTarget = {
             'Vscode-Sessionid': ctx.sessionId,
             'X-Agent-Task-Id': ctx.requestId,
             'X-Github-Api-Version': '2025-10-01',
-            'X-Initiator': 'user',
+            'X-Initiator': ctx.initiator,
             'X-Interaction-Id': ctx.requestId,
             'X-Interaction-Type': 'conversation-panel',
             'X-Request-Id': ctx.requestId,
@@ -117,6 +128,9 @@ const vsCodeTarget: SimulationTarget = {
             'Sec-Fetch-Site': 'none',
             'Sec-Fetch-Mode': 'no-cors',
             'Sec-Fetch-Dest': 'empty',
+        }
+        if (ctx.parentSessionId) {
+            headers['x-parent-session-id'] = ctx.parentSessionId
         }
         if (format === LLMFormat.Anthropic) {
             headers['anthropic-version'] = '2023-06-01'
@@ -127,8 +141,6 @@ const vsCodeTarget: SimulationTarget = {
         return headers
     },
     buildProbeHeaders({ tidToken, githubToken }) {
-        // VSCode probe uses the tid bearer once obtained; fall back to github token
-        // only for the /copilot_internal/v2/token exchange itself.
         return {
             'Authorization': tidToken ? `Bearer ${tidToken}` : `token ${githubToken}`,
             'Accept': 'application/json',
@@ -211,9 +223,11 @@ function getDeviceId(): string {
     return cachedDeviceId
 }
 
-// ── Session ID (per-target format) ───────────────────────────────────
+// ── Session IDs ──────────────────────────────────────────────────────
 
-const sessionIdByTarget = new Map<TargetId, string>()
+// Chat session: keyed by `${targetId}:${chatKey}`. Persists across requests
+// within a single chat so x-session-affinity stays stable per conversation.
+const chatSessions = new Map<string, string>()
 
 function generateOpenCodeSessionId(): string {
     const mask = (1n << 48n) - 1n
@@ -233,19 +247,75 @@ function generateOpenCodeSessionId(): string {
     return `ses_${timeHex}${suffix}`
 }
 
-function getSessionId(targetId: TargetId): string {
-    const existing = sessionIdByTarget.get(targetId)
-    if (existing) return existing
-    const fresh = targetId === 'opencode' ? generateOpenCodeSessionId() : v4()
-    sessionIdByTarget.set(targetId, fresh)
-    return fresh
+function newSessionId(targetId: TargetId): string {
+    return targetId === 'opencode' ? generateOpenCodeSessionId() : v4()
 }
 
-async function buildContext(githubToken: string, target: SimulationTarget): Promise<TargetContext> {
+function getChatSessionId(targetId: TargetId, chatKey: string): string {
+    const mapKey = `${targetId}:${chatKey}`
+    let sid = chatSessions.get(mapKey)
+    if (!sid) {
+        sid = newSessionId(targetId)
+        chatSessions.set(mapKey, sid)
+    }
+    return sid
+}
+
+// ── Initiator Detection ──────────────────────────────────────────────
+
+// OpenCode spec: `agent` is used for subagent calls, turns after tool_use,
+// and turns after conversation compression. Everything else is `user`.
+function detectInitiator(arg: RequestDataArgumentExtended): Initiator {
+    // Auxiliary model modes (translation, memory/summary, emotion, submodel,
+    // otherAx) are agent-driven internal calls — not direct user turns.
+    if (arg.mode && arg.mode !== 'model') return 'agent'
+
+    // Tool-use follow-up: last message is a tool/function response the model
+    // must now act on.
+    const last = Array.isArray(arg.formated) ? arg.formated[arg.formated.length - 1] : null
+    const role = (last as any)?.role
+    if (role === 'tool' || role === 'function') return 'agent'
+
+    return 'user'
+}
+
+function detectAdaptiveEffort(arg: RequestDataArgumentExtended): boolean {
+    const flags = arg.modelInfo?.flags
+    if (!Array.isArray(flags) || !flags.includes(LLMFlags.claudeAdaptiveThinking)) {
+        return false
+    }
+    const db = getDatabase()
+    // thinkingType 'off' explicitly disables; everything else lets anthropic.ts
+    // decide whether to attach output_config.effort, but the beta header must
+    // be present whenever the path may emit effort.
+    return (db as any).thinkingType !== 'off'
+}
+
+function chatKeyOf(arg: RequestDataArgumentExtended): string {
+    return arg.chatId ?? 'default'
+}
+
+async function buildContext(
+    githubToken: string,
+    target: SimulationTarget,
+    arg: RequestDataArgumentExtended,
+): Promise<TargetContext> {
+    const initiator = detectInitiator(arg)
+    const chatKey = chatKeyOf(arg)
+    const chatSession = getChatSessionId(target.id, chatKey)
+
+    // Agent calls get a brand-new ephemeral session; the chat session becomes
+    // the parent. User calls ride the stable chat session directly.
+    const sessionId = initiator === 'agent' ? newSessionId(target.id) : chatSession
+    const parentSessionId = initiator === 'agent' ? chatSession : undefined
+
     const ctx: TargetContext = {
         githubToken,
         tidToken: undefined,
-        sessionId: getSessionId(target.id),
+        sessionId,
+        parentSessionId,
+        initiator,
+        usesAdaptiveEffort: detectAdaptiveEffort(arg),
         machineId: getMachineId(),
         deviceId: getDeviceId(),
         requestId: v4(),
@@ -339,7 +409,7 @@ export async function requestCopilot(arg: RequestDataArgumentExtended): Promise<
             if (keyRotate === 'sequential' && tokens.length > 1) {
                 advanceKey()
             }
-            const ctx = await buildContext(githubToken, target)
+            const ctx = await buildContext(githubToken, target, arg)
             const copilotHeaders = target.buildRequestHeaders(ctx, format, hasImage)
 
             const copilotArg: RequestDataArgumentExtended = {
@@ -469,6 +539,9 @@ export async function fetchCopilotModels(githubToken: string): Promise<{models: 
 }
 
 // ── Quota / Usage Check ──────────────────────────────────────────────
+// Kept intentionally: `/copilot_internal/user` only runs when the user opens
+// the Usage / Quota panel in Settings. It never touches the chat request
+// path, so OpenCode traffic parity is preserved.
 
 export interface CopilotQuotaSnapshot {
     quotaId: string
