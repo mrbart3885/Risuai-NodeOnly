@@ -8,7 +8,7 @@
     import { getModelInfo, LLMFlags } from "src/ts/model/modellist";
     import { requestChatData } from "src/ts/process/request/request";
     import { asBuffer, selectFileByDom, selectSingleFile, sleep } from "src/ts/util";
-    import { alertError, alertSelect } from "src/ts/alert";
+    import { alertSelect, notifyError } from "src/ts/alert";
     import { risuChatParser } from "src/ts/parser/parser.svelte";
     import { AppendableBuffer, downloadFile, getLanguageCodes } from "src/ts/globalApi.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
@@ -88,12 +88,12 @@
         }, 'model')
 
         if(v.type === 'multiline'){
-            alertError(v.result[0][1])
+            notifyError(v.result[0][1])
             return
         }
 
         if(v.type !== 'streaming'){
-            alertError(v.result)
+            notifyError(v.result)
             return
         }
 
@@ -159,7 +159,7 @@
                 await video.play()
                 const d = video.duration
                 if(isNaN(d)){
-                    alertError('This video does not have a duration')
+                    notifyError('This video does not have a duration')
                     return
                 }
                 video.pause()
@@ -272,7 +272,7 @@
                 console.log(outputText)
 
             } catch (error) {
-                alertError(JSON.stringify(error))
+                notifyError(JSON.stringify(error))
                 outputText = ''
                 return
             }
@@ -307,12 +307,12 @@
 
 
         if(v.type === 'multiline'){
-            alertError(v.result[0][1])
+            notifyError(v.result[0][1])
             return
         }
 
         if(v.type !== 'streaming'){
-            alertError(v.result)
+            notifyError(v.result)
             return
         }
 

@@ -1,4 +1,4 @@
-import { alertError } from "../alert";
+import { notifyError } from "../alert";
 import { getCurrentCharacter, getDatabase, type character } from "../storage/database.svelte";
 import { runTranslator, translateVox } from "../translator/translator";
 import { globalFetch, loadAsset } from "../globalApi.svelte";
@@ -69,7 +69,7 @@ export async function sayTTS(character:character,text:string) {
                     sourceNode.start();
                 }
                 else{
-                    alertError(await da.text())
+                    notifyError(await da.text())
                 }
                 break
             }
@@ -137,15 +137,15 @@ export async function sayTTS(character:character,text:string) {
                         sourceNode.connect(audioContext.destination);
                         sourceNode.start();
                     } catch (error) {                    
-                        alertError(language.errors.httpError + `${error}`)
+                        notifyError(language.errors.httpError + `${error}`)
                     }
                 }
                 else{
                     if(dat.error && dat.error.message){                    
-                        alertError((language.errors.httpError + `${dat.error.message}`))
+                        notifyError((language.errors.httpError + `${dat.error.message}`))
                     }
                     else{                    
-                        alertError((language.errors.httpError + `${Buffer.from(res.data).toString()}`))
+                        notifyError((language.errors.httpError + `${Buffer.from(res.data).toString()}`))
                     }
                 }
                 break;
@@ -178,7 +178,7 @@ export async function sayTTS(character:character,text:string) {
                         sourceNode.start();
                     });
                 } else {
-                    alertError("Error fetching or decoding audio data");
+                    notifyError("Error fetching or decoding audio data");
                 }
                 break;
             }
@@ -207,7 +207,7 @@ export async function sayTTS(character:character,text:string) {
                         }
                     }
                     else if(response.status >= 400){
-                        alertError(language.errors.httpError + `${await response.text()}`)
+                        notifyError(language.errors.httpError + `${await response.text()}`)
                         return
                     }
                     else if (response.status === 200) {
@@ -219,7 +219,7 @@ export async function sayTTS(character:character,text:string) {
                             sourceNode.start();
                         });
                     } else {
-                        alertError("Error fetching or decoding audio data");
+                        notifyError("Error fetching or decoding audio data");
                     }
                     return
                 }
@@ -354,7 +354,7 @@ export async function sayTTS(character:character,text:string) {
             }
         }   
     } catch (error) {
-        alertError(`TTS Error: ${error}`)
+        notifyError(`TTS Error: ${error}`)
     }
 }
 

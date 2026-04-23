@@ -6,7 +6,7 @@
   import OptionInput from "../UI/GUI/OptionInput.svelte";
 
   import { language } from 'src/lang'
-  import { alertConfirm, alertError, notifySuccess } from 'src/ts/alert'
+  import { alertConfirm, notifySuccess, notifyError } from 'src/ts/alert'
   import { downloadFile } from 'src/ts/globalApi.svelte'
   import {
     getCharacterChatIndex,
@@ -193,14 +193,14 @@
     try {
       const asset = await getInlayAssetBlob(item.id)
       if (!asset) {
-        alertError('Failed to load image for download.')
+        notifyError('Failed to load image for download.')
         return
       }
       const buffer = new Uint8Array(await asset.data.arrayBuffer())
       await downloadFile(sanitizeFileName(item.name), buffer)
       notifySuccess(language.successExport)
     } catch (error) {
-      alertError(`${error}`)
+      notifyError(`${error}`)
     }
   }
 

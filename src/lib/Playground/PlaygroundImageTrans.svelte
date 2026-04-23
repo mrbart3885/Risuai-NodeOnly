@@ -5,7 +5,7 @@
     import Button from "../UI/GUI/Button.svelte";
     import { jsonOutputTrimmer, selectSingleFile } from "src/ts/util";
     import { requestChatData } from "src/ts/process/request/request";
-    import { alertError } from "src/ts/alert";
+    import { notifyError } from "src/ts/alert";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
     import NumberInput from "../UI/GUI/NumberInput.svelte";
 
@@ -67,14 +67,14 @@
             }
             else{
                 if(!inputImage){
-                    return alertError('Please select an image first');
+                    return notifyError('Please select an image first');
                 }
                 const slicedCanvas = document.createElement('canvas');
                 slicedCanvas.width = canvas.width;
                 slicedCanvas.height = canvas.height;
                 const slicedCtx = slicedCanvas.getContext('2d');
                 if(!slicedCtx){
-                    return alertError('Failed to create canvas context');
+                    return notifyError('Failed to create canvas context');
                 }
                 const selectionRect = selection.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
@@ -174,11 +174,11 @@
 
             if(d.type === 'streaming' || d.type === 'multiline'){
                 loading = false;
-                return alertError('This model is not supported in the playground')
+                return notifyError('This model is not supported in the playground')
             }
 
             if(d.type !== 'success'){
-                alertError(d.result)
+                notifyError(d.result)
             }
 
             if(mode === 'manual'){
@@ -220,7 +220,7 @@
             }
 
         } catch (error) {
-            alertError(JSON.stringify(error))
+            notifyError(JSON.stringify(error))
         } finally {
             loading = false;
         }
