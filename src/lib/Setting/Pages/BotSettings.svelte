@@ -123,14 +123,18 @@
             DBState.db.copilot = {
                 githubTokens: [],
                 keyRotate: 'sequential',
+                simulationTarget: 'opencode',
                 machineId: '',
+                deviceId: '',
                 vsCodeVersion: '',
                 chatVersion: ''
             }
         }
         DBState.db.copilot.githubTokens ??= []
         DBState.db.copilot.keyRotate ??= 'sequential'
+        DBState.db.copilot.simulationTarget ??= 'opencode'
         DBState.db.copilot.machineId ??= ''
+        DBState.db.copilot.deviceId ??= ''
         DBState.db.copilot.vsCodeVersion ??= ''
         DBState.db.copilot.chatVersion ??= ''
         return DBState.db.copilot
@@ -389,6 +393,15 @@
             }}>
                 <PlusIcon size={16}/> <span class="text-sm">Add Token</span>
             </button>
+            <span class="text-textcolor text-sm">Simulation Target</span>
+            <SelectInput bind:value={dbAny.copilot.simulationTarget}>
+                <OptionInput value="opencode">OpenCode (recommended)</OptionInput>
+                <OptionInput value="vscode">VSCode Extension</OptionInput>
+            </SelectInput>
+            <span class="text-textcolor2 text-xs mb-2 block">
+                OpenCode sends the GitHub token directly. VSCode exchanges it for a tid token and uses the individual Copilot endpoint.
+            </span>
+
             {#if (dbAny.copilot?.githubTokens?.length ?? 0) > 1}
                 <span class="text-textcolor text-sm">Key Rotation</span>
                 <SelectInput bind:value={dbAny.copilot.keyRotate}>
@@ -397,17 +410,19 @@
                 </SelectInput>
             {/if}
 
-            <Accordion name="Version Override" styled>
-                <span class="text-textcolor2 text-xs mb-2 block">Leave empty for defaults. Check latest versions:</span>
-                <div class="flex gap-2 mb-2 text-xs">
-                    <a href="https://code.visualstudio.com/updates/" target="_blank" rel="noopener" class="text-blue-400 hover:text-blue-300 underline">VS Code Releases</a>
-                    <a href="https://github.com/microsoft/vscode-copilot-chat/releases/latest" target="_blank" rel="noopener" class="text-blue-400 hover:text-blue-300 underline">Copilot Chat Releases</a>
-                </div>
-                <span class="text-textcolor text-sm">VS Code Version</span>
-                <TextInput size={"sm"} placeholder="1.111.0" bind:value={dbAny.copilot.vsCodeVersion}/>
-                <span class="text-textcolor text-sm mt-2">Copilot Chat Version</span>
-                <TextInput size={"sm"} placeholder="0.39.2" bind:value={dbAny.copilot.chatVersion}/>
-            </Accordion>
+            {#if dbAny.copilot?.simulationTarget === 'vscode'}
+                <Accordion name="VSCode Version Override" styled>
+                    <span class="text-textcolor2 text-xs mb-2 block">Leave empty for defaults. Check latest versions:</span>
+                    <div class="flex gap-2 mb-2 text-xs">
+                        <a href="https://code.visualstudio.com/updates/" target="_blank" rel="noopener" class="text-blue-400 hover:text-blue-300 underline">VS Code Releases</a>
+                        <a href="https://github.com/microsoft/vscode-copilot-chat/releases/latest" target="_blank" rel="noopener" class="text-blue-400 hover:text-blue-300 underline">Copilot Chat Releases</a>
+                    </div>
+                    <span class="text-textcolor text-sm">VS Code Version</span>
+                    <TextInput size={"sm"} placeholder="1.117.0" bind:value={dbAny.copilot.vsCodeVersion}/>
+                    <span class="text-textcolor text-sm mt-2">Copilot Chat Version</span>
+                    <TextInput size={"sm"} placeholder="0.44.1" bind:value={dbAny.copilot.chatVersion}/>
+                </Accordion>
+            {/if}
 
             {#if (dbAny.copilot?.githubTokens?.length ?? 0) > 0}
                 <div class="border-t border-darkborderc mt-3 pt-3">

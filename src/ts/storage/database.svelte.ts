@@ -671,7 +671,9 @@ export function setDatabase(data:Database){
     data.enableRisuaiProTools ??= false
     data.useNodeOnlyScrollButton ??= true
     data.keepSessionAlive ??= 'off'
-    data.copilot ??= { githubTokens: [], keyRotate: 'sequential', machineId: '', vsCodeVersion: '', chatVersion: '' }
+    data.copilot ??= { githubTokens: [], keyRotate: 'sequential', simulationTarget: 'opencode', machineId: '', deviceId: '', vsCodeVersion: '', chatVersion: '' }
+    data.copilot.simulationTarget ??= 'opencode'
+    data.copilot.deviceId ??= ''
     data.copilot.vsCodeVersion ??= ''
     data.copilot.chatVersion ??= ''
     data.nanogpt ??= { apiKeys: [], keyRotate: 'sequential' }
@@ -1342,7 +1344,9 @@ export interface Database{
     copilot?: {
         githubTokens: string[]
         keyRotate: 'sequential' | 'on-error'
+        simulationTarget: 'opencode' | 'vscode'
         machineId: string
+        deviceId: string
         vsCodeVersion: string
         chatVersion: string
     }
