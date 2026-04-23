@@ -6,7 +6,7 @@
   import OptionInput from "../UI/GUI/OptionInput.svelte";
 
   import { language } from 'src/lang'
-  import { alertConfirm, alertError, alertNormal } from 'src/ts/alert'
+  import { alertConfirm, alertError, notifySuccess } from 'src/ts/alert'
   import { downloadFile } from 'src/ts/globalApi.svelte'
   import {
     getCharacterChatIndex,
@@ -198,7 +198,7 @@
       }
       const buffer = new Uint8Array(await asset.data.arrayBuffer())
       await downloadFile(sanitizeFileName(item.name), buffer)
-      alertNormal(language.successExport)
+      notifySuccess(language.successExport)
     } catch (error) {
       alertError(`${error}`)
     }

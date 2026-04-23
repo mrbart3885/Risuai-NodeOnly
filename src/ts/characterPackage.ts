@@ -1,6 +1,6 @@
 import * as fflate from 'fflate'
 import { v4 } from 'uuid'
-import { alertConfirm, alertError, alertNormal, alertStore, alertWait } from './alert'
+import { alertConfirm, alertError, alertStore, alertWait, notifySuccess } from './alert'
 import { exportCharacterCard, importCharacterProcess } from './characterCards'
 import { LocalWriter, readImage, VirtualWriter } from './globalApi.svelte'
 import { language } from 'src/lang'
@@ -605,7 +605,7 @@ export async function exportCharacterPackage(
         await zipWriter.write('manifest.json', JSON.stringify(manifest, null, 2), 6)
         await zipWriter.end()
 
-        alertNormal(language.characterPackageExportSuccess)
+        notifySuccess(language.characterPackageExportSuccess)
     } catch (error) {
         alertError(error)
     }
@@ -686,7 +686,7 @@ export async function importCharacterPackage(): Promise<void> {
 
             setDatabase(db)
             checkCharOrder()
-            alertNormal(language.characterPackageImportSuccess)
+            notifySuccess(language.characterPackageImportSuccess)
         } catch (error) {
             db.characters.splice(newCharIndex, 1)
             setDatabase(db)
@@ -732,7 +732,7 @@ export async function importPackageToCharacter(charIndex: number): Promise<void>
             + (manifest.chats ? 1 : 0)
             + (manifest.inlays && manifest.inlays.files.length > 0 ? 1 : 0)
         if (importTotalSteps === 0) {
-            alertNormal(language.characterPackageImportSuccess)
+            notifySuccess(language.characterPackageImportSuccess)
             return
         }
         let importCurrentStep = 0
@@ -750,7 +750,7 @@ export async function importPackageToCharacter(charIndex: number): Promise<void>
         await importInlays(manifest, unzipped, targetChar.chaId, importCurrentStep, importTotalSteps, progressLabel)
 
         setDatabase(db)
-        alertNormal(language.characterPackageImportSuccess)
+        notifySuccess(language.characterPackageImportSuccess)
     } catch (error) {
         alertError(error)
     }

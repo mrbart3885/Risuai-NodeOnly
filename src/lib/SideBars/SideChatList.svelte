@@ -14,7 +14,7 @@
     import TextInput from "../UI/GUI/TextInput.svelte";
 
     import { exportChat, importChat, exportAllChats } from "src/ts/characters";
-    import { alertChatOptions, alertConfirm, alertError, alertNormal, alertSelect, alertStore } from "src/ts/alert";
+    import { alertChatOptions, alertConfirm, alertError, alertSelect, alertStore, notifySuccess } from "src/ts/alert";
     import { findCharacterbyId, sleep, sortableOptions } from "src/ts/util";
 
     import { bookmarkListOpen, openModuleListStore } from "src/ts/stores.svelte";
@@ -287,7 +287,7 @@
                                             const confirm = await alertConfirm(language.doYouWantToUnbindCurrentPersona)
                                             if(confirm){
                                                 chat.bindedPersona = ''
-                                                alertNormal(language.personaUnbindedSuccess)
+                                                notifySuccess(language.personaUnbindedSuccess)
                                             }
                                         }
                                         else{
@@ -298,7 +298,7 @@
                                                 }
                                                 chat.bindedPersona = DBState.db.personas[DBState.db.selectedPersona].id
                                                 console.log(DBState.db.personas[DBState.db.selectedPersona])
-                                                alertNormal(language.personaBindedSuccess)
+                                                notifySuccess(language.personaBindedSuccess)
                                             }
                                         }
                                         break
@@ -408,7 +408,7 @@
                                     const confirm = await alertConfirm(language.doYouWantToUnbindCurrentPersona)
                                     if(confirm){
                                         chat.bindedPersona = ''
-                                        alertNormal(language.personaUnbindedSuccess)
+                                        notifySuccess(language.personaUnbindedSuccess)
                                     }
                                 }
                                 else{
@@ -419,7 +419,7 @@
                                         }
                                         chat.bindedPersona = DBState.db.personas[DBState.db.selectedPersona].id
                                         console.log(DBState.db.personas[DBState.db.selectedPersona])
-                                        alertNormal(language.personaBindedSuccess)
+                                        notifySuccess(language.personaBindedSuccess)
                                     }
                                 }
                                 break

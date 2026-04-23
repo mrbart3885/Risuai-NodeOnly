@@ -1,7 +1,7 @@
 <script lang="ts">
     import { BookIcon, FlagIcon, ImageIcon, PaperclipIcon, SmileIcon, TrashIcon } from "@lucide/svelte";
     import { language } from "src/lang";
-    import { alertConfirm, alertInput, alertNormal } from "src/ts/alert";
+    import { alertConfirm, alertInput, alertNormal, notifyInfo } from "src/ts/alert";
     import { hubURL, type hubType, downloadRisuHub, getRealmInfo } from "src/ts/characterCards";
     
     import { DBState } from 'src/ts/stores.svelte';
@@ -60,17 +60,17 @@
                 <div class="border-l-selected border-l ml-1 mr-1"></div>
                 {#if openedData.hasEmotion}
                     <button class="text-textcolor2 hover:text-green-500 transition-colors" onclick={((e) => {
-                        alertNormal("This character includes emotion images")
+                        notifyInfo("This character includes emotion images")
                     })}><SmileIcon /></button>
                 {/if}
                 {#if openedData.hasAsset}
                     <button class="text-textcolor2 hover:text-green-500 transition-colors" onclick={((e) => {
-                        alertNormal("This character includes additional Assets")
+                        notifyInfo("This character includes additional Assets")
                     })}><ImageIcon /></button>
                 {/if}
                 {#if openedData.hasLore}
                     <button class="text-textcolor2 hover:text-green-500 transition-colors" onclick={((e) => {
-                        alertNormal("This character includes lorebook")
+                        notifyInfo("This character includes lorebook")
                     })}><BookIcon /></button>
                 {/if}
             </div>
@@ -116,7 +116,7 @@
             <button class="text-textcolor2 hover:text-green-500" onclick={(async (e) => {
                 e.stopPropagation()
                 await navigator.clipboard.writeText(`https://realm.risuai.net/character/${openedData.id}`)
-                alertNormal(language.clipboardSuccess)
+                notifyInfo(language.clipboardSuccess)
             })}>
                 <PaperclipIcon />
             </button>

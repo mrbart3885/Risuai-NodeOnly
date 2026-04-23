@@ -1,7 +1,7 @@
 import { get, writable } from "svelte/store";
 import { saveImage, setDatabase, type character, type Chat, defaultSdDataFunc, type loreBook, getDatabase, getCharacterByIndex, setCharacterByIndex, getCurrentChat, loadTogglesFromChat, normalizeChat } from "./storage/database.svelte";
 import { ensureChatHydrated } from "./storage/chatStorage";
-import { alertAddCharacter, alertConfirm, alertError, alertNormal, alertSelect, alertStore, alertWait } from "./alert";
+import { alertAddCharacter, alertConfirm, alertError, alertSelect, alertStore, alertWait, notifySuccess, notifyInfo } from "./alert";
 import { loadingOverlayStore, chatDeselected } from "./stores.svelte";
 import { language } from "../lang";
 import { checkNullish, findCharacterbyId, getUserName, selectMultipleFile, selectSingleFile } from "./util";
@@ -320,7 +320,7 @@ export async function exportChat(page:number){
             })
             await navigator.clipboard.write([item])
 
-            alertNormal(language.clipboardSuccess)
+            notifyInfo(language.clipboardSuccess)
             return
 
         }
@@ -340,7 +340,7 @@ export async function exportChat(page:number){
             await downloadFile(`${char.name}_${date}_chat`.replace(/[<>:"/\\|?*\.\,]/g, "") + '.txt', Buffer.from(stringl, 'utf-8'))
 
         }
-        alertNormal(language.successExport)
+        notifySuccess(language.successExport)
     } catch (error) {
         alertError(error)
     }
@@ -394,7 +394,7 @@ export async function importChat(){
 
             db.characters[selectedID].chats.unshift(newChat)
             changeChatTo(0)
-            alertNormal(language.successImport)
+            notifySuccess(language.successImport)
         }
         else if(dat.name.endsWith('json')){
             const json = JSON.parse(Buffer.from(dat.data).toString('utf-8'))
@@ -424,7 +424,7 @@ export async function importChat(){
                     chat.id = v4()
                 })
                 db.characters[selectedID].chats.unshift(...chats.map(c => normalizeChat(c)))
-                alertNormal(language.successImport)
+                notifySuccess(language.successImport)
                 return
             }
             if(json.type === 'risuAllChats' && json.ver === 1){
@@ -440,7 +440,7 @@ export async function importChat(){
                         v.fmIndex ??= -1
                         return normalizeChat(v)
                     })))
-                    alertNormal(language.successImport)
+                    notifySuccess(language.successImport)
                     return
                 } else {
                     alertError(language.errors.noData)
@@ -453,7 +453,7 @@ export async function importChat(){
                     das.fmIndex ??= -1
                     das.id = v4()
                     db.characters[selectedID].chats.unshift(normalizeChat(das))
-                    alertNormal(language.successImport)
+                    notifySuccess(language.successImport)
                     return
                 }
                 else{
@@ -472,7 +472,7 @@ export async function importChat(){
             const json = JSON.parse(chat)
             if(json.message && json.note && json.name && json.localLore){
                 db.characters[selectedID].chats.unshift(normalizeChat(json))
-                alertNormal(language.successImport)
+                notifySuccess(language.successImport)
             }
             else{
                 alertError(language.errors.noData)
@@ -498,7 +498,7 @@ export async function exportAllChats() {
             folders: allFolders
         }), 'utf-8')
         await downloadFile(`${char.name}_all_chats_${date}`.replace(/[<>:"/\\|?*.,]/g, "") + '.json', stringl)
-        alertNormal(language.successExport)
+        notifySuccess(language.successExport)
     } catch (error) {
         alertError(error)
     }

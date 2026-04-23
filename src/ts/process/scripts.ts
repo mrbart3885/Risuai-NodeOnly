@@ -2,7 +2,7 @@ import { get } from "svelte/store";
 import { CharEmotion, selectedCharID } from "../stores.svelte";
 import { type character, type customscript, getDatabase, getCurrentCharacter, getCurrentChat } from "../storage/database.svelte";
 import { downloadFile } from "../globalApi.svelte";
-import { alertError, alertNormal } from "../alert";
+import { alertError, notifySuccess } from "../alert";
 import { language } from "src/lang";
 import { selectSingleFile } from "../util";
 import { assetRegex, type CbsConditions, risuChatParser as risuChatParserOrg, type simpleCharacterArgument } from "../parser/parser.svelte";
@@ -35,7 +35,7 @@ export function exportRegex(s?:customscript[]){
         data: script
     }), 'utf-8')
     downloadFile(`regexscript_export.json`,data)
-    alertNormal(language.successExport)
+    notifySuccess(language.successExport)
 }
 
 export async function importRegex(o?:customscript[]):Promise<customscript[]>{

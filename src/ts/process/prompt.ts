@@ -1,6 +1,6 @@
 import { tokenizeAccurate } from "../tokenizer";
 import { getDatabase, presetTemplate, setDatabase } from "../storage/database.svelte";
-import { alertError, alertNormal } from "../alert";
+import { alertError, notifySuccess } from "../alert";
 import type { OobaChatCompletionRequestParams } from "../model/ooba";
 
 export type PromptItem = PromptItemPlain|PromptItemTyped|PromptItemChat|PromptItemAuthorNote|PromptItemChatML|PromptItemCache
@@ -404,7 +404,7 @@ export function promptConvertion(files:{ name: string, content: string, type:str
         const db = getDatabase()
         db.botPresets.push(preset)
     
-        alertNormal('Preset converted successfully. You can find it in bot setting presets')
+        notifySuccess('Preset converted successfully. You can find it in bot setting presets')
         return
     }
 
@@ -481,5 +481,5 @@ export function promptConvertion(files:{ name: string, content: string, type:str
     const db = getDatabase()
     db.botPresets.push(preset)
 
-    alertNormal('Preset converted successfully. You can find it in bot setting presets')
+    notifySuccess('Preset converted successfully. You can find it in bot setting presets')
 }

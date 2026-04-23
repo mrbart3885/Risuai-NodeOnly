@@ -1,5 +1,5 @@
 import { writable, type Writable } from "svelte/store"
-import { alertCardExport, alertConfirm, alertError, alertInput, alertNormal, alertStore, alertTOS, alertWait } from "./alert"
+import { alertCardExport, alertConfirm, alertError, alertInput, alertStore, alertTOS, alertWait, notifySuccess } from "./alert"
 import { defaultSdDataFunc, type character, setDatabase, type customscript, type loreSettings, type loreBook, type triggerscript, importPreset, getDatabase, setDatabaseLite, appVer } from "./storage/database.svelte"
 import { checkNullish, decryptBuffer, isKnownUri, selectFileByDom, sleep } from "./util"
 import { language } from "src/lang"
@@ -60,7 +60,7 @@ export async function importCharacterProcess(f:{
             let db = getDatabase()
             db.characters.push(convertOffSpecCards(da))
             setDatabaseLite(db)
-            alertNormal(language.importedCharacter)
+            notifySuccess(language.importedCharacter)
             return
         }
         else{
@@ -323,7 +323,7 @@ export async function importCharacterProcess(f:{
         const imgp = await saveAsset(img)
         db.characters.push(convertOffSpecCards(charaData, imgp))
         setDatabaseLite(db)
-        alertNormal(language.importedCharacter)
+        notifySuccess(language.importedCharacter)
         return db.characters.length - 1
     }
     await importCharacterCardSpec(parsed, img, "normal", assets)
@@ -417,7 +417,7 @@ export async function characterURLImport() {
             }
         }
         db.modules.push(importData)
-        alertNormal(language.successImport)
+        notifySuccess(language.successImport)
         SettingsMenuIndex.set(14)
         settingsOpen.set(true)
         return
@@ -454,7 +454,7 @@ export async function characterURLImport() {
         md.id = v4()
         const db = getDatabase()
         db.modules.push(md)
-        alertNormal(language.successImport)
+        notifySuccess(language.successImport)
         SettingsMenuIndex.set(14)
         settingsOpen.set(true)
     }
@@ -503,7 +503,7 @@ export async function characterURLImport() {
             })
             SettingsMenuIndex.set(1)
             settingsOpen.set(true)
-            alertNormal(language.successImport)
+            notifySuccess(language.successImport)
             return
         }
         if(name.endsWith('risum')){
@@ -511,7 +511,7 @@ export async function characterURLImport() {
             md.id = v4()
             const db = getDatabase()
             db.modules.push(md)
-            alertNormal(language.successImport)
+            notifySuccess(language.successImport)
             SettingsMenuIndex.set(14)
             settingsOpen.set(true)
             return
@@ -940,7 +940,7 @@ async function importCharacterCardSpec(card:CharacterCardV2Risu|CharacterCardV3,
     
 
 
-    alertNormal(language.importedCharacter)
+    notifySuccess(language.importedCharacter)
     return true
 
 }
@@ -1227,7 +1227,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
             }
             if(type === 'json'){
                 await downloadFile(`${char.name.replace(/[<>:"/\\|?*\.\,]/g, "")}_export.json`, Buffer.from(JSON.stringify(card, null, 4), 'utf-8'))
-                alertNormal(language.successExport)
+                notifySuccess(language.successExport)
                 return
             }
     
@@ -1376,7 +1376,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
             }
             if(type === 'json'){
                 await downloadFile(`${char.name.replace(/[<>:"/\\|?*\.\,]/g, "")}_export.json`, Buffer.from(JSON.stringify(card, null, 4), 'utf-8'))
-                alertNormal(language.successExport)
+                notifySuccess(language.successExport)
                 return
             }
 
@@ -1409,7 +1409,7 @@ export async function exportCharacterCard(char:character, type:'png'|'json'|'cha
         await sleep(10)
 
         if(!arg.writer){
-            alertNormal(language.successExport)
+            notifySuccess(language.successExport)
         }
 
     }

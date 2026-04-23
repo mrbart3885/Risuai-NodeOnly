@@ -13,7 +13,7 @@
     import { sleep } from "../../ts/util";
     import { language } from "../../lang";
     import { isExpTranslator, translate } from "../../ts/translator/translator";
-    import { alertError, alertNormal, alertWait } from "../../ts/alert";
+    import { alertError, alertWait, notifySuccess } from "../../ts/alert";
     import sendSound from '../../etc/send.mp3'
     import { processScript } from "src/ts/process/scripts";
     import CreatorQuote from "./CreatorQuote.svelte";
@@ -541,7 +541,7 @@
                 await downloadFile(`chat-${v4()}.png`, Buffer.from(mergedCanvas.toDataURL('png').split(',').at(-1), 'base64'))
                 mergedCanvas.remove();
             }
-            alertNormal(language.screenshotSaved)
+            notifySuccess(language.screenshotSaved)
             loadPages = 10
         } catch (error) {
             console.error(error)

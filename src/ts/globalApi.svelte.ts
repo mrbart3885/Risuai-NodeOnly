@@ -6,7 +6,7 @@ import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, nod
 import { checkRisuUpdate } from "./update";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore, loadingOverlayStore, chatDeselected } from "./stores.svelte";
 import { loadPlugins } from "./plugins/plugins.svelte";
-import { alertConfirm, alertError, alertMd, alertNormal, alertNormalWait, alertSelect, alertTOS, waitAlert } from "./alert";
+import { alertConfirm, alertError, alertMd, alertNormalWait, alertSelect, alertTOS, waitAlert, notifySuccess } from "./alert";
 import { hasher } from "./parser/parser.svelte";
 import { characterURLImport, hubURL } from "./characterCards";
 import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from "./storage/defaultPrompts";
@@ -2105,7 +2105,7 @@ export async function loadInternalBackup() {
     const backupDecoded = await decodeRisuSave(Buffer.from(data) as unknown as Uint8Array)
     setDatabase(backupDecoded)
 
-    alertNormal('Loaded backup')
+    notifySuccess('Loaded backup')
 
 
 

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { language } from "src/lang";
-    import { alertConfirm, alertError, alertNormal, alertWait, alertStore, waitAlert } from "src/ts/alert";
+    import { alertConfirm, alertError, alertWait, alertStore, waitAlert, notifySuccess } from "src/ts/alert";
     import { forageStorage, downloadFile } from "src/ts/globalApi.svelte";
     import { XIcon, RotateCcwIcon, DownloadIcon, TrashIcon } from "@lucide/svelte";
 
@@ -84,7 +84,7 @@
             } else {
                 await downloadFile(backup.filename, new Uint8Array(await response.arrayBuffer()));
             }
-            alertNormal('Success');
+            notifySuccess('Success');
         } catch (error) {
             alertError(error instanceof Error ? error.message : 'Download failed');
         }
@@ -95,7 +95,7 @@
         try {
             await forageStorage.deleteServerBackup(backup.filename);
             backups = backups.filter(b => b.filename !== backup.filename);
-            alertNormal(language.serverBackupDeleteSuccess);
+            notifySuccess(language.serverBackupDeleteSuccess);
         } catch (error) {
             alertError(error instanceof Error ? error.message : 'Delete failed');
         }

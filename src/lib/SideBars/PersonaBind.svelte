@@ -2,7 +2,7 @@
     import { DBState, selectedCharID } from "src/ts/stores.svelte";
     import { language } from "src/lang";
     import { getCurrentChat } from "src/ts/storage/database.svelte";
-    import { alertNormal, alertSelect } from "src/ts/alert";
+    import { alertSelect, notifySuccess } from "src/ts/alert";
     import { PinIcon, PinOffIcon } from "@lucide/svelte";
     import { openPersonaList, personaSelectCallback } from "src/ts/stores.svelte";
     import { v4 } from "uuid";
@@ -23,14 +23,14 @@
         const persona = DBState.db.personas[personaIndex]
         if (!persona.id) persona.id = v4()
         chat.bindedPersona = persona.id
-        alertNormal(language.personaBindedSuccess)
+        notifySuccess(language.personaBindedSuccess)
     }
 
     function unbindPersona() {
         const chat = getCurrentChat()
         if (!chat) return
         chat.bindedPersona = ''
-        alertNormal(language.personaUnbindedSuccess)
+        notifySuccess(language.personaUnbindedSuccess)
     }
 
     async function handlePersonaBindClick() {

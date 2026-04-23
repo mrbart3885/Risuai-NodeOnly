@@ -15,7 +15,7 @@
     import { type Unsubscriber } from "svelte/store"
     import { v4 as uuidv4, v4 } from 'uuid'
     import { language } from "../../lang"
-    import { alertClear, alertConfirm, alertInput, alertNormal, alertRequestData, alertWait } from "../../ts/alert"
+    import { alertClear, alertConfirm, alertInput, alertRequestData, alertWait, notifyInfo } from "../../ts/alert"
     import { ParseMarkdown, type CbsConditions, type simpleCharacterArgument } from "../../ts/parser/parser.svelte"
     import { getLLMCache, setLLMCache } from "../../ts/translator/translator"
     import { getCurrentCharacter, getCurrentChat, setCurrentChat, type MessageGenerationInfo } from "../../ts/storage/database.svelte"
@@ -696,7 +696,7 @@
                         'text/html': new Blob([html], {type: 'text/html'})
                     })
                 ])
-                alertNormal(language.copied)
+                notifyInfo(language.copied)
                 return
             }
             catch (e) {

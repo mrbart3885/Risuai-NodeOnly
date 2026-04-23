@@ -1,6 +1,6 @@
 <script lang="ts">
     import { BookIcon, ImageIcon, SmileIcon } from "@lucide/svelte";
-    import { alertNormal } from "src/ts/alert";
+    import { notifyInfo } from "src/ts/alert";
     import { hubURL, type hubType } from "src/ts/characterCards";
     import { DBState } from "src/ts/stores.svelte";
     import { parseMultilangString } from "src/ts/util";
@@ -41,19 +41,19 @@
             {#if chara.hasEmotion}
                 <div class="text-textcolor2 hover:text-green-500 transition-colors" role="button" tabindex="0" onclick={((e) => {
                     e.stopPropagation()
-                    alertNormal("This character includes emotion images")
+                    notifyInfo("This character includes emotion images")
                 })} onkeydown={(e) => {}}><SmileIcon /></div>
             {/if}
             {#if chara.hasAsset}
                 <div class="text-textcolor2 hover:text-green-500 transition-colors" role="button" tabindex="0" onclick={((e) => {
                     e.stopPropagation()
-                    alertNormal("This character includes additional assets")
+                    notifyInfo("This character includes additional assets")
                 })} onkeydown={(e) => {}}><ImageIcon /></div>
             {/if}
             {#if chara.hasLore}
                 <div class="text-textcolor2 hover:text-green-500 transition-colors" role="button" tabindex="0" onclick={((e) => {
                     e.stopPropagation()
-                    alertNormal("This character includes lorebook")
+                    notifyInfo("This character includes lorebook")
                 })} onkeydown={(e) => {}}><BookIcon /></div>
             {/if}
         </div>

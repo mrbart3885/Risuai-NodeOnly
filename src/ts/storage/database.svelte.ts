@@ -5,7 +5,7 @@ import type { RisuPlugin } from '../plugins/plugins.svelte';
 import type {triggerscript as triggerscriptMain} from '../process/triggers';
 import { downloadFile, saveAsset as saveImageGlobal } from '../globalApi.svelte';
 import { defaultAutoSuggestPrompt, defaultJailbreak, defaultMainPrompt } from './defaultPrompts';
-import { alertNormal } from '../alert';
+import { notifySuccess } from '../alert';
 import type { NAISettings } from '../process/models/nai';
 import { prebuiltNAIpresets, prebuiltPresets } from '../process/templates/templates';
 import { defaultColorScheme, type ColorScheme } from '../gui/colorscheme';
@@ -2571,7 +2571,7 @@ export async function downloadThemePreset(id: number, type: 'json'|'risutheme' =
         downloadFile(pres.name + "_theme.risutheme", buf2)
     }
 
-    alertNormal(language.successExport)
+    notifySuccess(language.successExport)
 }
 
 export async function importThemePreset(f: {
@@ -2605,7 +2605,7 @@ export async function importThemePreset(f: {
     let db = getDatabase()
     pre.name = pre.name ?? "Imported Theme"
     db.themePresets.push(pre)
-    alertNormal(language.successImport)
+    notifySuccess(language.successImport)
 }
 
 import { encode as encodeMsgpack, decode as decodeMsgpack } from "msgpackr/index-no-eval";
@@ -2660,7 +2660,7 @@ export async function downloadPreset(id:number, type:'json'|'risupreset'|'return
 
     }
 
-    alertNormal(language.successExport)
+    notifySuccess(language.successExport)
 
 
     return {

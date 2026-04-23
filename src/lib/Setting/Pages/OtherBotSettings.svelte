@@ -20,7 +20,7 @@
     import { tokenizePreset } from "src/ts/process/prompt";
     import { getCharToken } from "src/ts/tokenizer";
     import { PlusIcon, PencilIcon, TrashIcon, DownloadIcon, HardDriveUploadIcon } from "@lucide/svelte";
-    import { alertError, alertInput, alertConfirm, alertNormal } from "src/ts/alert";
+    import { alertError, alertInput, alertConfirm, notifySuccess } from "src/ts/alert";
     import { createHypaV3Preset } from "src/ts/process/memory/hypav3";
 
     let submenu = $state(0);
@@ -160,7 +160,7 @@
               .sort((a, b) => a.name.localeCompare(b.model_id));
 
             wavespeedModels = filteredModels;
-            alertNormal(`Successfully loaded ${filteredModels.length} models`);
+            notifySuccess(`Successfully loaded ${filteredModels.length} models`);
         } catch (error) {
             alertError(`Failed to fetch models: ${error}`);
         } finally {
@@ -1054,7 +1054,7 @@
                         }), 'utf-8')
                         
                         await downloadFile(`hypaV3_export_${preset.name}.json`, bytesExport)
-                        alertNormal(language.successExport)
+                        notifySuccess(language.successExport)
                     } catch (error) {
                         alertError(`${error}`)
                     }
@@ -1082,7 +1082,7 @@
                         DBState.db.hypaV3Presets = presets
                         DBState.db.hypaV3PresetId = DBState.db.hypaV3Presets.length - 1
 
-                        alertNormal(language.successImport)
+                        notifySuccess(language.successImport)
                     } catch (error) {
                         alertError(`${error}`)
                     }

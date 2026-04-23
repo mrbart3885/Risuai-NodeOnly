@@ -1,4 +1,4 @@
-import { alertError, alertNormal, alertStore, alertWait, alertMd, alertConfirm, waitAlert } from "../alert";
+import { alertError, alertStore, alertWait, alertMd, alertConfirm, waitAlert, notifySuccess, notifyInfo } from "../alert";
 import { downloadFile, LocalWriter, forageStorage } from "../globalApi.svelte";
 import { encodeRisuSaveLegacy } from "../storage/risuSave";
 import { getDatabase, type Chat } from "../storage/database.svelte";
@@ -46,7 +46,7 @@ export async function SaveLocalBackup(){
             await downloadFile(fileName, new Uint8Array(await response.arrayBuffer()))
         }
 
-        alertNormal('Success')
+        notifySuccess('Success')
     } catch (error) {
         console.error(error)
         alertError('Failed')
@@ -207,7 +207,7 @@ export async function SavePartialLocalBackup(){
         }
         alertMd(message)
     } else {
-        alertNormal('Success')
+        notifySuccess('Success')
     }
 }
 
@@ -297,7 +297,7 @@ export async function CleanupMigratedFiles() {
         }
 
         if (scan.count === 0) {
-            alertNormal(language.cleanupMigratedNoFiles)
+            notifyInfo(language.cleanupMigratedNoFiles)
             return
         }
 
@@ -307,7 +307,7 @@ export async function CleanupMigratedFiles() {
         alertWait(language.cleanupMigratedCleaning)
         const result = await forageStorage.executeCleanup()
 
-        alertNormal(language.cleanupMigratedSuccess(result.removed, formatBytes(result.freedBytes)))
+        notifySuccess(language.cleanupMigratedSuccess(result.removed, formatBytes(result.freedBytes)))
     } catch (error) {
         console.error(error)
         alertError(error instanceof Error ? error.message : 'Cleanup failed')
@@ -324,7 +324,7 @@ export async function SaveServerBackup() {
             const bytesStr = formatBytes(bytes)
             alertWait(`${language.serverBackupSaving} (${pct}% - ${bytesStr})`)
         })
-        alertNormal(language.serverBackupSaveSuccess(result.filename, formatBytes(result.size)))
+        notifySuccess(language.serverBackupSaveSuccess(result.filename, formatBytes(result.size)))
     } catch (error) {
         console.error(error)
         alertError(error instanceof Error ? error.message : 'Server backup failed')

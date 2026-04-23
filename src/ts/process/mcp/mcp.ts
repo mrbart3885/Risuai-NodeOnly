@@ -2,7 +2,7 @@ import { getDatabase } from "src/ts/storage/database.svelte";
 import { MCPClient, type JsonRPC, type MCPTool, type RPCToolCallContent } from "./mcplib";
 import { DBState } from "src/ts/stores.svelte";
 import { getModuleMcps } from "../modules";
-import { alertError, alertInput, alertNormal } from "src/ts/alert";
+import { alertError, alertInput, notifySuccess } from "src/ts/alert";
 import { v4 } from "uuid";
 import type { MCPClientLike } from "./internalmcp";
 import { sleep } from "src/ts/util";
@@ -237,7 +237,7 @@ export async function importMCPModule(){
                 selective: false
             }]
         })
-        alertNormal(`MCP module imported successfully!\nName: ${meta.serverInfo.name}`);
+        notifySuccess(`MCP module imported successfully!\nName: ${meta.serverInfo.name}`);
 
     } catch (error) {
         alertError(error)

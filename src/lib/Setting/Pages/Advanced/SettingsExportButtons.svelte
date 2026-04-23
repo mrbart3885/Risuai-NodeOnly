@@ -2,7 +2,7 @@
     import { language } from "src/lang";
     import Button from "src/lib/UI/GUI/Button.svelte";
     import { DBState } from 'src/ts/stores.svelte';
-    import { alertMd, alertNormal } from "src/ts/alert";
+    import { alertMd, notifySuccess } from "src/ts/alert";
     import { downloadFile, getRequestLog } from "src/ts/globalApi.svelte";
     import { getDatabase } from "src/ts/storage/database.svelte";
     import { isNodeServer } from "src/ts/platform";
@@ -66,7 +66,7 @@ Show Statistics
         const json = JSON.stringify(db, null, 2)
         await downloadFile('risuai-settings-report.json', new TextEncoder().encode(json))
         await navigator.clipboard.writeText(json)
-        alertNormal(language.settingsExported)
+        notifySuccess(language.settingsExported)
         
 
     }}

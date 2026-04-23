@@ -6,7 +6,7 @@
     import type { PromptItem } from "src/ts/process/prompt";
     import type { character } from "src/ts/storage/database.svelte";
     import { getCurrentChat, snapshotToggleValues, saveTogglesToChat } from "src/ts/storage/database.svelte";
-    import { alertConfirm, alertNormal, alertTogglePresets } from "src/ts/alert";
+    import { alertConfirm, alertTogglePresets, notifySuccess } from "src/ts/alert";
     import { tooltip } from "src/ts/gui/tooltip";
     import { PinIcon, SaveIcon, FolderHeartIcon } from "@lucide/svelte";
     import Accordion from '../UI/Accordion.svelte'
@@ -50,13 +50,13 @@
             }
         } else {
             saveTogglesToChat()
-            alertNormal(language.togglePinSaved)
+            notifySuccess(language.togglePinSaved)
         }
     }
 
     function updatePin() {
         saveTogglesToChat()
-        alertNormal(language.togglePinSaved)
+        notifySuccess(language.togglePinSaved)
     }
 
     async function openPresetList() {

@@ -12,7 +12,7 @@
     import Help from "src/lib/Others/Help.svelte";
     import TextAreaInput from "src/lib/UI/GUI/TextAreaInput.svelte";
     import { getFileSrc, saveAsset, downloadFile } from "src/ts/globalApi.svelte";
-    import { alertNormal, alertError } from "src/ts/alert";
+    import { alertError, notifySuccess } from "src/ts/alert";
     import { exportRegex, importRegex } from "src/ts/process/scripts";
     import { selectMultipleFile } from "src/ts/util";
     
@@ -90,7 +90,7 @@
 
             await downloadFile(`lorebook_export.json`, stringl)
 
-            alertNormal(language.successExport)
+            notifySuccess(language.successExport)
         } catch (error) {
             alertError(`${error}`)
         }
