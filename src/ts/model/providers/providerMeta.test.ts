@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import { CopilotModels } from './copilot'
 import { NanoGPTModels } from './nanogpt'
+import { OpenAIModels } from './openai'
 import { LLMFlags, LLMFormat, LLMTokenizer } from '../types'
 
 describe('provider model metadata', () => {
@@ -10,9 +11,26 @@ describe('provider model metadata', () => {
             CopilotModels.filter((model) => model.recommended).map((model) => model.id)
         )
 
+        expect(recommendedIds.has('copilot-gpt-5.5')).toBe(true)
+        expect(recommendedIds.has('copilot-gpt-5.5-pro')).toBe(true)
         expect(recommendedIds.has('copilot-gpt-5.1')).toBe(true)
         expect(recommendedIds.has('copilot-gemini-3-flash-preview')).toBe(true)
         expect(recommendedIds.has('copilot-gemini-3.1-pro-preview')).toBe(true)
+    })
+
+    test('registers upcoming OpenAI GPT-5.5 aliases', () => {
+        const modelMap = new Map(OpenAIModels.map((model) => [model.id, model]))
+
+        expect(modelMap.get('gpt-5.5')?.internalID).toBe('gpt-5.5')
+        expect(modelMap.get('gpt-5.5-pro')?.internalID).toBe('gpt-5.5-pro')
+        expect(modelMap.get('gpt-5.5')?.recommended).toBe(true)
+    })
+
+    test('registers upcoming Copilot GPT-5.5 aliases', () => {
+        const modelMap = new Map(CopilotModels.map((model) => [model.id, model]))
+
+        expect(modelMap.get('copilot-gpt-5.5')?.internalID).toBe('gpt-5.5')
+        expect(modelMap.get('copilot-gpt-5.5-pro')?.internalID).toBe('gpt-5.5-pro')
     })
 
     test('keeps static Copilot GPT-5.4 on chat completions format', () => {
@@ -23,6 +41,8 @@ describe('provider model metadata', () => {
 
     test('marks static Copilot GPT-5 models to use completion-token field', () => {
         const gpt5Ids = [
+            'copilot-gpt-5.5',
+            'copilot-gpt-5.5-pro',
             'copilot-gpt-5.4',
             'copilot-gpt-5.2',
             'copilot-gpt-5.1',
