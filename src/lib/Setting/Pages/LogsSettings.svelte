@@ -109,42 +109,56 @@
         excludeBackground: explicitOnly,
     })
 
+    // Generation counter to discard stale fetch results. loadInitial bumps it
+    // (each call starts a fresh pagination); loadMore only snapshots it. If a
+    // fetch resolves after a newer generation began, its result is dropped so
+    // filter changes mid-pagination don't merge results from different filters.
+    let fetchGen = 0
+
     async function loadInitial() {
         // Snapshot filter BEFORE any await — ensures the $effect tracking this
         // call picks up serverFilter as a dependency synchronously.
         const filter = serverFilter
+        const gen = ++fetchGen
         loading = true
         loadError = null
         try {
             const data = await fetchLogs({ limit: PAGE_SIZE, filter })
+            if (gen !== fetchGen) return
             entries = data.rows
             totalCount = data.total
             hasMore = data.rows.length >= PAGE_SIZE && data.rows.length < data.total
             expanded = {}
         } catch (err) {
+            if (gen !== fetchGen) return
             loadError = err instanceof Error ? err.message : String(err)
         } finally {
-            loading = false
+            if (gen === fetchGen) loading = false
         }
     }
 
     async function loadMore() {
         if (loadingMore || !hasMore || entries.length === 0) return
         const filter = serverFilter
+        const gen = fetchGen
         loadingMore = true
         try {
             // Use row id as the cursor — server sorts by id DESC, so this matches the
             // server ordering exactly and avoids skipping entries that share a timestamp.
             const oldestId = entries[entries.length - 1].id
             const data = await fetchLogs({ limit: PAGE_SIZE, beforeId: oldestId, filter })
+            if (gen !== fetchGen) return
             const existing = new Set(entries.map(e => e.id))
             const fresh = data.rows.filter(r => !existing.has(r.id))
             entries = [...entries, ...fresh]
             totalCount = data.total
             hasMore = fresh.length >= PAGE_SIZE && entries.length < data.total
         } catch (err) {
+            if (gen !== fetchGen) return
             loadError = err instanceof Error ? err.message : String(err)
         } finally {
+            // Always release — loadMore is guarded to one-at-a-time at entry,
+            // and loadInitial tracks its own `loading` flag separately.
             loadingMore = false
         }
     }
