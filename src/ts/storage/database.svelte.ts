@@ -1115,7 +1115,7 @@ export interface Database{
     ollamaCloudKey:string
     ollamaCloudModel:string
     ollamaCloudModelName:string
-    ollamaCloudThink:'auto' | 'off' | 'on' | 'low' | 'medium' | 'high'
+    ollamaCloudThink:'auto' | 'off' | 'on' | 'low' | 'medium' | 'high' | 'max'
     ollamaCloudOptionsJson:string
     autoContinueChat:boolean
     autoContinueMinTokens:number

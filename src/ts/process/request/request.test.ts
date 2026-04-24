@@ -333,6 +333,25 @@ describe('Ollama Cloud request helpers', () => {
         expect(resolveOllamaThinkMode('high')).toBe('high')
     })
 
+    test('Ollama Cloud keeps think levels for GPT-OSS models', async () => {
+        const { normalizeOllamaThinkModeForModel } = await import('./ollamaCloud')
+
+        expect(normalizeOllamaThinkModeForModel('gpt-oss:120b', 'high')).toBe('high')
+    })
+
+    test('Ollama Cloud maps DeepSeek think levels to boolean think mode', async () => {
+        const { normalizeOllamaThinkModeForModel } = await import('./ollamaCloud')
+
+        expect(normalizeOllamaThinkModeForModel('deepseek-r1:671b', 'high')).toBe(true)
+    })
+
+    test('Ollama Cloud maps DeepSeek V4/R4 think levels to enabled thinking', async () => {
+        const { normalizeOllamaThinkModeForModel } = await import('./ollamaCloud')
+
+        expect(normalizeOllamaThinkModeForModel('deepseek-v4-flash:latest', 'max')).toBe(true)
+        expect(normalizeOllamaThinkModeForModel('deepseek-r4:latest', 'max')).toBe(true)
+    })
+
     test('parseOllamaCloudOptionsJson rejects invalid JSON', async () => {
         const { parseOllamaCloudOptionsJson } = await import('./ollamaCloud')
 
@@ -362,6 +381,74 @@ describe('Ollama Cloud request helpers', () => {
         } as any, {})
 
         expect(body.model).toBe('gpt-oss:120b')
+    })
+
+    test('Ollama Cloud request maps selected DeepSeek think level to boolean', async () => {
+        mocks.getDatabase.mockReturnValue({
+            ollamaCloudKey: 'test-key',
+            ollamaCloudModel: 'deepseek-r1:671b',
+            ollamaCloudThink: 'high',
+            ollamaCloudOptionsJson: '',
+            temperature: 80,
+            top_p: 0.9,
+            top_k: 40,
+            repetition_penalty: 1.1,
+            seperateParametersEnabled: false,
+        } as any)
+        const { buildOllamaCloudChatBody } = await import('./ollamaCloud')
+
+        const body = buildOllamaCloudChatBody({
+            formated: [{ role: 'user', content: 'hello' }],
+            bias: {},
+            useStreaming: false,
+            modelInfo: {
+                id: 'ollama-cloud',
+                internalID: 'ollama-cloud',
+                provider: 'ollama-cloud',
+                format: 'ollama',
+                flags: [],
+                parameters: [],
+                tokenizer: 0,
+                name: 'Ollama Cloud',
+            },
+        } as any, {})
+
+        expect(body.think).toBe(true)
+    })
+
+    test('Ollama Cloud request sends DeepSeek V4 max reasoning fields', async () => {
+        mocks.getDatabase.mockReturnValue({
+            ollamaCloudKey: 'test-key',
+            ollamaCloudModel: 'deepseek-v4-flash:cloud',
+            ollamaCloudThink: 'max',
+            ollamaCloudOptionsJson: '',
+            temperature: 80,
+            top_p: 0.9,
+            top_k: 40,
+            repetition_penalty: 1.1,
+            seperateParametersEnabled: false,
+        } as any)
+        const { buildOllamaCloudChatBody } = await import('./ollamaCloud')
+
+        const body = buildOllamaCloudChatBody({
+            formated: [{ role: 'user', content: 'hello' }],
+            bias: {},
+            useStreaming: false,
+            modelInfo: {
+                id: 'ollama-cloud',
+                internalID: 'ollama-cloud',
+                provider: 'ollama-cloud',
+                format: 'ollama',
+                flags: [],
+                parameters: [],
+                tokenizer: 0,
+                name: 'Ollama Cloud',
+            },
+        } as any, {})
+
+        expect(body.think).toBeUndefined()
+        expect(body.reasoning_effort).toBe('max')
+        expect(body.thinking).toEqual({ type: 'enabled' })
     })
 
     test('invalid Ollama Cloud options JSON fails before making a request', async () => {
