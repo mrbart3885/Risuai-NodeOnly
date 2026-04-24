@@ -140,6 +140,40 @@ export const CopilotModels: LLMModel[] = [
     // ── OpenAI (via Copilot) ────────────────────────────────────────
 
     {
+        name: "GPT-5.5",
+        id: 'copilot-gpt-5.5',
+        internalID: 'gpt-5.5',
+        shortName: "GH Copilot 5.5",
+        provider: LLMProvider.Copilot,
+        format: LLMFormat.OpenAICompatible,
+        flags: [
+            LLMFlags.hasImageInput,
+            LLMFlags.hasFullSystemPrompt,
+            LLMFlags.hasStreaming,
+            LLMFlags.OAICompletionTokens,
+        ],
+        parameters: GPT5Parameters,
+        tokenizer: LLMTokenizer.tiktokenO200Base,
+        recommended: true
+    },
+    {
+        name: "GPT-5.5 Pro",
+        id: 'copilot-gpt-5.5-pro',
+        internalID: 'gpt-5.5-pro',
+        shortName: "GH Copilot 5.5 Pro",
+        provider: LLMProvider.Copilot,
+        format: LLMFormat.OpenAICompatible,
+        flags: [
+            LLMFlags.hasImageInput,
+            LLMFlags.hasFullSystemPrompt,
+            LLMFlags.hasStreaming,
+            LLMFlags.OAICompletionTokens,
+        ],
+        parameters: GPT5Parameters,
+        tokenizer: LLMTokenizer.tiktokenO200Base,
+        recommended: true
+    },
+    {
         name: "GPT-5.4",
         id: 'copilot-gpt-5.4',
         internalID: 'gpt-5.4',
