@@ -10,6 +10,8 @@
     import TextInput from '../UI/GUI/TextInput.svelte';
     import { aiLawApplies, openURL, getFetchLogs, downloadFile } from 'src/ts/globalApi.svelte';
     import Button from '../UI/GUI/Button.svelte';
+    import ShDialog from '../UI/GUI/ShDialog.svelte';
+    import ShButton from '../UI/GUI/ShButton.svelte';
     import { XIcon, ChevronDownIcon, ChevronUpIcon, CopyIcon, CheckIcon, PencilIcon, TrashIcon, EllipsisVerticalIcon, RefreshCwIcon, PlusIcon, DownloadIcon, UploadIcon } from "@lucide/svelte";
     import hljs from 'highlight.js/lib/core';
     import json from 'highlight.js/lib/languages/json';
@@ -173,12 +175,10 @@
     }
 }}></svelte:window>
 
-{#if $alertStore.type !== 'none' &&  $alertStore.type !== 'cardexport' && $alertStore.type !== 'branches' && $alertStore.type !== 'selectModule' && $alertStore.type !== 'pukmakkurit' && $alertStore.type !== 'requestlogs' && $alertStore.type !== 'togglePresets'}
+{#if $alertStore.type !== 'none' &&  $alertStore.type !== 'cardexport' && $alertStore.type !== 'branches' && $alertStore.type !== 'selectModule' && $alertStore.type !== 'pukmakkurit' && $alertStore.type !== 'requestlogs' && $alertStore.type !== 'togglePresets' && $alertStore.type !== 'error'}
     <div class="absolute w-full h-full z-50 bg-black/50 flex justify-center items-center" class:vis={ $alertStore.type === 'wait2'}>
         <div class="bg-darkbg p-4 break-any rounded-md flex flex-col max-w-3xl  max-h-full overflow-y-auto">
-            {#if $alertStore.type === 'error'}
-                <h2 class="text-red-700 mt-0 mb-2 max-w-full">Error <span class="text-red-900 text-sm">[NodeOnly v{nodeOnlyVer}]</span></h2>
-            {:else if $alertStore.type === 'ask'}
+            {#if $alertStore.type === 'ask'}
                 <h2 class="text-green-700 mt-0 mb-2 w-40 max-w-full">Confirm</h2>
             {:else if $alertStore.type === 'pluginconfirm'}
                 <h2 class="text-green-700 mt-0 mb-2 w-40 max-w-full">Plugin Import</h2>
@@ -223,36 +223,6 @@
                 <span class="text-gray-300 whitespace-pre-wrap">{$alertStore.msg}</span>
                 {#if $alertStore.submsg && $alertStore.type !== 'progress'}
                     <span class="text-gray-500 text-sm">{$alertStore.submsg}</span>
-                {/if}
-
-                {#if $alertStore.type === 'error' && $alertStore.stackTrace}
-                    <div class="mt-4">
-                        <Button styled="outlined" size="sm" onclick={() => showDetails = !showDetails}>
-                            {showDetails ? language.hideErrorDetails : language.showErrorDetails}
-                            {#if showDetails}
-                                <XIcon class="inline ml-2" />
-                            {:else}
-                                <ChevronRightIcon class="inline ml-2" />
-                            {/if}
-                        </Button>
-                        {#if showDetails}
-                            <div class="stack-trace-wrap">
-                                <button
-                                    class="stack-trace-copy"
-                                    onclick={() => copyToClipboard(stackTraceCodeBlock, 'stack-trace')}
-                                    title={language.copy}
-                                    aria-label={language.copy}
-                                >
-                                    {#if copiedKey === 'stack-trace'}
-                                        <CheckIcon size={14} />
-                                    {:else}
-                                        <CopyIcon size={14} />
-                                    {/if}
-                                </button>
-                                <pre class="stack-trace">{stackTraceCodeBlock}</pre>
-                            </div>
-                        {/if}
-                    </div>
                 {/if}
             {/if}
             {#if $alertStore.type === 'progress'}
@@ -318,7 +288,7 @@
                         }}>{n}</Button>
                     {/each}
                 {/if}
-            {:else if $alertStore.type === 'error' || $alertStore.type === 'normal' || $alertStore.type === 'markdown'}
+            {:else if $alertStore.type === 'normal' || $alertStore.type === 'markdown'}
                <Button className="mt-4" onclick={() => {
                     alertStore.set({
                         type: 'none',
@@ -1183,6 +1153,62 @@
         </div>
     </div>
 {/if}
+
+<ShDialog
+    open={$alertStore.type === 'error'}
+    size="lg"
+    onOpenChange={(v) => {
+        if (!v && $alertStore.type === 'error') {
+            alertStore.set({ type: 'none', msg: '' })
+        }
+    }}
+>
+    {#snippet title()}
+        <span class="text-draculared">Error</span>
+        <span class="text-draculared/70 text-sm font-normal ml-1">[NodeOnly v{nodeOnlyVer}]</span>
+    {/snippet}
+
+    <div class="flex flex-col gap-2">
+        <span class="whitespace-pre-wrap">{$alertStore.msg}</span>
+        {#if $alertStore.submsg}
+            <span class="text-textcolor2 text-sm">{$alertStore.submsg}</span>
+        {/if}
+
+        {#if $alertStore.stackTrace}
+            <div class="mt-2">
+                <Button styled="outlined" size="sm" onclick={() => showDetails = !showDetails}>
+                    {showDetails ? language.hideErrorDetails : language.showErrorDetails}
+                    {#if showDetails}
+                        <XIcon class="inline ml-2" />
+                    {:else}
+                        <ChevronRightIcon class="inline ml-2" />
+                    {/if}
+                </Button>
+                {#if showDetails}
+                    <div class="stack-trace-wrap">
+                        <button
+                            class="stack-trace-copy"
+                            onclick={() => copyToClipboard(stackTraceCodeBlock, 'stack-trace')}
+                            title={language.copy}
+                            aria-label={language.copy}
+                        >
+                            {#if copiedKey === 'stack-trace'}
+                                <CheckIcon size={14} />
+                            {:else}
+                                <CopyIcon size={14} />
+                            {/if}
+                        </button>
+                        <pre class="stack-trace">{stackTraceCodeBlock}</pre>
+                    </div>
+                {/if}
+            </div>
+        {/if}
+    </div>
+
+    {#snippet footer()}
+        <ShButton onclick={() => alertStore.set({ type: 'none', msg: '' })}>{language.confirm}</ShButton>
+    {/snippet}
+</ShDialog>
 
 <style>
     .plugin-confirm-content .plugin-name {
