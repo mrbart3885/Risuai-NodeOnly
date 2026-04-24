@@ -1823,6 +1823,7 @@ export const languageEnglish = {
     systemLogsDesc: "View errors, warnings, and info events captured across this server and connected browsers.",
     systemLogsEmpty: "No logs yet",
     systemLogsEmptyDesc: "Errors and warnings will appear here as they occur.",
+    systemLogsEmptyButMore: "No entries loaded yet match your client-side filters. Load more to search further back.",
     systemLogsSearchPlaceholder: "Search message, source, platform, or client ID",
     systemLogsLoadMore: "Load more",
     systemLogsRefresh: "Refresh",

@@ -52,7 +52,10 @@ const stmtRotate = db.prepare(`
 
 const stmtClearAll = db.prepare(`DELETE FROM logs`);
 
-const stmtCount = db.prepare(`SELECT COUNT(*) as n FROM logs`);
+// Sources captured by monkey-patched console / window handlers / Express
+// middleware rather than explicit logger calls. Mirrors the client-side
+// BACKGROUND_SOURCES list in LogsSettings.svelte — kept in sync manually.
+const BACKGROUND_SOURCES = ['console', 'uncaught', 'promise', 'express'];
 
 // ─── Masking ─────────────────────────────────────────────────────────────────
 // Sanitize strings before persisting. Order matters: apply specific patterns first.
@@ -227,12 +230,33 @@ function makeServerLogger() {
 const logger = makeServerLogger();
 
 // ─── Query ───────────────────────────────────────────────────────────────────
-function queryLogs({ level, origin, since, beforeId, limit } = {}) {
+// Shared filter builder. All dimensions except pagination (beforeId/limit) go
+// here so countLogs() and queryLogs() produce consistent totals vs. results.
+function buildFilterWhere({ level, origin, since, excludeLevels, excludeOrigins, excludeBackground } = {}) {
     const conditions = [];
     const params = [];
     if (level) { conditions.push(`level = ?`); params.push(level); }
     if (origin) { conditions.push(`origin = ?`); params.push(origin); }
     if (typeof since === 'number') { conditions.push(`timestamp >= ?`); params.push(since); }
+    if (Array.isArray(excludeLevels) && excludeLevels.length) {
+        conditions.push(`level NOT IN (${excludeLevels.map(() => '?').join(',')})`);
+        params.push(...excludeLevels);
+    }
+    if (Array.isArray(excludeOrigins) && excludeOrigins.length) {
+        conditions.push(`origin NOT IN (${excludeOrigins.map(() => '?').join(',')})`);
+        params.push(...excludeOrigins);
+    }
+    if (excludeBackground) {
+        // NULL source must survive the filter — only named background sources are excluded.
+        conditions.push(`(source IS NULL OR source NOT IN (${BACKGROUND_SOURCES.map(() => '?').join(',')}))`);
+        params.push(...BACKGROUND_SOURCES);
+    }
+    return { conditions, params };
+}
+
+function queryLogs(opts = {}) {
+    const { beforeId, limit } = opts;
+    const { conditions, params } = buildFilterWhere(opts);
     // Cursor is id (not timestamp): aligns with ORDER BY id DESC so burst-written rows
     // sharing a timestamp paginate deterministically instead of being skipped.
     if (typeof beforeId === 'number') { conditions.push(`id < ?`); params.push(beforeId); }
@@ -260,8 +284,11 @@ function clearLogs() {
     insertedSinceRotate = 0;
 }
 
-function countLogs() {
-    const row = stmtCount.get();
+function countLogs(opts = {}) {
+    const { conditions, params } = buildFilterWhere(opts);
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `SELECT COUNT(*) as n FROM logs ${where}`;
+    const row = db.prepare(sql).get(...params);
     return row ? row.n : 0;
 }
 

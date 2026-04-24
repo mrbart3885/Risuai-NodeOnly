@@ -1670,6 +1670,7 @@ export const languageKorean = {
     systemLogsDesc: "서버 및 연결된 브라우저에서 발생한 에러, 경고, 정보 이벤트를 확인합니다.",
     systemLogsEmpty: "로그가 없습니다",
     systemLogsEmptyDesc: "에러나 경고가 발생하면 여기에 기록됩니다.",
+    systemLogsEmptyButMore: "현재 로드된 범위에는 조건에 맞는 로그가 없습니다. 더 보기로 과거 로그를 탐색하세요.",
     systemLogsSearchPlaceholder: "메시지, 소스, 플랫폼, 기기 ID로 검색",
     systemLogsLoadMore: "더 불러오기",
     systemLogsRefresh: "새로고침",

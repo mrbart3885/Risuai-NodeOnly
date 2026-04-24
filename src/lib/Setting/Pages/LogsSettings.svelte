@@ -91,11 +91,32 @@
     }
 
     // ─── Fetch ──────────────────────────────────────────────────────────────
+    // Dimensions that go to the server — pushing these server-side keeps
+    // pagination consistent (the previous all-client filter produced empty
+    // pages when a high-hit filter excluded an entire 200-row window).
+    // Source/Device/search stay client-side because:
+    //   - Source/Device tags are derived from *loaded* entries, so filtering
+    //     them server-side would need a separate "known values" endpoint.
+    //   - Search should stay instant without roundtripping every keystroke.
+    interface ServerFilter {
+        excludeLevels: LogLevel[]
+        excludeOrigins: LogOrigin[]
+        excludeBackground: boolean
+    }
+    const serverFilter = $derived<ServerFilter>({
+        excludeLevels: Array.from(excludedLevels),
+        excludeOrigins: Array.from(excludedOrigins),
+        excludeBackground: explicitOnly,
+    })
+
     async function loadInitial() {
+        // Snapshot filter BEFORE any await — ensures the $effect tracking this
+        // call picks up serverFilter as a dependency synchronously.
+        const filter = serverFilter
         loading = true
         loadError = null
         try {
-            const data = await fetchLogs({ limit: PAGE_SIZE })
+            const data = await fetchLogs({ limit: PAGE_SIZE, filter })
             entries = data.rows
             totalCount = data.total
             hasMore = data.rows.length >= PAGE_SIZE && data.rows.length < data.total
@@ -109,12 +130,13 @@
 
     async function loadMore() {
         if (loadingMore || !hasMore || entries.length === 0) return
+        const filter = serverFilter
         loadingMore = true
         try {
             // Use row id as the cursor — server sorts by id DESC, so this matches the
             // server ordering exactly and avoids skipping entries that share a timestamp.
             const oldestId = entries[entries.length - 1].id
-            const data = await fetchLogs({ limit: PAGE_SIZE, beforeId: oldestId })
+            const data = await fetchLogs({ limit: PAGE_SIZE, beforeId: oldestId, filter })
             const existing = new Set(entries.map(e => e.id))
             const fresh = data.rows.filter(r => !existing.has(r.id))
             entries = [...entries, ...fresh]
@@ -127,11 +149,17 @@
         }
     }
 
-    async function fetchLogs(opts: { limit?: number; beforeId?: number } = {}) {
+    async function fetchLogs(opts: { limit?: number; beforeId?: number; filter?: ServerFilter } = {}) {
         const auth = await forageStorage.createAuth()
         const params = new URLSearchParams()
         if (opts.limit) params.set('limit', String(opts.limit))
         if (opts.beforeId) params.set('before_id', String(opts.beforeId))
+        const f = opts.filter
+        if (f) {
+            if (f.excludeLevels.length) params.set('exclude_levels', f.excludeLevels.join(','))
+            if (f.excludeOrigins.length) params.set('exclude_origins', f.excludeOrigins.join(','))
+            if (f.excludeBackground) params.set('exclude_background', '1')
+        }
         const res = await fetch(`/api/logs?${params.toString()}`, {
             headers: { 'risu-auth': auth },
         })
@@ -300,7 +328,10 @@
         return `${e.platform ?? 'unknown'}${e.clientId ? ` #${e.clientId}` : ''}`
     }
 
-    // Initial load
+    // Initial load + refetch whenever server-side filter changes.
+    // `loadInitial()` synchronously reads `serverFilter` before its first
+    // await, so Svelte picks up the dependency and reruns this effect on
+    // any change to excludedLevels / excludedOrigins / explicitOnly.
     $effect(() => {
         loadInitial()
     })
@@ -433,7 +464,9 @@
         <div class="flex flex-col items-center justify-center text-center py-16 border border-darkborderc rounded-md bg-darkbg/30">
             <ScrollTextIcon size={48} class="text-textcolor2 mb-3 opacity-50" />
             <div class="text-textcolor font-medium mb-1">{language.systemLogsEmpty}</div>
-            <div class="text-textcolor2 text-sm">{language.systemLogsEmptyDesc}</div>
+            <div class="text-textcolor2 text-sm">
+                {hasMore ? language.systemLogsEmptyButMore : language.systemLogsEmptyDesc}
+            </div>
         </div>
     {:else}
         <Tooltip.Provider delayDuration={300}>
@@ -531,13 +564,16 @@
                 {/each}
             </div>
         </Tooltip.Provider>
+    {/if}
 
-        {#if hasMore}
-            <div class="flex justify-center mt-3">
-                <ShButton variant="outline" size="default" disabled={loadingMore} onclick={loadMore}>
-                    {loadingMore ? language.systemLogsLoading : language.systemLogsLoadMore}
-                </ShButton>
-            </div>
-        {/if}
+    <!-- Load More — shown whenever the server reports more matching rows,
+         including the empty-filter-result case (client-side Source/Device/
+         search filters may still collapse a page even after server filter). -->
+    {#if hasMore}
+        <div class="flex justify-center mt-3">
+            <ShButton variant="outline" size="default" disabled={loadingMore} onclick={loadMore}>
+                {loadingMore ? language.systemLogsLoading : language.systemLogsLoadMore}
+            </ShButton>
+        </div>
     {/if}
 </SettingPage>

@@ -2778,14 +2778,22 @@ app.post('/api/logs', async (req, res, next) => {
 app.get('/api/logs', async (req, res, next) => {
     if (!await checkAuth(req, res)) return;
     try {
-        const rows = queryLogs({
+        const parseCsv = (v) => typeof v === 'string' && v.length ? v.split(',').filter(Boolean) : undefined;
+        const filterArgs = {
             level: typeof req.query.level === 'string' ? req.query.level : undefined,
             origin: typeof req.query.origin === 'string' ? req.query.origin : undefined,
             since: req.query.since ? Number(req.query.since) : undefined,
+            excludeLevels: parseCsv(req.query.exclude_levels),
+            excludeOrigins: parseCsv(req.query.exclude_origins),
+            excludeBackground: req.query.exclude_background === '1',
+        };
+        const rows = queryLogs({
+            ...filterArgs,
             beforeId: req.query.before_id ? Number(req.query.before_id) : undefined,
             limit: req.query.limit ? Number(req.query.limit) : undefined,
         });
-        res.send({ success: true, content: rows, total: countLogs() });
+        // total reflects rows matching the same filter — pagination math depends on it.
+        res.send({ success: true, content: rows, total: countLogs(filterArgs) });
     } catch (error) {
         next(error);
     }
