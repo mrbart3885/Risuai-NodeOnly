@@ -708,6 +708,8 @@ export const languageEnglish = {
         inlayScanDone: "Scanned {count} messages",
     },
     confirm: "Confirm",
+    yes: "Yes",
+    no: "No",
     goback: "Go Back",
     botSettings: "Bot Settings",
     model: "Model",

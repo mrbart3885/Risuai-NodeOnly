@@ -561,6 +561,8 @@ export const languageChineseTraditional = {
         "inlaySaved": "Saved!",
     },
     "confirm": "確定",
+    "yes": "是",
+    "no": "否",
     "goback": "返回",
     "botSettings": "機器人設定",
     "model": "模型",

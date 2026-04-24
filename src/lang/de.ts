@@ -561,6 +561,8 @@ export const languageGerman = {
         "inlaySaved": "Saved!",
     },
     "confirm": "Bestätigen",
+    "yes": "Ja",
+    "no": "Nein",
     "goback": "Zurück",
     "botSettings": "Bot-Einstellungen",
     "model": "Modell",

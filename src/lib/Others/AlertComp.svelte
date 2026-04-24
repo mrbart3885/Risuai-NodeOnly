@@ -271,13 +271,13 @@
                             type: 'none',
                             msg: 'yes'
                         })
-                    }}>YES</Button>
+                    }}>{language.yes}</Button>
                     <Button className="mt-4 grow" onclick={() => {
                         alertStore.set({
                             type: 'none',
                             msg: 'no'
                         })
-                    }}>NO</Button>
+                    }}>{language.no}</Button>
                 </div>
             {:else if $alertStore.type === 'tos'}
                 <div class="flex gap-2 w-full">
@@ -324,7 +324,7 @@
                         type: 'none',
                         msg: ''
                     })
-                }}>OK</Button>
+                }}>{language.confirm}</Button>
             {:else if $alertStore.type === 'input'}
                 <TextInput value={$alertStore.defaultValue} id="alert-input" autocomplete="off" marginTop list="alert-input-list" onkeydown={(e) => {
                     if (e.key === 'Enter' && !e.isComposing) {
@@ -341,7 +341,7 @@
                         //@ts-expect-error 'value' doesn't exist on Element, but target is HTMLInputElement here
                         msg: document.querySelector('#alert-input')?.value
                     })
-                }}>OK</Button>
+                }}>{language.confirm}</Button>
                 {#if $alertStore.datalist}
                     <datalist id="alert-input-list">
                         {#each $alertStore.datalist as item}

@@ -596,6 +596,8 @@ export const languageKorean = {
         "inlayScanDone": "{count}개 메시지 스캔 완료",
     },
     "confirm": "확인",
+    "yes": "예",
+    "no": "아니오",
     "goback": "뒤로",
     "botSettings": "봇 설정",
     "model": "모델",

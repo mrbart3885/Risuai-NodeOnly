@@ -561,6 +561,8 @@ export const languageVietnamese = {
         "inlaySaved": "Saved!",
     },
     "confirm": "Xác nhận",
+    "yes": "Có",
+    "no": "Không",
     "goback": "Quay lại",
     "botSettings": "Cài đặt bot",
     "model": "Người mẫu",

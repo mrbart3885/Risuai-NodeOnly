@@ -561,6 +561,8 @@ export const languageSpanish = {
         "inlaySaved": "Saved!",
     },
     "confirm": "Confirmar",
+    "yes": "Sí",
+    "no": "No",
     "goback": "Volver",
     "botSettings": "Configuración del Bot",
     "model": "Modelo",
