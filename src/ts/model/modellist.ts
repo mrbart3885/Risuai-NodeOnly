@@ -15,6 +15,7 @@ import { AnthropicModels } from './providers/anthropic'
 import { GoogleModels } from './providers/google'
 import { CopilotModels } from './providers/copilot'
 import { NanoGPTModels } from './providers/nanogpt'
+import { toOllamaCloudDynamicModel } from './ollamaCloud'
 import { fetchNative } from "../globalApi.svelte"
 import { DBState } from "../stores.svelte"
 import { customProviderStore, pluginV2 } from "../plugins/plugins.svelte"
@@ -419,6 +420,17 @@ export const LLMModels: LLMModel[] = [
         parameters: OpenAIParameters,
         tokenizer: LLMTokenizer.Unknown
     },
+    {
+        id: 'ollama-cloud',
+        name: 'Ollama Cloud (Custom)',
+        fullName: 'Ollama Cloud (Custom)',
+        provider: LLMProvider.OllamaCloud,
+        format: LLMFormat.Ollama,
+        flags: [LLMFlags.hasFullSystemPrompt, LLMFlags.hasStreaming],
+        parameters: ['temperature', 'top_p', 'top_k', 'repetition_penalty'],
+        tokenizer: LLMTokenizer.Unknown,
+        recommended: true,
+    },
     // WebLLM
     {
         id: 'hf:::Xenova/opt-350m',
@@ -642,6 +654,30 @@ export async function registerNanoGPTModelsDynamic() {
         }
     } catch (error) {
         console.error('Error fetching NanoGPT models', error)
+    }
+}
+
+export async function registerOllamaCloudModelsDynamic() {
+    try {
+        const apiKey = DBState.db.ollamaCloudKey
+        if (!apiKey) return
+
+        const { fetchOllamaCloudModels } = await import('../process/request/ollamaCloud')
+        const { models, error } = await fetchOllamaCloudModels(apiKey)
+        if (error) {
+            throw new Error(error)
+        }
+
+        for (const model of models) {
+            const dynamicId = `dynamic_ollama_cloud_${model.id}`
+            const exists = LLMModels.find((entry) => entry.id === dynamicId || entry.internalID === model.id)
+            if (exists) continue
+
+            LLMModels.push(toOllamaCloudDynamicModel(model))
+        }
+    } catch (error) {
+        console.error('Error fetching Ollama Cloud models', error)
+        throw error
     }
 }
 

@@ -45,7 +45,8 @@ export const LLMProvider = {
     DeepInfra: 13,
     Echo: 14,
     Copilot: 15,
-    NanoGPT: 16
+    NanoGPT: 16,
+    OllamaCloud: 17
 } as const;
 export type LLMProvider = (typeof LLMProvider)[keyof typeof LLMProvider];
 
@@ -128,7 +129,8 @@ export const ProviderNames = new Map<LLMProvider, string>([
     [LLMProvider.DeepInfra, 'DeepInfra'],
     [LLMProvider.Echo, 'For Developer'],
     [LLMProvider.Copilot, 'GitHub Copilot'],
-    [LLMProvider.NanoGPT, 'NanoGPT']
+    [LLMProvider.NanoGPT, 'NanoGPT'],
+    [LLMProvider.OllamaCloud, 'Ollama Cloud']
 ])
 
 export const OpenAIParameters:LLMParameter[] = ['temperature', 'top_p', 'frequency_penalty', 'presence_penalty']

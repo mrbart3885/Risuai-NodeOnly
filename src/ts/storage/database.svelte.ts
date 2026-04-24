@@ -443,6 +443,11 @@ export function setDatabase(data:Database){
     data.antiClaudeOverload ??= false
     data.ollamaURL ??= ''
     data.ollamaModel ??= ''
+    data.ollamaCloudKey ??= ''
+    data.ollamaCloudModel ??= ''
+    data.ollamaCloudModelName ??= ''
+    data.ollamaCloudThink ??= 'auto'
+    data.ollamaCloudOptionsJson ??= ''
     data.autoContinueChat ??= false
     data.autoContinueMinTokens ??= 0
     data.repetition_penalty ??= 1
@@ -1107,6 +1112,11 @@ export interface Database{
     antiClaudeOverload:boolean
     ollamaURL:string
     ollamaModel:string
+    ollamaCloudKey:string
+    ollamaCloudModel:string
+    ollamaCloudModelName:string
+    ollamaCloudThink:'auto' | 'off' | 'on' | 'low' | 'medium' | 'high'
+    ollamaCloudOptionsJson:string
     autoContinueChat:boolean
     autoContinueMinTokens:number
     removeIncompleteResponse:boolean
