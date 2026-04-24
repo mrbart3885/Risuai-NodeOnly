@@ -24,6 +24,7 @@
     import SegmentedControl from "src/lib/UI/GUI/SegmentedControl.svelte";
     import { getOpenRouterModels, toModelGridItem as orToGridItem } from "src/ts/model/openrouter";
     import { getNanoGPTModels, getNanoGPTSubscriptionModels, toModelGridItem as ngToGridItem } from "src/ts/model/nanogpt";
+    import { getOllamaCloudModels, toModelGridItem as ocToGridItem } from "src/ts/model/ollamaCloud";
     import ModelGrid from "src/lib/UI/ModelGrid.svelte";
     import NanoGPTDashboard from "src/lib/UI/NanoGPTDashboard.svelte";
     import NanoGPTProviderPicker from "src/lib/UI/NanoGPTProviderPicker.svelte";
@@ -35,7 +36,7 @@
     import PromptSettings from "./PromptSettings.svelte";
     import { openPresetList } from "src/ts/stores.svelte";
     import { selectSingleFile } from "src/ts/util";
-    import { getModelInfo, LLMFlags, LLMFormat, LLMProvider, LLMModels, registerCopilotModelsDynamic, registerNanoGPTModelsDynamic } from "src/ts/model/modellist";
+    import { getModelInfo, LLMFlags, LLMFormat, LLMProvider, LLMModels, registerCopilotModelsDynamic, registerNanoGPTModelsDynamic, registerOllamaCloudModelsDynamic } from "src/ts/model/modellist";
     import RegexList from "src/lib/SideBars/Scripts/RegexList.svelte";
     import SettingRenderer from "../SettingRenderer.svelte";
     import { allBasicParameterItems } from "src/ts/setting/botSettingsParamsData";
@@ -117,6 +118,7 @@
 
     let copilotModelSyncInFlight = false
     let nanogptModelSyncInFlight = false
+    let ollamaCloudModelSyncInFlight = false
 
     function ensureCopilotConfig() {
         if (!DBState.db.copilot) {
@@ -205,6 +207,11 @@
     let nanogptInfoError = $state('')
     let nanogptModelSyncStatus: 'idle'|'loading'|'done'|'error' = $state('idle')
     let nanogptModelSyncCount = $state(0)
+    let ollamaCloudModelSyncStatus: 'idle'|'loading'|'done'|'error' = $state('idle')
+    let ollamaCloudModelSyncCount = $state(0)
+    let ollamaCloudModels = $state<Awaited<ReturnType<typeof getOllamaCloudModels>>>([])
+    let ollamaCloudModelsLoading = $state(false)
+    let ollamaCloudLoadedKey = $state('')
 
     async function verifyNanoGPTKey(index: number) {
         const key = ensureNanoGPTConfig().apiKeys[index]
@@ -250,6 +257,49 @@
         }
     }
 
+    async function syncOllamaCloudModels() {
+        if (ollamaCloudModelSyncStatus === 'loading' || ollamaCloudModelSyncInFlight) return
+        ollamaCloudModelSyncStatus = 'loading'
+        ollamaCloudModelSyncInFlight = true
+        try {
+            await registerOllamaCloudModelsDynamic()
+            ollamaCloudModelSyncCount = LLMModels.filter((model) => model.id.startsWith('dynamic_ollama_cloud_')).length
+            ollamaCloudModelSyncStatus = 'done'
+        }
+        catch {
+            ollamaCloudModelSyncStatus = 'error'
+        }
+        finally {
+            ollamaCloudModelSyncInFlight = false
+        }
+    }
+
+    async function loadOllamaCloudModels() {
+        const key = DBState.db.ollamaCloudKey
+        ollamaCloudLoadedKey = key
+        if (!key) {
+            ollamaCloudModels = []
+            return
+        }
+        ollamaCloudModelsLoading = true
+        try {
+            ollamaCloudModels = await getOllamaCloudModels(key)
+        }
+        catch {
+            ollamaCloudModels = []
+        }
+        finally {
+            ollamaCloudModelsLoading = false
+        }
+    }
+
+    $effect(() => {
+        const key = DBState.db.ollamaCloudKey
+        if (key !== ollamaCloudLoadedKey) {
+            loadOllamaCloudModels()
+        }
+    })
+
     function formatUsageCount(value: number | null) {
         if (value === null) return 'No limit'
         return new Intl.NumberFormat().format(value)
@@ -270,6 +320,7 @@
         return 'bg-green-500'
     }
     let nanogptInputMode = $state<'list' | 'manual'>(DBState.db.nanogptRequestModel && !DBState.db.nanogptRequestModelName ? 'manual' : 'list')
+    let ollamaCloudInputMode = $state<'list' | 'manual'>(DBState.db.ollamaCloudModel && !DBState.db.ollamaCloudModelName ? 'manual' : 'list')
     // svelte-ignore state_referenced_locally
     let prevNanogptInputMode = nanogptInputMode;
     $effect(() => {
@@ -277,6 +328,15 @@
             DBState.db.nanogptRequestModel = '';
             DBState.db.nanogptRequestModelName = '';
             prevNanogptInputMode = nanogptInputMode;
+        }
+    });
+    // svelte-ignore state_referenced_locally
+    let prevOllamaCloudInputMode = ollamaCloudInputMode;
+    $effect(() => {
+        if (ollamaCloudInputMode !== prevOllamaCloudInputMode) {
+            DBState.db.ollamaCloudModel = '';
+            DBState.db.ollamaCloudModelName = '';
+            prevOllamaCloudInputMode = ollamaCloudInputMode;
         }
     });
 </script>
@@ -701,6 +761,68 @@
 
         <span class="text-textcolor mt-4">Ollama Model</span>
         <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaModel} />
+    {/if}
+    {#if modelInfo.provider === LLMProvider.OllamaCloud || subModelInfo.provider === LLMProvider.OllamaCloud}
+        <span class="text-textcolor mt-4">Ollama Cloud API Key</span>
+        <TextInput hideText={DBState.db.hideApiKey} marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaCloudKey} />
+
+        <span class="text-textcolor mt-4">Ollama Cloud {language.model}</span>
+        <SegmentedControl
+            bind:value={ollamaCloudInputMode}
+            options={[
+                { value: 'list', label: (language as any).nanoGPTSelectFromList || 'Select from List' },
+                { value: 'manual', label: (language as any).nanoGPTManualInput || 'Manual Input' }
+            ]}
+            size="md"
+        />
+
+        {#if ollamaCloudInputMode === 'manual'}
+            <TextInput marginBottom={false} size={"sm"} bind:value={DBState.db.ollamaCloudModel} placeholder="gpt-oss:120b" oninput={() => DBState.db.ollamaCloudModelName = ''}/>
+        {:else}
+            <ModelGrid
+                bind:value={DBState.db.ollamaCloudModel}
+                loading={ollamaCloudModelsLoading}
+                items={(ollamaCloudModels ?? []).map(ocToGridItem)}
+                pinnedItems={DBState.db.ollamaCloudModel && !ollamaCloudModels.some((model) => model.id === DBState.db.ollamaCloudModel) ? [{
+                    id: DBState.db.ollamaCloudModel,
+                    displayName: DBState.db.ollamaCloudModelName || DBState.db.ollamaCloudModel,
+                    providerName: 'Selected',
+                }] : []}
+                selectedLabelOverride={DBState.db.ollamaCloudModelName || DBState.db.ollamaCloudModel || undefined}
+                onselect={(_id, name) => { DBState.db.ollamaCloudModelName = name }}
+            />
+        {/if}
+
+        <span class="text-textcolor mt-4">Think</span>
+        <SegmentedControl
+            bind:value={DBState.db.ollamaCloudThink}
+            options={[
+                { value: 'auto', label: 'Auto' },
+                { value: 'off', label: 'Off' },
+                { value: 'on', label: 'On' },
+                { value: 'low', label: 'Low' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'high', label: 'High' }
+            ]}
+            size="sm"
+            wrap
+        />
+
+        <Accordion name="Ollama Cloud Advanced" styled>
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-textcolor text-sm">Advanced Options JSON</span>
+                <button class="text-xs text-textcolor2 hover:text-green-500 cursor-pointer" onclick={syncOllamaCloudModels}>
+                    {ollamaCloudModelSyncStatus === 'loading' ? 'Syncing...' : 'Sync Models'}
+                </button>
+            </div>
+            <TextAreaInput bind:value={DBState.db.ollamaCloudOptionsJson} size="sm" height="24" margin="none" placeholder={'{ "num_ctx": 8192 }'} />
+            <span class="text-xs text-textcolor2 mt-2 block">Auto lets Ollama decide. Some models support only On/Off; others support Low/Medium/High.</span>
+            {#if ollamaCloudModelSyncStatus === 'done'}
+                <span class="text-green-500 text-xs mt-1 block">{ollamaCloudModelSyncCount} models available. Reload model list to see new models.</span>
+            {:else if ollamaCloudModelSyncStatus === 'error'}
+                <span class="text-draculared text-xs mt-1 block">Failed to sync models.</span>
+            {/if}
+        </Accordion>
     {/if}
     {#if DBState.db.aiModel === 'nanogpt' || DBState.db.subModel === 'nanogpt'}
         <span class="text-textcolor mt-4">NanoGPT {language.apiKey}</span>

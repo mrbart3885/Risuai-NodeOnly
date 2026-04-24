@@ -19,6 +19,7 @@ import { runTrigger } from "../triggers";
 import { requestClaude } from './anthropic';
 import { requestCopilot } from './copilot';
 import { requestNanoGPT } from './nanogpt';
+import { requestOllamaCloud } from './ollamaCloud';
 import { requestGoogleCloudVertex } from './google';
 import { requestOpenAI, requestOpenAILegacyInstruct, requestOpenAIResponseAPI } from "./openAI/requests";
 import { withTrackedRequestActivity } from './requestActivity';
@@ -398,6 +399,10 @@ export async function requestChatDataMain(arg:requestDataArgument, model:ModelMo
 
     if (targ.modelInfo.provider === LLMProvider.NanoGPT) {
         return requestNanoGPT(targ)
+    }
+
+    if (targ.modelInfo.provider === LLMProvider.OllamaCloud) {
+        return requestOllamaCloud(targ)
     }
 
     switch(format){
