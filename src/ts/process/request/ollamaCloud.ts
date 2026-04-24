@@ -7,7 +7,7 @@ import type { RequestDataArgumentExtended, StreamResponseChunk, requestDataRespo
 const OLLAMA_CLOUD_API = 'https://ollama.com/api'
 const INVALID_OPTIONS_MESSAGE = 'Ollama Cloud options JSON is invalid.'
 
-export type OllamaCloudThinkMode = 'auto' | 'off' | 'on' | 'low' | 'medium' | 'high'
+export type OllamaCloudThinkMode = 'auto' | 'off' | 'on' | 'low' | 'medium' | 'high' | 'max'
 
 export type OllamaCloudModelInfo = {
     id: string
@@ -22,15 +22,49 @@ type OllamaCloudChatBody = {
     model: string
     messages: Pick<OpenAIChat, 'role' | 'content'>[]
     stream: boolean
-    think?: boolean | 'low' | 'medium' | 'high'
+    think?: boolean | 'low' | 'medium' | 'high' | 'max'
+    reasoning_effort?: 'high' | 'max'
+    thinking?: {
+        type: 'enabled' | 'disabled'
+    }
     options?: Record<string, any>
 }
 
-export function resolveOllamaThinkMode(mode: OllamaCloudThinkMode): boolean | 'low' | 'medium' | 'high' | undefined {
+export function resolveOllamaThinkMode(mode: OllamaCloudThinkMode): boolean | 'low' | 'medium' | 'high' | 'max' | undefined {
     if (mode === 'auto') return undefined
     if (mode === 'off') return false
     if (mode === 'on') return true
     return mode
+}
+
+export function isDeepSeekV4OrR4Model(model: string): boolean {
+    return /deepseek.*[vr]4|deepseek[-_:]?[vr]4/i.test(model)
+}
+
+export function normalizeOllamaThinkModeForModel(
+    model: string,
+    think: boolean | 'low' | 'medium' | 'high' | 'max' | undefined,
+): boolean | 'low' | 'medium' | 'high' | 'max' | undefined {
+    if (typeof think !== 'string') return think
+
+    if (isDeepSeekV4OrR4Model(model)) {
+        return true
+    }
+
+    if (/gpt-oss/i.test(model)) {
+        if (think === 'max') return 'high'
+        return think
+    }
+
+    return true
+}
+
+function getDeepSeekReasoningEffort(
+    think: boolean | 'low' | 'medium' | 'high' | 'max' | undefined,
+): 'high' | 'max' | undefined {
+    if (think === false) return undefined
+    if (think === 'max') return 'max'
+    return 'high'
 }
 
 export function parseOllamaCloudOptionsJson(value: string | undefined | null): { ok: true, options: Record<string, any> } | { ok: false, error: string } {
@@ -89,15 +123,29 @@ function buildMessages(formated: OpenAIChat[]): Pick<OpenAIChat, 'role' | 'conte
 
 export function buildOllamaCloudChatBody(arg: RequestDataArgumentExtended, options: Record<string, any>): OllamaCloudChatBody {
     const db = getDatabase()
-    const think = resolveOllamaThinkMode((db.ollamaCloudThink ?? 'auto') as OllamaCloudThinkMode)
+    const model = getOllamaCloudModel(arg)
+    const rawThink = resolveOllamaThinkMode((db.ollamaCloudThink ?? 'auto') as OllamaCloudThinkMode)
+    const think = normalizeOllamaThinkModeForModel(
+        model,
+        rawThink,
+    )
     const body: OllamaCloudChatBody = {
-        model: getOllamaCloudModel(arg),
+        model,
         messages: buildMessages(arg.formated),
         stream: !!arg.useStreaming,
     }
 
     if (think !== undefined) {
         body.think = think
+    }
+
+    if (isDeepSeekV4OrR4Model(model)) {
+        delete body.think
+        body.thinking = { type: rawThink === false ? 'disabled' : 'enabled' }
+        const reasoningEffort = getDeepSeekReasoningEffort(rawThink)
+        if (reasoningEffort) {
+            body.reasoning_effort = reasoningEffort
+        }
     }
 
     const requestOptions = getOllamaCloudOptions(arg, options)

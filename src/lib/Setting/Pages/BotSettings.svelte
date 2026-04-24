@@ -802,7 +802,8 @@
                 { value: 'on', label: 'On' },
                 { value: 'low', label: 'Low' },
                 { value: 'medium', label: 'Medium' },
-                { value: 'high', label: 'High' }
+                { value: 'high', label: 'High' },
+                { value: 'max', label: 'Max' }
             ]}
             size="sm"
             wrap
@@ -816,7 +817,7 @@
                 </button>
             </div>
             <TextAreaInput bind:value={DBState.db.ollamaCloudOptionsJson} size="sm" height="24" margin="none" placeholder={'{ "num_ctx": 8192 }'} />
-            <span class="text-xs text-textcolor2 mt-2 block">Auto lets Ollama decide. Some models support only On/Off; others support Low/Medium/High.</span>
+            <span class="text-xs text-textcolor2 mt-2 block">Auto lets Ollama decide. Some models support only On/Off; GPT-OSS supports Low/Medium/High; DeepSeek V4/R4 supports High/Max.</span>
             {#if ollamaCloudModelSyncStatus === 'done'}
                 <span class="text-green-500 text-xs mt-1 block">{ollamaCloudModelSyncCount} models available. Reload model list to see new models.</span>
             {:else if ollamaCloudModelSyncStatus === 'error'}
