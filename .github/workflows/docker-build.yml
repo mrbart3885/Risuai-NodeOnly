@@ -123,6 +123,9 @@ jobs:
             TAGS="-t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
             TAGS="$TAGS -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.version.outputs.version }}"
             TAGS="$TAGS -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.version.outputs.minor }}"
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            TAGS="-t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            TAGS="$TAGS -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
           else
             TAGS="-t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}"
           fi
