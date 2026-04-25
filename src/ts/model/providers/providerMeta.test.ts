@@ -33,6 +33,13 @@ describe('provider model metadata', () => {
         expect(modelMap.get('copilot-gpt-5.5-pro')?.internalID).toBe('gpt-5.5-pro')
     })
 
+    test('routes Copilot GPT-5.5 models through the responses API', () => {
+        const modelMap = new Map(CopilotModels.map((model) => [model.id, model]))
+
+        expect(modelMap.get('copilot-gpt-5.5')?.format).toBe(LLMFormat.OpenAIResponseAPI)
+        expect(modelMap.get('copilot-gpt-5.5-pro')?.format).toBe(LLMFormat.OpenAIResponseAPI)
+    })
+
     test('keeps static Copilot GPT-5.4 on chat completions format', () => {
         const gpt54 = CopilotModels.find((model) => model.id === 'copilot-gpt-5.4')
 
