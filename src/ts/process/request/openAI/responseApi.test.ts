@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
         usePlainFetch: false,
     })),
     globalFetch: vi.fn(),
+    fetchNative: vi.fn(),
+    textifyReadableStream: vi.fn(async () => ''),
     applyParameters: vi.fn((data: Record<string, any>) => data),
 }))
 
@@ -40,9 +42,9 @@ vi.mock('src/ts/model/openrouter', () => ({
 
 vi.mock('src/ts/globalApi.svelte', () => ({
     addFetchLog: vi.fn(),
-    fetchNative: vi.fn(),
+    fetchNative: mocks.fetchNative,
     globalFetch: mocks.globalFetch,
-    textifyReadableStream: vi.fn(),
+    textifyReadableStream: mocks.textifyReadableStream,
 }))
 
 vi.mock('src/ts/network/localNetwork', () => ({
@@ -92,6 +94,8 @@ describe('requestOpenAIResponseAPI', () => {
             },
             headers: {},
         })
+        mocks.fetchNative.mockReset()
+        mocks.textifyReadableStream.mockResolvedValue('')
     })
 
     test('uses the selected model parameter set for responses API requests', async () => {
@@ -117,5 +121,43 @@ describe('requestOpenAIResponseAPI', () => {
             'model',
             { modelId: 'copilot-gpt-5.4' },
         )
+    })
+
+    test('streams responses API output text as cumulative chunks', async () => {
+        const encoder = new TextEncoder()
+        mocks.fetchNative.mockResolvedValue({
+            status: 200,
+            headers: new Headers({ 'Content-Type': 'text/event-stream' }),
+            body: new ReadableStream({
+                start(controller) {
+                    controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"he"}\n\n'))
+                    controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"llo"}\n\n'))
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+                    controller.close()
+                },
+            }),
+        })
+        const { requestOpenAIResponseAPI } = await import('./requests')
+
+        const response = await requestOpenAIResponseAPI({
+            aiModel: 'gpt-5.5',
+            formated: [{ role: 'user', content: 'hello' }],
+            modelInfo: {
+                id: 'gpt-5.5',
+                internalID: 'gpt-5.5',
+                parameters: ['reasoning_effort', 'verbosity'],
+            },
+            maxTokens: 256,
+            mode: 'model',
+            useStreaming: true,
+        } as any)
+
+        expect(response.type).toBe('streaming')
+        const reader = (response as any).result.getReader()
+        const first = await reader.read()
+        const second = await reader.read()
+
+        expect(first.value).toEqual({ '0': 'he' })
+        expect(second.value).toEqual({ '0': 'hello' })
     })
 })

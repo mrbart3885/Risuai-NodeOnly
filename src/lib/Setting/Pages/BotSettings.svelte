@@ -275,6 +275,7 @@
     }
 
     async function loadOllamaCloudModels() {
+        if (ollamaCloudModelsLoading) return
         const key = DBState.db.ollamaCloudKey
         ollamaCloudLoadedKey = key
         if (!key) {
@@ -294,8 +295,11 @@
     }
 
     $effect(() => {
+        const shouldLoad =
+            (modelInfo.provider === LLMProvider.OllamaCloud || subModelInfo.provider === LLMProvider.OllamaCloud) &&
+            ollamaCloudInputMode === 'list'
         const key = DBState.db.ollamaCloudKey
-        if (key !== ollamaCloudLoadedKey) {
+        if (shouldLoad && key !== ollamaCloudLoadedKey) {
             loadOllamaCloudModels()
         }
     })
