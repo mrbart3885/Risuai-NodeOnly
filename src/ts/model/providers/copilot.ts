@@ -145,7 +145,7 @@ export const CopilotModels: LLMModel[] = [
         internalID: 'gpt-5.5',
         shortName: "GH Copilot 5.5",
         provider: LLMProvider.Copilot,
-        format: LLMFormat.OpenAICompatible,
+        format: LLMFormat.OpenAIResponseAPI,
         flags: [
             LLMFlags.hasImageInput,
             LLMFlags.hasFullSystemPrompt,
@@ -162,7 +162,7 @@ export const CopilotModels: LLMModel[] = [
         internalID: 'gpt-5.5-pro',
         shortName: "GH Copilot 5.5 Pro",
         provider: LLMProvider.Copilot,
-        format: LLMFormat.OpenAICompatible,
+        format: LLMFormat.OpenAIResponseAPI,
         flags: [
             LLMFlags.hasImageInput,
             LLMFlags.hasFullSystemPrompt,

@@ -7,7 +7,7 @@ export const OpenAIModels: LLMModel[] = [
         internalID: 'gpt-5.5',
         name: 'GPT 5.5',
         provider: LLMProvider.OpenAI,
-        format: LLMFormat.OpenAICompatible,
+        format: LLMFormat.OpenAIResponseAPI,
         flags: [
             LLMFlags.hasStreaming,
             LLMFlags.OAICompletionTokens,
@@ -24,7 +24,7 @@ export const OpenAIModels: LLMModel[] = [
         internalID: 'gpt-5.5-pro',
         name: 'GPT 5.5 Pro',
         provider: LLMProvider.OpenAI,
-        format: LLMFormat.OpenAICompatible,
+        format: LLMFormat.OpenAIResponseAPI,
         flags: [
             LLMFlags.hasStreaming,
             LLMFlags.OAICompletionTokens,
