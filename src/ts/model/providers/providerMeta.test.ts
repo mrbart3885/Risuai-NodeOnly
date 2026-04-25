@@ -26,6 +26,13 @@ describe('provider model metadata', () => {
         expect(modelMap.get('gpt-5.5')?.recommended).toBe(true)
     })
 
+    test('routes OpenAI GPT-5.5 models through the responses API', () => {
+        const modelMap = new Map(OpenAIModels.map((model) => [model.id, model]))
+
+        expect(modelMap.get('gpt-5.5')?.format).toBe(LLMFormat.OpenAIResponseAPI)
+        expect(modelMap.get('gpt-5.5-pro')?.format).toBe(LLMFormat.OpenAIResponseAPI)
+    })
+
     test('registers upcoming Copilot GPT-5.5 aliases', () => {
         const modelMap = new Map(CopilotModels.map((model) => [model.id, model]))
 
