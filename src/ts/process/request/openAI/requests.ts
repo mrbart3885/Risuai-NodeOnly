@@ -1160,6 +1160,53 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         body.tools.push('web_search_preview')
     }
 
+    if(arg.useStreaming){
+        body.stream = true
+
+        const streamResponse = await fetchNative(requestURL, {
+            body: JSON.stringify(body),
+            method: "POST",
+            headers: headers,
+            signal: arg.abortSignal,
+            chatId: arg.chatId,
+            interceptor: 'openai_response_api_streaming',
+            proxyPolicy: arg.proxyPolicy,
+            ...getLocalNetworkRequestOptions(requestURL),
+        })
+
+        if(streamResponse.status !== 200){
+            return {
+                type: "fail",
+                result: await textifyReadableStream(streamResponse.body)
+            }
+        }
+
+        if(!streamResponse.headers.get('Content-Type')?.includes('text/event-stream')){
+            return {
+                type: "fail",
+                result: await textifyReadableStream(streamResponse.body)
+            }
+        }
+
+        addFetchLog({
+            body: body,
+            response: "Streaming",
+            success: true,
+            url: requestURL,
+            status: streamResponse.status,
+        })
+
+        const transtream = getResponseApiTranStream()
+        streamResponse.body.pipeTo(transtream.writable)
+
+        return {
+            type: 'streaming',
+            result: transtream.readable
+        }
+    }
+
+    body.stream = false
+
     const response = await globalFetch(requestURL, {
         body: body,
         headers: headers,
@@ -1345,6 +1392,106 @@ function getTranStream(arg:RequestDataArgumentExtended):TransformStream<Uint8Arr
                 
             }
         }        
+    })
+}
+
+function getResponseApiTranStream(): TransformStream<Uint8Array, StreamResponseChunk> {
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let outputText = ''
+    let reasoningText = ''
+
+    const appendStreamingFragment = (current:string, incoming?:string) => {
+        if(!incoming){
+            return current
+        }
+        if(incoming.length > current.length && incoming.startsWith(current)){
+            return incoming
+        }
+        return current + incoming
+    }
+
+    const currentText = () => {
+        if(!reasoningText){
+            return outputText
+        }
+        return `<Thoughts>\n${reasoningText}\n</Thoughts>\n${outputText}`
+    }
+
+    const applyEvent = (event: any) => {
+        const type = event?.type ?? ''
+
+        if(type === 'response.output_text.delta'){
+            outputText = appendStreamingFragment(outputText, event.delta)
+            return
+        }
+        if(type === 'response.reasoning_text.delta' || type === 'response.output_item.reasoning.delta'){
+            reasoningText = appendStreamingFragment(reasoningText, event.delta)
+            return
+        }
+        if(type === 'response.completed'){
+            const responseText = event.response?.output_text
+            if(responseText){
+                outputText = responseText
+                return
+            }
+
+            const message = event.response?.output?.find((item: any) => item.type === 'message')
+            const text = message?.content?.find((content: any) => content.type === 'output_text')?.text
+            if(text){
+                outputText = text
+            }
+        }
+    }
+
+    return new TransformStream<Uint8Array, StreamResponseChunk>({
+        transform(chunk, control) {
+            buffer += decoder.decode(chunk, { stream: true })
+            const events = buffer.split('\n\n')
+            buffer = events.pop() ?? ''
+
+            for(const rawEvent of events){
+                const lines = rawEvent.split('\n')
+                const dataLines = lines
+                    .filter(line => line.startsWith('data: '))
+                    .map(line => line.slice(6))
+
+                if(dataLines.length === 0){
+                    continue
+                }
+
+                const data = dataLines.join('\n')
+                if(data === '[DONE]'){
+                    continue
+                }
+
+                try {
+                    applyEvent(JSON.parse(data))
+                    const text = currentText()
+                    if(text){
+                        control.enqueue({ "0": text })
+                    }
+                } catch {}
+            }
+        },
+        flush(control) {
+            if(buffer.trim()){
+                const dataLines = buffer.split('\n')
+                    .filter(line => line.startsWith('data: '))
+                    .map(line => line.slice(6))
+                const data = dataLines.join('\n')
+                if(data && data !== '[DONE]'){
+                    try {
+                        applyEvent(JSON.parse(data))
+                    } catch {}
+                }
+            }
+
+            const text = currentText()
+            if(text){
+                control.enqueue({ "0": text })
+            }
+        }
     })
 }
 
