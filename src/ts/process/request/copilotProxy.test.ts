@@ -147,6 +147,24 @@ describe('copilot OpenCode target (default)', () => {
         expect(sessionA).not.toBe(sessionB)
     })
 
+    test('responses models route through the Copilot responses endpoint', async () => {
+        const { requestCopilot } = await import('./copilot')
+
+        await requestCopilot({
+            chatId: 'chat-A',
+            formated: [{ role: 'user', content: 'hello' }],
+            modelInfo: { format: 'responses' },
+        } as any)
+
+        expect(mocks.requestOpenAIResponseAPI).toHaveBeenCalledTimes(1)
+        expect(mocks.requestOpenAI).not.toHaveBeenCalled()
+        expect(firstArg(mocks.requestOpenAIResponseAPI)).toMatchObject({
+            proxyPolicy: 'always',
+            customURL: 'https://api.githubcopilot.com/responses',
+            key: 'ghp_test',
+        })
+    })
+
     test('agent mode (translate/memory/emotion): x-initiator: agent + x-parent-session-id points to chat', async () => {
         const { requestCopilot } = await import('./copilot')
 

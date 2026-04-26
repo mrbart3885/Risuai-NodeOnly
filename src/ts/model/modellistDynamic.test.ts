@@ -122,3 +122,26 @@ describe('registerNanoGPTModelsDynamic', () => {
         await expect(registerOllamaCloudModelsDynamic()).rejects.toThrow('Failed to fetch Ollama Cloud models')
     })
 })
+
+describe('static DeepSeek models', () => {
+    test('registers official DeepSeek V4 Flash and Pro as OpenAI-compatible models', async () => {
+        const { LLMFlags, LLMFormat, LLMModels, LLMProvider, LLMTokenizer } = await import('./modellist')
+
+        const flash = LLMModels.find((model) => model.id === 'deepseek-v4-flash')
+        const pro = LLMModels.find((model) => model.id === 'deepseek-v4-pro')
+
+        for (const model of [flash, pro]) {
+            expect(model).toMatchObject({
+                provider: LLMProvider.DeepSeek,
+                format: LLMFormat.OpenAICompatible,
+                tokenizer: LLMTokenizer.DeepSeek,
+                endpoint: 'https://api.deepseek.com/chat/completions',
+                keyIdentifier: 'deepseek',
+                recommended: true,
+            })
+            expect(model?.parameters).toContain('reasoning_effort')
+            expect(model?.flags).toContain(LLMFlags.hasStreaming)
+            expect(model?.flags).toContain(LLMFlags.deepSeekThinkingInput)
+        }
+    })
+})

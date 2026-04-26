@@ -102,11 +102,11 @@ describe('requestOpenAIResponseAPI', () => {
         const { requestOpenAIResponseAPI } = await import('./requests')
 
         await requestOpenAIResponseAPI({
-            aiModel: 'gpt-5.4',
+            aiModel: 'gpt-5.5',
             formated: [{ role: 'user', content: 'hello' }],
             modelInfo: {
-                id: 'copilot-gpt-5.4',
-                internalID: 'gpt-5.4',
+                id: 'copilot-gpt-5.5',
+                internalID: 'gpt-5.5',
                 parameters: ['temperature', 'top_p', 'reasoning_effort', 'verbosity'],
             },
             maxTokens: 256,
@@ -115,12 +115,52 @@ describe('requestOpenAIResponseAPI', () => {
         } as any)
 
         expect(mocks.applyParameters).toHaveBeenCalledWith(
-            expect.any(Object),
+            expect.not.objectContaining({
+                reasoning: expect.anything(),
+            }),
             ['temperature', 'top_p', 'reasoning_effort', 'verbosity'],
-            {},
+            { reasoning_effort: 'reasoning.effort' },
             'model',
-            { modelId: 'copilot-gpt-5.4' },
+            { modelId: 'copilot-gpt-5.5' },
         )
+    })
+
+    test('prepends non-streaming reasoning summary output as thoughts', async () => {
+        mocks.globalFetch.mockResolvedValue({
+            ok: true,
+            status: 200,
+            data: {
+                output: [
+                    {
+                        type: 'reasoning',
+                        summary: [{ type: 'summary_text', text: 'summary text' }],
+                    },
+                    {
+                        type: 'message',
+                        content: [{ type: 'output_text', text: 'answer text' }],
+                    },
+                ],
+            },
+            headers: {},
+        })
+        const { requestOpenAIResponseAPI } = await import('./requests')
+
+        const response = await requestOpenAIResponseAPI({
+            aiModel: 'gpt-5.5',
+            formated: [{ role: 'user', content: 'hello' }],
+            modelInfo: {
+                id: 'gpt-5.5',
+                internalID: 'gpt-5.5',
+                parameters: ['reasoning_effort', 'verbosity'],
+            },
+            maxTokens: 256,
+            mode: 'model',
+        } as any)
+
+        expect(response).toEqual({
+            type: 'success',
+            result: '<Thoughts>\nsummary text\n</Thoughts>\nanswer text',
+        })
     })
 
     test('streams responses API output text as cumulative chunks', async () => {
@@ -159,5 +199,42 @@ describe('requestOpenAIResponseAPI', () => {
 
         expect(first.value).toEqual({ '0': 'he' })
         expect(second.value).toEqual({ '0': 'hello' })
+    })
+
+    test('streams responses API reasoning summary as thoughts', async () => {
+        const encoder = new TextEncoder()
+        mocks.fetchNative.mockResolvedValue({
+            status: 200,
+            headers: new Headers({ 'Content-Type': 'text/event-stream' }),
+            body: new ReadableStream({
+                start(controller) {
+                    controller.enqueue(encoder.encode('data: {"type":"response.reasoning_summary_text.delta","delta":"why"}\n\n'))
+                    controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"answer"}\n\n'))
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+                    controller.close()
+                },
+            }),
+        })
+        const { requestOpenAIResponseAPI } = await import('./requests')
+
+        const response = await requestOpenAIResponseAPI({
+            aiModel: 'gpt-5.5',
+            formated: [{ role: 'user', content: 'hello' }],
+            modelInfo: {
+                id: 'gpt-5.5',
+                internalID: 'gpt-5.5',
+                parameters: ['reasoning_effort', 'verbosity'],
+            },
+            maxTokens: 256,
+            mode: 'model',
+            useStreaming: true,
+        } as any)
+
+        const reader = (response as any).result.getReader()
+        const first = await reader.read()
+        const second = await reader.read()
+
+        expect(first.value).toEqual({ '0': '<Thoughts>\nwhy\n</Thoughts>\n' })
+        expect(second.value).toEqual({ '0': '<Thoughts>\nwhy\n</Thoughts>\nanswer' })
     })
 })
