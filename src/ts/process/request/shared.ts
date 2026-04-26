@@ -34,6 +34,33 @@ export function setObjectValue<T>(obj: T, key: string, value: any): T {
     return obj
 }
 
+export function getReasoningEffortParameterValue(
+    modelMode: ModelModeExtended,
+    arg: {
+        modelId:string
+    },
+): number | null | undefined {
+    const db = getDatabase()
+
+    if (db.seperateParametersEnabled && (modelMode !== 'model' || db.seperateParametersByModel)) {
+        let sepParams = db.seperateParameters[modelMode]
+        if (db.seperateParametersByModel){
+            sepParams = db.seperateParameters.overrides[arg.modelId]
+
+            if(!sepParams){
+                throw new Error(`No seperate parameters found for model ${arg.modelId} in model mode ${modelMode}. Please set parameters for this model`)
+            }
+        }
+        if (modelMode === 'submodel') {
+            sepParams = db.seperateParameters['otherAx']
+        }
+
+        return sepParams?.reasoning_effort
+    }
+
+    return db.reasoningEffort
+}
+
 export function applyParameters(
     data: Record<string, any>,
     parameters: LLMParameter[],
@@ -197,7 +224,12 @@ export function applyParameters(
             }
         }
 
-        if (value === -1000) {
+        if (
+            value === -1000 ||
+            value === undefined ||
+            value === null ||
+            (typeof value === 'number' && isNaN(value))
+        ) {
             continue
         }
 

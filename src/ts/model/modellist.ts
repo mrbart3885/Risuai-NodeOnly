@@ -461,6 +461,30 @@ export const LLMModels: LLMModel[] = [
     },
     // DeepSeek
     {
+        id: 'deepseek-v4-flash',
+        name: 'DeepSeek V4 Flash',
+        provider: LLMProvider.DeepSeek,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.deepSeekThinkingInput, LLMFlags.hasStreaming],
+        parameters: ['frequency_penalty', 'presence_penalty','temperature', 'top_p', 'reasoning_effort'],
+        tokenizer: LLMTokenizer.DeepSeek,
+        endpoint: 'https://api.deepseek.com/chat/completions',
+        keyIdentifier: 'deepseek',
+        recommended: true
+    },
+    {
+        id: 'deepseek-v4-pro',
+        name: 'DeepSeek V4 Pro',
+        provider: LLMProvider.DeepSeek,
+        format: LLMFormat.OpenAICompatible,
+        flags: [LLMFlags.hasFirstSystemPrompt, LLMFlags.requiresAlternateRole, LLMFlags.mustStartWithUserInput, LLMFlags.hasPrefill, LLMFlags.deepSeekPrefix, LLMFlags.deepSeekThinkingInput, LLMFlags.hasStreaming],
+        parameters: ['frequency_penalty', 'presence_penalty','temperature', 'top_p', 'reasoning_effort'],
+        tokenizer: LLMTokenizer.DeepSeek,
+        endpoint: 'https://api.deepseek.com/chat/completions',
+        keyIdentifier: 'deepseek',
+        recommended: true
+    },
+    {
         id: 'deepseek-chat',
         name: 'Deepseek Chat',
         provider: LLMProvider.DeepSeek,
