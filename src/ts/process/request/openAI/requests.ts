@@ -2,6 +2,7 @@ import { language } from "src/lang"
 import { alertError } from "src/ts/alert";
 import { getDatabase } from "src/ts/storage/database.svelte"
 import { LLMFlags, LLMFormat } from "src/ts/model/modellist"
+import { getDeepSeekV4ThinkingParams, isDeepSeekV4ModelId } from "src/ts/model/deepseek"
 import { strongBan, tokenizeNum } from "src/ts/tokenizer"
 import { getFreeOpenRouterModels } from "src/ts/model/openrouter"
 import { addFetchLog, fetchNative, globalFetch, textifyReadableStream } from "src/ts/globalApi.svelte"
@@ -28,7 +29,7 @@ import { applyChatTemplate } from "../../templates/chatTemplate"
 import { supportsInlayImage } from "../../files/inlays"
 import { callTool, decodeToolCall, encodeToolCall } from "../../mcp/mcp"
 import type { RequestDataArgumentExtended, requestDataResponse, StreamResponseChunk } from '../request'
-import { applyParameters, setObjectValue } from '../shared'
+import { applyParameters, getReasoningEffortParameterValue, setObjectValue } from '../shared'
 
 import type { Contents, OpenAIChatExtra, OpenAIChatFull, ResponseInputItem, ResponseItem, ResponseOutputItem, ToolCall } from './types'
 
@@ -454,6 +455,21 @@ export async function requestOpenAI(arg:RequestDataArgumentExtended):Promise<req
             modelId: arg.modelInfo.id
         }
     )
+
+    if(arg.modelInfo?.keyIdentifier === 'deepseek' && isDeepSeekV4ModelId(body.model)){
+        const thinkingParams = getDeepSeekV4ThinkingParams(
+            getReasoningEffortParameterValue(arg.mode, { modelId: arg.modelInfo.id })
+        )
+        if(thinkingParams){
+            body.thinking = thinkingParams.thinking
+            if(thinkingParams.reasoning_effort){
+                body.reasoning_effort = thinkingParams.reasoning_effort
+            }
+            else{
+                delete body.reasoning_effort
+            }
+        }
+    }
 
     if(arg.tools && arg.tools.length > 0){
         body.tools = arg.tools.map(tool => {
@@ -1073,9 +1089,14 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
         max_output_tokens: maxTokens,
         tools: [],
         store: false
-    }, arg.modelInfo.parameters ?? ['temperature', 'top_p'], {}, arg.mode, {
+    }, arg.modelInfo.parameters ?? ['temperature', 'top_p'], {
+        reasoning_effort: 'reasoning.effort',
+    }, arg.mode, {
         modelId: arg.modelInfo.id
     })
+    if(body.reasoning?.effort){
+        body.reasoning.summary = 'detailed'
+    }
 
     let requestURL = arg.customURL ?? "https://api.openai.com/v1/responses"
     if(arg.modelInfo?.endpoint){
@@ -1226,12 +1247,21 @@ export async function requestOpenAIResponseAPI(arg:RequestDataArgumentExtended):
     }
 
     let result: string = (response.data.output?.find((m:ResponseOutputItem) => m.type === 'message') as ResponseOutputItem)?.content?.find(m => m.type === 'output_text')?.text
+    const reasoningSummary = response.data.output
+        ?.filter((m: any) => m.type === 'reasoning')
+        ?.flatMap((m: any) => m.summary ?? [])
+        ?.filter((m: any) => m.type === 'summary_text' && m.text)
+        ?.map((m: any) => m.text)
+        ?.join('\n')
 
     if(!result){
         return {
             type: 'fail',
             result: JSON.stringify(response.data)
         }
+    }
+    if(reasoningSummary){
+        result = `<Thoughts>\n${reasoningSummary}\n</Thoughts>\n${result}`
     }
     return {
         type: 'success',
@@ -1425,7 +1455,7 @@ function getResponseApiTranStream(): TransformStream<Uint8Array, StreamResponseC
             outputText = appendStreamingFragment(outputText, event.delta)
             return
         }
-        if(type === 'response.reasoning_text.delta' || type === 'response.output_item.reasoning.delta'){
+        if(type === 'response.reasoning_text.delta' || type === 'response.output_item.reasoning.delta' || type === 'response.reasoning_summary_text.delta'){
             reasoningText = appendStreamingFragment(reasoningText, event.delta)
             return
         }
