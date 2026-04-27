@@ -15,7 +15,7 @@ import { registerMCPModule, unregisterMCPModule } from "src/ts/process/mcp/plugi
 import { getLLMCache, searchLLMCache } from "src/ts/translator/translator";
 import { hasher } from "src/ts/parser/parser.svelte";
 import { LLMFlags, LLMFormat, LLMProvider, LLMTokenizer, type LLMModel } from "src/ts/model/types";
-import { readPersistentJson, writePersistentJson } from "src/ts/storage/persistentKv";
+import { readPersistentJson, removePersistentKey, writePersistentJson } from "src/ts/storage/persistentKv";
 import { sendChat as processSendChat, doingChat } from "src/ts/process/index.svelte";
 import { getModelInfo } from "src/ts/model/modellist";
 import type { ModelModeExtended } from "src/ts/process/request/shared";
@@ -546,6 +546,14 @@ async function ensurePluginPermissionStateLoaded() {
         })()
     }
     await pluginPermissionLoadPromise
+}
+
+export async function resetAllPluginPermissions() {
+    permissionGivenPlugins.clear()
+    permissionDeniedPlugins.clear()
+    permissionCache.clear()
+    pluginPermissionLoadPromise = Promise.resolve()
+    await removePersistentKey(pluginPermissionStateKey)
 }
 
 async function persistPluginPermissionState() {
