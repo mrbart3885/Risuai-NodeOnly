@@ -2,6 +2,11 @@
     // shadcn-svelte Dialog — ported to RisuAI theme tokens.
     // See _reference/shadcn-components/dialog/* for source patterns.
     export type ShDialogSize = 'sm' | 'default' | 'lg' | 'xl';
+    // Stacking tier — see .agent/guide/ui.md "Dialog z-index 컨벤션".
+    // base (z-40): 베이스 리스트/관리 다이얼로그 (위에 alert 떠야 함)
+    // alert (z-50): 기본. confirm/input/error/일반 팝업
+    // top (z-[60]): 모든 것 위에 떠야 하는 로딩 등 특수 케이스
+    export type ShDialogTier = 'base' | 'alert' | 'top';
 </script>
 
 <script lang="ts">
@@ -14,10 +19,12 @@
         open?: boolean;
         onOpenChange?: (open: boolean) => void;
         size?: ShDialogSize;
+        tier?: ShDialogTier;
         closable?: boolean;
         closeOnEscape?: boolean;
         closeOnOutsideClick?: boolean;
         contentClass?: string;
+        overlayClass?: string;
         title?: Snippet;
         description?: Snippet;
         footer?: Snippet;
@@ -28,10 +35,12 @@
         open = $bindable(false),
         onOpenChange,
         size = 'default',
+        tier = 'alert',
         closable = true,
         closeOnEscape = false,
         closeOnOutsideClick = true,
         contentClass = '',
+        overlayClass = '',
         title,
         description,
         footer,
@@ -45,10 +54,16 @@
         xl: 'max-w-4xl',
     };
 
+    const tierClasses: Record<ShDialogTier, string> = {
+        base: 'z-40',
+        alert: 'z-50',
+        top: 'z-[60]',
+    };
+
     // w-[calc(100vw-2rem)] guarantees a 1rem gutter on each side at any
     // viewport (size class supplies max-width upper bound on desktop).
     const contentBase =
-        'fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 ' +
+        'fixed left-1/2 top-1/2 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 ' +
         'bg-darkbg border border-darkborderc rounded-md shadow-lg ' +
         'p-4 flex flex-col gap-4 max-h-[90vh] overflow-y-auto outline-none ' +
         'data-[state=open]:animate-in data-[state=closed]:animate-out ' +
@@ -59,10 +74,10 @@
 <Dialog.Root bind:open {onOpenChange}>
     <Dialog.Portal>
         <Dialog.Overlay
-            class="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+            class={cn('fixed inset-0 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0', tierClasses[tier], overlayClass)}
         />
         <Dialog.Content
-            class={cn(contentBase, sizeClasses[size], contentClass)}
+            class={cn(contentBase, tierClasses[tier], sizeClasses[size], contentClass)}
             escapeKeydownBehavior={closeOnEscape ? 'close' : 'ignore'}
             interactOutsideBehavior={closeOnOutsideClick ? 'close' : 'ignore'}
         >

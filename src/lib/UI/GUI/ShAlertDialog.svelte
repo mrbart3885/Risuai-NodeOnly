@@ -9,11 +9,13 @@
     import type { Snippet } from 'svelte';
     import { AlertDialog } from 'bits-ui';
     import { cn } from 'src/lib/utils';
+    import type { ShDialogTier } from './ShDialog.svelte';
 
     interface Props {
         open?: boolean;
         onOpenChange?: (open: boolean) => void;
         size?: ShAlertDialogSize;
+        tier?: ShDialogTier;
         closeOnEscape?: boolean;
         closeOnOutsideClick?: boolean;
         contentClass?: string;
@@ -27,6 +29,7 @@
         open = $bindable(false),
         onOpenChange,
         size = 'default',
+        tier = 'alert',
         closeOnEscape = false,
         closeOnOutsideClick = false,
         contentClass = '',
@@ -42,10 +45,16 @@
         lg: 'max-w-2xl',
     };
 
+    const tierClasses: Record<ShDialogTier, string> = {
+        base: 'z-40',
+        alert: 'z-50',
+        top: 'z-[60]',
+    };
+
     // w-[calc(100vw-2rem)] guarantees a 1rem gutter on each side at any
     // viewport (size class supplies max-width upper bound on desktop).
     const contentBase =
-        'fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 ' +
+        'fixed left-1/2 top-1/2 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 ' +
         'bg-darkbg border border-darkborderc rounded-md shadow-lg ' +
         'p-4 flex flex-col gap-4 max-h-[90vh] overflow-y-auto outline-none ' +
         'data-[state=open]:animate-in data-[state=closed]:animate-out ' +
@@ -56,10 +65,10 @@
 <AlertDialog.Root bind:open {onOpenChange}>
     <AlertDialog.Portal>
         <AlertDialog.Overlay
-            class="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+            class={cn('fixed inset-0 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0', tierClasses[tier])}
         />
         <AlertDialog.Content
-            class={cn(contentBase, sizeClasses[size], contentClass)}
+            class={cn(contentBase, tierClasses[tier], sizeClasses[size], contentClass)}
             escapeKeydownBehavior={closeOnEscape ? 'close' : 'ignore'}
             interactOutsideBehavior={closeOnOutsideClick ? 'close' : 'ignore'}
         >
