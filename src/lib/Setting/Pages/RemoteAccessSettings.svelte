@@ -3,7 +3,8 @@
     import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
     import { forageStorage } from "src/ts/globalApi.svelte";
     import { alertConfirm } from "src/ts/alert";
-    import Button from "src/lib/UI/GUI/Button.svelte";
+    import ShButton from "src/lib/UI/GUI/ShButton.svelte";
+    import ShInput from "src/lib/UI/GUI/ShInput.svelte";
     import { LoaderCircleIcon, CopyIcon, CheckIcon, DownloadIcon, TriangleAlertIcon, InfoIcon } from "@lucide/svelte";
     import QRCode from "qrcode";
 
@@ -117,7 +118,7 @@
         <div class="text-sm text-yellow-400">{language.remoteAccessDisabled}</div>
 
     {:else if status === 'off'}
-        <Button onclick={startTunnel} className="mt-2">{language.remoteAccessOpen}</Button>
+        <ShButton onclick={startTunnel} className="mt-2 self-start">{language.remoteAccessOpen}</ShButton>
 
     {:else if status === 'downloading'}
         <div class="flex items-center gap-3 py-4 text-textcolor2">
@@ -139,19 +140,19 @@
             {/if}
 
             <div class="flex items-center gap-2 w-full max-w-md">
-                <input
+                <ShInput
                     type="text"
                     readonly
                     value={tunnelUrl}
-                    class="flex-1 bg-bgcolor border border-darkborderc rounded-md px-3 py-2 text-sm text-textcolor select-all"
+                    className="flex-1 select-all"
                 />
-                <Button size="md" onclick={copyUrl}>
+                <ShButton size="icon" onclick={copyUrl}>
                     {#if copied}
                         <CheckIcon size={16} />
                     {:else}
                         <CopyIcon size={16} />
                     {/if}
-                </Button>
+                </ShButton>
             </div>
 
             <!-- Warning -->
@@ -166,7 +167,7 @@
                 <p class="text-sm text-blue-300/80 leading-relaxed">{language.remoteAccessInfo}</p>
             </div>
 
-            <Button styled="danger" onclick={stopTunnel} className="mt-2">{language.remoteAccessClose}</Button>
+            <ShButton variant="destructive" onclick={stopTunnel} className="mt-2">{language.remoteAccessClose}</ShButton>
         </div>
 
     {:else if status === 'error'}
@@ -174,7 +175,7 @@
             <div class="text-sm text-red-400">
                 {language.remoteAccessError}{tunnelError ? `: ${tunnelError}` : ''}
             </div>
-            <Button size="sm" onclick={startTunnel} className="mt-1">{language.remoteAccessRetry}</Button>
+            <ShButton size="sm" onclick={startTunnel} className="mt-1 self-start">{language.remoteAccessRetry}</ShButton>
         </div>
     {/if}
 </div>
