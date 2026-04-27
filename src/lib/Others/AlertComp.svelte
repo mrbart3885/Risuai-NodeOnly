@@ -21,7 +21,13 @@
     import OptionInput from "../UI/GUI/OptionInput.svelte";
     import { language } from 'src/lang';
     import { getFetchData } from 'src/ts/globalApi.svelte';
-    import { alertStore, selectedCharID } from "src/ts/stores.svelte";
+    import { alertStore, selectedCharID, togglePresetsOpenStore } from "src/ts/stores.svelte";
+    import ShSwitch from "../UI/GUI/ShSwitch.svelte";
+    import ShDropdownMenu from '../UI/GUI/ShDropdownMenu.svelte';
+    import ShDropdownMenuTrigger from '../UI/GUI/ShDropdownMenuTrigger.svelte';
+    import ShDropdownMenuContent from '../UI/GUI/ShDropdownMenuContent.svelte';
+    import ShDropdownMenuItem from '../UI/GUI/ShDropdownMenuItem.svelte';
+    import ShDropdownMenuSeparator from '../UI/GUI/ShDropdownMenuSeparator.svelte';
     import { nodeOnlyVer } from "src/ts/storage/database.svelte";
     import { tokenize } from "src/ts/tokenizer";
     import TextAreaInput from "../UI/GUI/TextAreaInput.svelte";
@@ -69,12 +75,11 @@
     let expandedLogs: Set<number> = $state(new Set())
     let allExpanded = $state(false)
     let copiedKey: string | null = $state(null)
-    let togglePresetFilter = $state(false)
-    let togglePresetMenuOpen: number | null = $state(null)
-    let togglePresetMenuPos: {x: number, y: number} = $state({x: 0, y: 0})
+    let togglePresetCurrentOnly = $state(false)
 
-    function closePresets() { togglePresetMenuOpen = null; alertStore.set({ type: 'none', msg: '' }) }
-    function reopenPresets() { togglePresetMenuOpen = null; alertStore.set({ type: 'togglePresets', msg: '' }) }
+    function closeTogglePresets() {
+        togglePresetsOpenStore.set(false)
+    }
 
     // Register JSON language for syntax highlighting
     if (!hljs.getLanguage('json')) {
@@ -177,7 +182,7 @@
     }
 }}></svelte:window>
 
-{#if $alertStore.type !== 'none' &&  $alertStore.type !== 'cardexport' && $alertStore.type !== 'branches' && $alertStore.type !== 'selectModule' && $alertStore.type !== 'pukmakkurit' && $alertStore.type !== 'requestlogs' && $alertStore.type !== 'togglePresets' && $alertStore.type !== 'error' && $alertStore.type !== 'normal' && $alertStore.type !== 'markdown' && $alertStore.type !== 'ask' && $alertStore.type !== 'pluginconfirm' && $alertStore.type !== 'tos' && $alertStore.type !== 'input' && $alertStore.type !== 'select' && $alertStore.type !== 'wait' && $alertStore.type !== 'wait2' && $alertStore.type !== 'progress'}
+{#if $alertStore.type !== 'none' &&  $alertStore.type !== 'cardexport' && $alertStore.type !== 'branches' && $alertStore.type !== 'selectModule' && $alertStore.type !== 'pukmakkurit' && $alertStore.type !== 'requestlogs' && $alertStore.type !== 'error' && $alertStore.type !== 'normal' && $alertStore.type !== 'markdown' && $alertStore.type !== 'ask' && $alertStore.type !== 'pluginconfirm' && $alertStore.type !== 'tos' && $alertStore.type !== 'input' && $alertStore.type !== 'select' && $alertStore.type !== 'wait' && $alertStore.type !== 'wait2' && $alertStore.type !== 'progress'}
     <div class="absolute w-full h-full z-50 bg-black/50 flex justify-center items-center">
         <div class="bg-darkbg p-4 break-any rounded-md flex flex-col max-w-3xl  max-h-full overflow-y-auto">
             {#if $alertStore.type === 'selectChar'}
@@ -482,233 +487,6 @@
                     </button>
                 </div>
             {/if}
-        </div>
-    </div>
-
-{:else if $alertStore.type === 'togglePresets'}
-    {@const currentPromptPresetName = DBState.db.botPresets[DBState.db.botPresetsId]?.name}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="fixed top-0 left-0 h-full w-full bg-black/50 flex flex-col z-50 items-center justify-center" role="button" tabindex="0" onclick={closePresets}>
-        <div class="bg-darkbg rounded-md p-4 max-w-full flex flex-col w-md max-h-[80vh]" role="button" tabindex="0" onclick={(e) => e.stopPropagation()}>
-            <h1 class="font-bold text-xl w-full flex items-center mb-4">
-                <span>{language.togglePresetSelectTitle}</span>
-                <button class="ml-auto text-textcolor2 hover:text-green-500 cursor-pointer" onclick={closePresets}>
-                    <XIcon />
-                </button>
-            </h1>
-            <div class="flex gap-1 mb-3">
-                <button class="flex-1 py-1.5 px-3 rounded-md text-sm cursor-pointer transition-colors"
-                    class:bg-green-700={!togglePresetFilter}
-                    class:text-white={!togglePresetFilter}
-                    class:bg-darkbutton={togglePresetFilter}
-                    class:text-textcolor2={togglePresetFilter}
-                    onclick={() => { togglePresetFilter = false }}>
-                    {language.togglePresetFilterAll}
-                </button>
-                <button class="flex-1 py-1.5 px-3 rounded-md text-sm cursor-pointer transition-colors"
-                    class:bg-yellow-600={togglePresetFilter}
-                    class:text-white={togglePresetFilter}
-                    class:bg-darkbutton={!togglePresetFilter}
-                    class:text-textcolor2={!togglePresetFilter}
-                    onclick={() => { togglePresetFilter = true }}>
-                    {language.togglePresetFilterCurrent}
-                </button>
-            </div>
-            {#if !DBState.db.togglePresets?.length}
-                <p class="text-textcolor2 text-sm">{language.togglePresetEmpty}</p>
-            {:else}
-                {@const filteredPresets = togglePresetFilter
-                    ? DBState.db.togglePresets.map((p, i) => ({preset: p, index: i})).filter(({preset}) => preset.promptPresetName === currentPromptPresetName)
-                    : DBState.db.togglePresets.map((p, i) => ({preset: p, index: i}))}
-                {#if filteredPresets.length === 0}
-                    <p class="text-textcolor2 text-sm">{language.togglePresetEmptyFiltered}</p>
-                {:else}
-                <div class="flex flex-col gap-1 overflow-y-auto">
-                    {#each filteredPresets as {preset, index: i}}
-                        <div class="flex items-center border border-darkborderc rounded-md hover:ring-1 hover:ring-green-500/50">
-                            <button class="flex-1 min-w-0 p-2 text-left cursor-pointer text-textcolor truncate" onclick={async () => {
-                                const name = preset.name
-                                const isMismatch = preset.promptPresetName !== currentPromptPresetName
-                                const msg = isMismatch ? language.togglePresetMismatchConfirm : language.togglePresetApplyConfirm
-                                const confirmed = await alertConfirm(msg)
-                                if (!confirmed) {
-                                    reopenPresets()
-                                    return
-                                }
-                                applyToggleValues(preset.values)
-                                notifySuccess((language.togglePresetApplied as any)(name))
-                            }}>
-                                <div class="text-xs text-textcolor2 leading-tight">{preset.promptPresetName ?? language.togglePresetNoPromptPreset}</div>
-                                {preset.name}
-                            </button>
-                            <div class="flex items-center shrink-0 pr-1 gap-0.5">
-                                {#if !togglePresetFilter}
-                                <button class="text-textcolor2 hover:text-green-500 cursor-pointer p-1" onclick={() => {
-                                    if (i > 0) {
-                                        const presets = DBState.db.togglePresets!;
-                                        [presets[i - 1], presets[i]] = [presets[i], presets[i - 1]];
-                                        DBState.db.togglePresets = [...presets];
-                                    }
-                                }}>
-                                    <ChevronUpIcon size={16} />
-                                </button>
-                                <button class="text-textcolor2 hover:text-green-500 cursor-pointer p-1" onclick={() => {
-                                    const presets = DBState.db.togglePresets!;
-                                    if (i < presets.length - 1) {
-                                        [presets[i], presets[i + 1]] = [presets[i + 1], presets[i]];
-                                        DBState.db.togglePresets = [...presets];
-                                    }
-                                }}>
-                                    <ChevronDownIcon size={16} />
-                                </button>
-                                {/if}
-                                <div>
-                                    <button class="text-textcolor2 hover:text-green-500 cursor-pointer p-1" onclick={(e) => {
-                                        if (togglePresetMenuOpen === i) {
-                                            togglePresetMenuOpen = null
-                                        } else {
-                                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                                            togglePresetMenuPos = {x: rect.right, y: rect.bottom}
-                                            togglePresetMenuOpen = i
-                                        }
-                                    }}>
-                                        <EllipsisVerticalIcon size={16} />
-                                    </button>
-                                    {#if togglePresetMenuOpen === i}
-                                        <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                        <div class="fixed inset-0 z-10" role="button" tabindex="0" onclick={() => { togglePresetMenuOpen = null }}></div>
-                                        <div class="fixed z-20 bg-darkbg border border-darkborderc rounded-md shadow-lg py-1 min-w-36" style="top: {togglePresetMenuPos.y}px; right: {window.innerWidth - togglePresetMenuPos.x}px;">
-                                            <button class="w-full px-3 py-1.5 text-left text-sm text-textcolor hover:bg-selected cursor-pointer flex items-center gap-2" onclick={async () => {
-                                                togglePresetMenuOpen = null
-                                                const idx = i
-                                                const presetName = DBState.db.togglePresets![idx].name
-                                                const confirmed = await alertConfirm((language.togglePresetOverwriteConfirm as any)(presetName))
-                                                if (confirmed) {
-                                                    const promptPreset = DBState.db.botPresets[DBState.db.botPresetsId]
-                                                    DBState.db.togglePresets![idx].values = snapshotCurrentToggleValues()
-                                                    DBState.db.togglePresets![idx].promptPresetName = promptPreset?.name
-                                                    DBState.db.togglePresets = [...DBState.db.togglePresets!]
-                                                    notifySuccess((language.togglePresetOverwritten as any)(presetName))
-                                                }
-                                                reopenPresets()
-                                            }}>
-                                                <RefreshCwIcon size={14} />
-                                                {language.togglePresetMenuOverwrite}
-                                            </button>
-                                            <button class="w-full px-3 py-1.5 text-left text-sm text-textcolor hover:bg-selected cursor-pointer flex items-center gap-2" onclick={async () => {
-                                                togglePresetMenuOpen = null
-                                                const idx = i
-                                                const oldName = DBState.db.togglePresets![idx].name
-                                                const name = await alertInput(language.togglePresetRename, [], oldName)
-                                                if (name && name !== oldName) {
-                                                    DBState.db.togglePresets![idx].name = name
-                                                    DBState.db.togglePresets = [...DBState.db.togglePresets!]
-                                                    notifySuccess((language.togglePresetRenamed as any)(oldName, name))
-                                                }
-                                                reopenPresets()
-                                            }}>
-                                                <PencilIcon size={14} />
-                                                {language.togglePresetMenuRename}
-                                            </button>
-                                            <button class="w-full px-3 py-1.5 text-left text-sm text-textcolor hover:bg-selected cursor-pointer flex items-center gap-2" onclick={() => {
-                                                togglePresetMenuOpen = null
-                                                const copy = $state.snapshot(preset);
-                                                copy.name = preset.name + ' (Copy)';
-                                                DBState.db.togglePresets!.splice(i + 1, 0, copy);
-                                                DBState.db.togglePresets = [...DBState.db.togglePresets!];
-                                                notifySuccess((language.togglePresetDuplicated as any)(copy.name))
-                                            }}>
-                                                <CopyIcon size={14} />
-                                                {language.togglePresetMenuDuplicate}
-                                            </button>
-                                            <button class="w-full px-3 py-1.5 text-left text-sm text-textcolor hover:bg-selected cursor-pointer flex items-center gap-2" onclick={() => {
-                                                togglePresetMenuOpen = null
-                                                const exportData = { name: preset.name, values: preset.values, promptPresetName: preset.promptPresetName }
-                                                downloadFile(`${preset.name}_toggle.json`, Buffer.from(JSON.stringify(exportData, null, 2), 'utf-8'))
-                                                notifySuccess((language.togglePresetExported as any)(preset.name))
-                                            }}>
-                                                <DownloadIcon size={14} />
-                                                {language.togglePresetMenuExport}
-                                            </button>
-                                            <hr class="border-darkborderc my-1" />
-                                            <button class="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-selected cursor-pointer flex items-center gap-2" onclick={async () => {
-                                                togglePresetMenuOpen = null
-                                                const idx = i
-                                                const presetName = DBState.db.togglePresets![idx].name
-                                                const confirmed = await alertConfirm((language.togglePresetDeleteConfirm as any)(presetName))
-                                                if (confirmed) {
-                                                    DBState.db.togglePresets!.splice(idx, 1)
-                                                    DBState.db.togglePresets = [...DBState.db.togglePresets!]
-                                                    notifySuccess((language.togglePresetDeleted as any)(presetName))
-                                                }
-                                                reopenPresets()
-                                            }}>
-                                                <TrashIcon size={14} />
-                                                {language.togglePresetMenuDelete}
-                                            </button>
-                                        </div>
-                                    {/if}
-                                </div>
-                            </div>
-                        </div>
-                    {/each}
-                </div>
-                {/if}
-            {/if}
-            <button class="w-full mt-2 py-2 px-4 rounded-md border border-dashed border-darkborderc text-textcolor2 hover:bg-selected hover:text-textcolor cursor-pointer transition-colors flex items-center justify-center gap-2 text-sm" onclick={async () => {
-                const name = await alertInput(language.togglePresetNamePrompt)
-                if (!name) {
-                    reopenPresets()
-                    return
-                }
-                DBState.db.togglePresets ??= []
-                const promptPreset = DBState.db.botPresets[DBState.db.botPresetsId]
-                DBState.db.togglePresets.push({
-                    name,
-                    values: snapshotCurrentToggleValues(),
-                    promptPresetName: promptPreset?.name
-                })
-                DBState.db.togglePresets = [...DBState.db.togglePresets]
-                notifySuccess((language.togglePresetSaved as any)(name))
-                reopenPresets()
-            }}>
-                <PlusIcon size={16} />
-                {language.togglePresetSaveNew}
-            </button>
-            <button class="w-full mt-1 py-2 px-4 rounded-md border border-dashed border-darkborderc text-textcolor2 hover:bg-selected hover:text-textcolor cursor-pointer transition-colors flex items-center justify-center gap-2 text-sm" onclick={async () => {
-                let f: {name: string, data: Uint8Array} | undefined
-                try {
-                    f = await selectSingleFile(['json'])
-                } catch { return }
-                if (!f) { reopenPresets(); return }
-                try {
-                    const data = JSON.parse(Buffer.from(f.data).toString('utf-8'))
-                    if (typeof data.name !== 'string' || !data.values || typeof data.values !== 'object' || Array.isArray(data.values)) {
-                        alertError(language.togglePresetImportError)
-                        return
-                    }
-                    const sanitizedValues: Record<string, string> = {}
-                    for (const [k, v] of Object.entries(data.values)) {
-                        if (typeof k === 'string' && typeof v === 'string') {
-                            sanitizedValues[k] = v
-                        }
-                    }
-                    DBState.db.togglePresets ??= []
-                    DBState.db.togglePresets.push({
-                        name: data.name,
-                        values: sanitizedValues,
-                        promptPresetName: typeof data.promptPresetName === 'string' ? data.promptPresetName : undefined
-                    })
-                    DBState.db.togglePresets = [...DBState.db.togglePresets]
-                    notifySuccess((language.togglePresetImported as any)(data.name))
-                    reopenPresets()
-                } catch {
-                    alertError(language.togglePresetImportError)
-                }
-            }}>
-                <UploadIcon size={16} />
-                {language.togglePresetImport}
-            </button>
         </div>
     </div>
 
@@ -1266,6 +1044,217 @@
         <ShButton onclick={() => alertStore.set({ type: 'none', msg: 'yes' })}>Accept</ShButton>
     {/snippet}
 </ShAlertDialog>
+
+<!-- tier="base" puts this below default ShDialog/ShAlertDialog tier so
+     nested alertConfirm/alertInput (overwrite, rename, delete) paint on
+     top regardless of Portal mount order. See .agent/guide/ui.md. -->
+<ShDialog
+    open={$togglePresetsOpenStore}
+    onOpenChange={(v) => { if (!v) closeTogglePresets() }}
+    tier="base"
+>
+    {#snippet title()}{language.togglePresetSelectTitle}{/snippet}
+
+    {#if $togglePresetsOpenStore}
+        {@const currentPromptPresetName = DBState.db.botPresets[DBState.db.botPresetsId]?.name}
+        <div class="flex flex-col gap-3">
+            <label class="flex items-center gap-2 text-sm text-textcolor2 self-start cursor-pointer select-none">
+                <ShSwitch bind:checked={togglePresetCurrentOnly} />
+                {language.togglePresetFilterCurrentOnly}
+            </label>
+
+            {#if !DBState.db.togglePresets?.length}
+                <p class="text-textcolor2 text-sm">{language.togglePresetEmpty}</p>
+            {:else}
+                {@const filteredPresets = togglePresetCurrentOnly
+                    ? DBState.db.togglePresets.map((p, i) => ({preset: p, index: i})).filter(({preset}) => preset.promptPresetName === currentPromptPresetName)
+                    : DBState.db.togglePresets.map((p, i) => ({preset: p, index: i}))}
+                {#if filteredPresets.length === 0}
+                    <p class="text-textcolor2 text-sm">{language.togglePresetEmptyFiltered}</p>
+                {:else}
+                    <div class="flex flex-col gap-1">
+                        {#each filteredPresets as {preset, index: i}}
+                            <div class="flex items-center border border-darkborderc rounded-md hover:ring-1 hover:ring-borderc/50 transition-shadow">
+                                <button class="flex-1 min-w-0 p-2 text-left cursor-pointer text-textcolor truncate hover:bg-selected/30 rounded-l-md transition-colors" onclick={async () => {
+                                    const name = preset.name
+                                    const isMismatch = preset.promptPresetName !== currentPromptPresetName
+                                    const msg = isMismatch ? language.togglePresetMismatchConfirm : language.togglePresetApplyConfirm
+                                    const confirmed = await alertConfirm(msg)
+                                    if (!confirmed) return
+                                    applyToggleValues(preset.values)
+                                    notifySuccess((language.togglePresetApplied as any)(name))
+                                }}>
+                                    <div class="text-xs text-textcolor2 leading-tight">{preset.promptPresetName ?? language.togglePresetNoPromptPreset}</div>
+                                    {preset.name}
+                                </button>
+                                <div class="flex items-center shrink-0 pr-1 gap-0.5">
+                                    {#if !togglePresetCurrentOnly}
+                                        <ShButton variant="ghost" size="icon-xs" onclick={() => {
+                                            if (i > 0) {
+                                                const presets = DBState.db.togglePresets!;
+                                                [presets[i - 1], presets[i]] = [presets[i], presets[i - 1]];
+                                                DBState.db.togglePresets = [...presets];
+                                            }
+                                        }}>
+                                            <ChevronUpIcon size={14} />
+                                        </ShButton>
+                                        <ShButton variant="ghost" size="icon-xs" onclick={() => {
+                                            const presets = DBState.db.togglePresets!;
+                                            if (i < presets.length - 1) {
+                                                [presets[i], presets[i + 1]] = [presets[i + 1], presets[i]];
+                                                DBState.db.togglePresets = [...presets];
+                                            }
+                                        }}>
+                                            <ChevronDownIcon size={14} />
+                                        </ShButton>
+                                    {/if}
+                                    <ShDropdownMenu>
+                                        <ShDropdownMenuTrigger>
+                                            {#snippet child({ props })}
+                                                <ShButton {...props} variant="ghost" size="icon-xs">
+                                                    <EllipsisVerticalIcon size={14} />
+                                                </ShButton>
+                                            {/snippet}
+                                        </ShDropdownMenuTrigger>
+                                        <!-- z-[45] sits between the base togglePresets dialog (z-40) and
+                                             nested alertConfirm/alertInput (z-50): the menu floats over
+                                             the list but is occluded by the confirm popups it triggers. -->
+                                        <ShDropdownMenuContent class="z-[45] min-w-40" align="end">
+                                            <ShDropdownMenuItem onSelect={async () => {
+                                                const idx = i
+                                                const presetName = DBState.db.togglePresets![idx].name
+                                                const confirmed = await alertConfirm((language.togglePresetOverwriteConfirm as any)(presetName))
+                                                if (confirmed) {
+                                                    const promptPreset = DBState.db.botPresets[DBState.db.botPresetsId]
+                                                    DBState.db.togglePresets![idx].values = snapshotCurrentToggleValues()
+                                                    DBState.db.togglePresets![idx].promptPresetName = promptPreset?.name
+                                                    DBState.db.togglePresets = [...DBState.db.togglePresets!]
+                                                    notifySuccess((language.togglePresetOverwritten as any)(presetName))
+                                                }
+                                            }}>
+                                                <RefreshCwIcon size={14} />
+                                                {language.togglePresetMenuOverwrite}
+                                            </ShDropdownMenuItem>
+                                            <ShDropdownMenuItem onSelect={async () => {
+                                                const idx = i
+                                                const oldName = DBState.db.togglePresets![idx].name
+                                                const name = await alertInput(language.togglePresetRename, [], oldName)
+                                                if (name && name !== oldName) {
+                                                    DBState.db.togglePresets![idx].name = name
+                                                    DBState.db.togglePresets = [...DBState.db.togglePresets!]
+                                                    notifySuccess((language.togglePresetRenamed as any)(oldName, name))
+                                                }
+                                            }}>
+                                                <PencilIcon size={14} />
+                                                {language.togglePresetMenuRename}
+                                            </ShDropdownMenuItem>
+                                            <ShDropdownMenuItem onSelect={() => {
+                                                const copy = $state.snapshot(preset);
+                                                copy.name = preset.name + ' (Copy)';
+                                                DBState.db.togglePresets!.splice(i + 1, 0, copy);
+                                                DBState.db.togglePresets = [...DBState.db.togglePresets!];
+                                                notifySuccess((language.togglePresetDuplicated as any)(copy.name))
+                                            }}>
+                                                <CopyIcon size={14} />
+                                                {language.togglePresetMenuDuplicate}
+                                            </ShDropdownMenuItem>
+                                            <ShDropdownMenuItem onSelect={() => {
+                                                const exportData = { name: preset.name, values: preset.values, promptPresetName: preset.promptPresetName }
+                                                downloadFile(`${preset.name}_toggle.json`, Buffer.from(JSON.stringify(exportData, null, 2), 'utf-8'))
+                                                notifySuccess((language.togglePresetExported as any)(preset.name))
+                                            }}>
+                                                <DownloadIcon size={14} />
+                                                {language.togglePresetMenuExport}
+                                            </ShDropdownMenuItem>
+                                            <ShDropdownMenuSeparator />
+                                            <ShDropdownMenuItem variant="destructive" onSelect={async () => {
+                                                const idx = i
+                                                const presetName = DBState.db.togglePresets![idx].name
+                                                const confirmed = await alertConfirm((language.togglePresetDeleteConfirm as any)(presetName))
+                                                if (confirmed) {
+                                                    DBState.db.togglePresets!.splice(idx, 1)
+                                                    DBState.db.togglePresets = [...DBState.db.togglePresets!]
+                                                    notifySuccess((language.togglePresetDeleted as any)(presetName))
+                                                }
+                                            }}>
+                                                <TrashIcon size={14} />
+                                                {language.togglePresetMenuDelete}
+                                            </ShDropdownMenuItem>
+                                        </ShDropdownMenuContent>
+                                    </ShDropdownMenu>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            {/if}
+
+            <!-- Add new / import: live alongside the list rather than as a
+                 dialog footer, since they create new entries instead of
+                 closing the dialog. Mobile stacks vertically so the long
+                 Korean labels don't wrap inside narrow flex-1 cells. -->
+            <div class="flex flex-col sm:flex-row gap-2 mt-1">
+                <ShButton
+                    variant="outline"
+                    className="w-full sm:flex-1 sm:w-auto"
+                    onclick={async () => {
+                        const name = await alertInput(language.togglePresetNamePrompt)
+                        if (!name) return
+                        DBState.db.togglePresets ??= []
+                        const promptPreset = DBState.db.botPresets[DBState.db.botPresetsId]
+                        DBState.db.togglePresets.push({
+                            name,
+                            values: snapshotCurrentToggleValues(),
+                            promptPresetName: promptPreset?.name
+                        })
+                        DBState.db.togglePresets = [...DBState.db.togglePresets]
+                        notifySuccess((language.togglePresetSaved as any)(name))
+                    }}
+                >
+                    <PlusIcon size={16} />
+                    {language.togglePresetSaveNew}
+                </ShButton>
+                <ShButton
+                    variant="outline"
+                    className="w-full sm:flex-1 sm:w-auto"
+                    onclick={async () => {
+                        let f: {name: string, data: Uint8Array} | undefined
+                        try {
+                            f = await selectSingleFile(['json'])
+                        } catch { return }
+                        if (!f) return
+                        try {
+                            const data = JSON.parse(Buffer.from(f.data).toString('utf-8'))
+                            if (typeof data.name !== 'string' || !data.values || typeof data.values !== 'object' || Array.isArray(data.values)) {
+                                alertError(language.togglePresetImportError)
+                                return
+                            }
+                            const sanitizedValues: Record<string, string> = {}
+                            for (const [k, v] of Object.entries(data.values)) {
+                                if (typeof k === 'string' && typeof v === 'string') {
+                                    sanitizedValues[k] = v
+                                }
+                            }
+                            DBState.db.togglePresets ??= []
+                            DBState.db.togglePresets.push({
+                                name: data.name,
+                                values: sanitizedValues,
+                                promptPresetName: typeof data.promptPresetName === 'string' ? data.promptPresetName : undefined
+                            })
+                            DBState.db.togglePresets = [...DBState.db.togglePresets]
+                            notifySuccess((language.togglePresetImported as any)(data.name))
+                        } catch {
+                            alertError(language.togglePresetImportError)
+                        }
+                    }}
+                >
+                    <UploadIcon size={16} />
+                    {language.togglePresetImport}
+                </ShButton>
+            </div>
+        </div>
+    {/if}
+</ShDialog>
 
 <style>
     .break-any{

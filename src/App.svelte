@@ -207,9 +207,7 @@
             <ChatScreen />
         {/if}
     {/if}
-    {#if $alertStore.type !== 'none'}
-        <AlertComp />
-    {/if}
+    <AlertComp />
     {#if $showRealmInfoStore}
         <RealmPopUp bind:openedData={$showRealmInfoStore} />
     {/if}

@@ -61,6 +61,9 @@ export const alertStore = writable({
     msg: 'n',
 } as alertData)
 export const hypaV3ModalOpen = writable(false)
+// Toggle preset selector lives outside alertStore so child alertConfirm /
+// alertInput overlays can layer on top of it without overwriting state.
+export const togglePresetsOpenStore = writable(false)
 export const hypaV3ProgressStore = writable({
     open: false,
     miniMsg: '',

@@ -3,7 +3,7 @@ import { toast } from "svelte-sonner"
 import { sleep } from "./util"
 import { language } from "../lang"
 import { getDatabase, nodeOnlyVer, type MessageGenerationInfo } from "./storage/database.svelte"
-import { alertStore as alertStoreImported } from "./stores.svelte"
+import { alertStore as alertStoreImported, togglePresetsOpenStore } from "./stores.svelte"
 import { addLog } from "./log"
 import { nativeConsoleError } from "./log-capture"
 
@@ -11,8 +11,7 @@ export interface alertData{
     type: 'error'|'normal'|'none'|'ask'|'wait'|'selectChar'
             |'input'|'wait2'|'markdown'|'select'|'login'
             |'tos'|'cardexport'|'requestdata'|'addchar'|'selectModule'
-            |'chatOptions'|'pukmakkurit'|'branches'|'progress'|'pluginconfirm'|'requestlogs'
-            |'togglePresets',
+            |'chatOptions'|'pukmakkurit'|'branches'|'progress'|'pluginconfirm'|'requestlogs',
     msg: string,
     submsg?: string
     datalist?: [string, string][],
@@ -384,10 +383,21 @@ export function alertRequestLogs(){
 }
 
 export async function alertTogglePresets(){
-    alertStoreImported.set({
-        'type': 'togglePresets',
-        'msg': ''
+    // Toggle preset selector lives in its own store (togglePresetsOpenStore)
+    // rather than alertStore. This way, alertConfirm / alertInput triggered
+    // from inside the toggle preset menu overlay on top instead of replacing
+    // the alertStore singleton, so the legacy reopenPresets() round-trip
+    // disappears.
+    return new Promise<string>(resolve => {
+        togglePresetsOpenStore.set(true)
+        const unsub = togglePresetsOpenStore.subscribe(v => {
+            if (!v) {
+                // subscribe fires once on subscribe with current value (true),
+                // then again only on changes. Skip initial true and resolve
+                // once the consumer flips it back to false.
+                unsub()
+                resolve('')
+            }
+        })
     })
-    await waitAlert()
-    return get(alertStoreImported).msg
 }
