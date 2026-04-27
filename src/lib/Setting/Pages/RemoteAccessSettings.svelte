@@ -5,6 +5,7 @@
     import { alertConfirm } from "src/ts/alert";
     import ShButton from "src/lib/UI/GUI/ShButton.svelte";
     import ShInput from "src/lib/UI/GUI/ShInput.svelte";
+    import ShAlert from "src/lib/UI/GUI/ShAlert.svelte";
     import { LoaderCircleIcon, CopyIcon, CheckIcon, DownloadIcon, TriangleAlertIcon, InfoIcon } from "@lucide/svelte";
     import QRCode from "qrcode";
 
@@ -155,17 +156,15 @@
                 </ShButton>
             </div>
 
-            <!-- Warning -->
-            <div class="flex gap-2 bg-red-950/40 border border-red-900/50 rounded-lg p-3 w-full max-w-md">
-                <TriangleAlertIcon size={18} class="text-red-400 shrink-0 mt-0.5" />
-                <p class="text-sm text-red-300/90 leading-relaxed">{language.remoteAccessWarning}</p>
-            </div>
+            <ShAlert variant="destructive" className="w-full max-w-md">
+                {#snippet icon()}<TriangleAlertIcon />{/snippet}
+                {language.remoteAccessWarning}
+            </ShAlert>
 
-            <!-- Info -->
-            <div class="flex gap-2 bg-blue-950/30 border border-blue-900/40 rounded-lg p-3 w-full max-w-md">
-                <InfoIcon size={18} class="text-blue-400 shrink-0 mt-0.5" />
-                <p class="text-sm text-blue-300/80 leading-relaxed">{language.remoteAccessInfo}</p>
-            </div>
+            <ShAlert variant="info" className="w-full max-w-md">
+                {#snippet icon()}<InfoIcon />{/snippet}
+                {language.remoteAccessInfo}
+            </ShAlert>
 
             <ShButton variant="destructive" onclick={stopTunnel} className="mt-2">{language.remoteAccessClose}</ShButton>
         </div>

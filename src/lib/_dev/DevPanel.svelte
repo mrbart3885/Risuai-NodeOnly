@@ -29,8 +29,10 @@
     import ShDialog from "src/lib/UI/GUI/ShDialog.svelte";
     import ShButton from "src/lib/UI/GUI/ShButton.svelte";
     import ShBadge from "src/lib/UI/GUI/ShBadge.svelte";
+    import ShAlert from "src/lib/UI/GUI/ShAlert.svelte";
     import ShInput from "src/lib/UI/GUI/ShInput.svelte";
     import ShToggle from "src/lib/UI/GUI/ShToggle.svelte";
+    import { TriangleAlertIcon, InfoIcon, CheckCircleIcon, XCircleIcon } from "@lucide/svelte";
     import ShSelect from "src/lib/UI/GUI/ShSelect.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
 
@@ -466,6 +468,39 @@ function hello(): string {
                 <ShBadge variant="warning">warning</ShBadge>
                 <ShBadge variant="info">info</ShBadge>
                 <ShBadge variant="success">success</ShBadge>
+            </div>
+        </div>
+
+        <!-- ShAlert -->
+        <div class="flex flex-col gap-1.5">
+            <span class="text-xs text-textcolor2">ShAlert variants (icon + body)</span>
+            <div class="flex flex-col gap-2 max-w-md">
+                <ShAlert variant="default">
+                    {#snippet icon()}<InfoIcon />{/snippet}
+                    {#snippet title()}안내{/snippet}
+                    중성 톤의 기본 알림. 추가 컨텍스트가 필요할 때 사용합니다.
+                </ShAlert>
+                <ShAlert variant="info">
+                    {#snippet icon()}<InfoIcon />{/snippet}
+                    파란 톤 정보 안내. 일반적인 도움말/팁 전달용.
+                </ShAlert>
+                <ShAlert variant="success">
+                    {#snippet icon()}<CheckCircleIcon />{/snippet}
+                    {#snippet title()}완료{/snippet}
+                    초록 톤. 작업 성공 알림에 사용합니다.
+                </ShAlert>
+                <ShAlert variant="warning">
+                    {#snippet icon()}<TriangleAlertIcon />{/snippet}
+                    노랑 톤. 주의 환기가 필요한 상황에 사용합니다.
+                </ShAlert>
+                <ShAlert variant="destructive">
+                    {#snippet icon()}<XCircleIcon />{/snippet}
+                    {#snippet title()}위험{/snippet}
+                    빨강(draculared) 톤. 보안/데이터 위험 경고용.
+                </ShAlert>
+                <ShAlert variant="info">
+                    아이콘 없는 형태. 단순 정보 박스로 사용 가능.
+                </ShAlert>
             </div>
         </div>
 
