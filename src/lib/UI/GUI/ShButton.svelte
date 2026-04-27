@@ -32,11 +32,12 @@
     }: Props = $props();
 
     // Layout + interaction base (identical for every variant/size).
-    // text-base md:text-sm: derived spec for h-10 default — 16px on mobile
-    // matches input/select for form alignment + iOS-zoom safety, 14px on
-    // desktop keeps vega's compact tone. xs/sm sizes override below.
+    // text-base: 16px constant across all viewports — avoids the 768px jump
+    // that the previous `text-base md:text-sm` rule introduced and keeps
+    // type alignment with sidebar legacy buttons. xs/sm sizes override below
+    // for dense areas. See .agent/guide/ui.md.
     const base =
-        "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-base md:text-sm font-medium shrink-0 " +
+        "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-base font-medium shrink-0 " +
         "transition-colors select-none outline-none " +
         "focus-visible:ring-2 focus-visible:ring-borderc/50 focus-visible:border-borderc " +
         "disabled:opacity-50 disabled:pointer-events-none " +

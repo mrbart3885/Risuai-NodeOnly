@@ -144,13 +144,13 @@
         }
     });
 
-    // Sizes follow the Sh* derived spec (vega + h-10 default). Text on
-    // md uses text-base md:text-sm so iOS Safari does not auto-zoom the
-    // overlay select on focus; desktop stays compact at 14px.
+    // Sizes follow the Sh* spec (h-10 default, 16px constant text). md/lg
+    // both use text-base so the overlay select stays iOS-zoom safe and
+    // avoids the 768px font-size jump.
     const sizeClasses = {
         sm: 'text-sm px-2.5 gap-1',
-        md: 'text-base md:text-sm px-2.5 gap-1.5',
-        lg: 'text-base md:text-base px-3 gap-1.5',
+        md: 'text-base px-2.5 gap-1.5',
+        lg: 'text-base px-3 gap-1.5',
         xl: 'text-lg px-3 gap-1.5',
     };
 
@@ -163,8 +163,8 @@
 
     const itemSizeClasses = {
         sm: 'text-sm px-2 py-1 pr-7',
-        md: 'text-base md:text-sm pl-2 pr-8 py-1.5',
-        lg: 'text-base md:text-base px-3 py-2 pr-9',
+        md: 'text-base pl-2 pr-8 py-1.5',
+        lg: 'text-base px-3 py-2 pr-9',
         xl: 'text-lg px-3 py-2 pr-9',
     };
 </script>

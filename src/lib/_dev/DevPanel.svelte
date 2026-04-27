@@ -508,7 +508,7 @@ function hello(): string {
         <div class="flex flex-col gap-1.5">
             <span class="text-xs text-textcolor2">폼 정렬 (ShInput + ShSelect + ShButton 모두 h-10)</span>
             <div class="flex flex-wrap gap-2 items-end">
-                <ShInput bind:value={galleryInputText} placeholder="ShInput (text-base md:text-sm)" className="max-w-xs" />
+                <ShInput bind:value={galleryInputText} placeholder="ShInput (text-base 16px)" className="max-w-xs" />
                 <ShSelect bind:value={gallerySelectValue} className="max-w-xs">
                     <OptionInput value="option-1">옵션 1</OptionInput>
                     <OptionInput value="option-2">옵션 2 (선택됨)</OptionInput>

@@ -17,11 +17,10 @@
         ...rest
     }: Props = $props();
 
-    // text-base on mobile + md:text-sm on desktop matches vega cn-input —
-    // prevents iOS Safari's auto-zoom on focus when font-size < 16px while
-    // keeping the compact 14px tone on desktop.
+    // text-base: 16px constant. Prevents iOS Safari's auto-zoom on focus
+    // (which triggers when font-size < 16px) without the 768px jump.
     const base =
-        'flex h-10 w-full min-w-0 rounded-md border border-darkborderc bg-transparent px-2.5 py-1 text-base md:text-sm ' +
+        'flex h-10 w-full min-w-0 rounded-md border border-darkborderc bg-transparent px-2.5 py-1 text-base ' +
         'text-textcolor placeholder:text-textcolor2 ' +
         'transition-colors outline-none ' +
         'focus-visible:border-borderc focus-visible:ring-2 focus-visible:ring-borderc/50 ' +

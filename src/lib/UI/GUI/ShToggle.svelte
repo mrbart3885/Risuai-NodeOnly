@@ -30,11 +30,9 @@
         children,
     }: Props = $props();
 
-    // text-base md:text-sm: derived spec for h-10 default — same rationale
-    // as ShButton (mobile 16px form-aligned + iOS-zoom safe, desktop 14px).
-    // xs/sm sizes override below.
+    // text-base: 16px constant, mirroring ShButton. xs/sm sizes override below.
     const base =
-        'inline-flex items-center justify-center gap-1.5 rounded-md text-base md:text-sm font-medium shrink-0 ' +
+        'inline-flex items-center justify-center gap-1.5 rounded-md text-base font-medium shrink-0 ' +
         'whitespace-nowrap transition-colors cursor-pointer outline-none select-none ' +
         'focus-visible:ring-2 focus-visible:ring-borderc/50 focus-visible:border-borderc ' +
         'disabled:opacity-50 disabled:pointer-events-none ' +
