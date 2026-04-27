@@ -1,6 +1,7 @@
 <script lang="ts">
-    // shadcn-svelte Input — ported to RisuAI theme tokens.
-    // See _reference/shadcn-components/input/input.svelte for source.
+    // Sh input — vega-derived spec, height matches ShButton/ShToggle/SelectInput
+    // default (h-10) so form rows align without per-control overrides.
+    // See .agent/guide/ui.md.
     import type { HTMLInputAttributes } from 'svelte/elements';
     import { cn } from 'src/lib/utils';
 
@@ -16,13 +17,16 @@
         ...rest
     }: Props = $props();
 
+    // text-base on mobile + md:text-sm on desktop matches vega cn-input —
+    // prevents iOS Safari's auto-zoom on focus when font-size < 16px while
+    // keeping the compact 14px tone on desktop.
     const base =
-        'flex h-8 w-full min-w-0 rounded-md border border-darkborderc bg-transparent px-3 py-1 text-sm ' +
+        'flex h-10 w-full min-w-0 rounded-md border border-darkborderc bg-transparent px-2.5 py-1 text-base md:text-sm ' +
         'text-textcolor placeholder:text-textcolor2 ' +
         'transition-colors outline-none ' +
         'focus-visible:border-borderc focus-visible:ring-2 focus-visible:ring-borderc/50 ' +
         'disabled:opacity-50 disabled:cursor-not-allowed ' +
-        'file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium';
+        'file:inline-flex file:h-8 file:border-0 file:bg-transparent file:text-sm file:font-medium';
 </script>
 
 <input
