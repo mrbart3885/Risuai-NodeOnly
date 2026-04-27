@@ -33,16 +33,14 @@
     import { alertInput, alertConfirm, alertError, alertNormalWait, notifySuccess } from "src/ts/alert";
     import { selectSingleFile } from "src/ts/util";
     import { translateStackTrace } from "../../ts/sourcemap";
-    import versionData from "../../../version.json";
 
     let showDetails = $state(false);
     let translatedStackTrace = $state('');
     let stackTraceTranslationFailed = $state(false);
     let isTranslating = $state(false);
     const displayedStackTrace = $derived(translatedStackTrace || $alertStore.stackTrace || '');
-    const risuVersion = versionData.version;
     const stackTraceCodeBlock = $derived.by(() => {
-        const lines = [`Risu version: ${risuVersion}`]
+        const lines = [`NodeOnly v${nodeOnlyVer}`]
 
         if (stackTraceTranslationFailed) {
             lines.push(language.stackTraceTranslationFailed)
@@ -1034,12 +1032,11 @@
     }}
 >
     {#snippet title()}
-        <span class="text-draculared">Error</span>
-        <span class="text-draculared/70 text-sm font-normal ml-1">[NodeOnly v{nodeOnlyVer}]</span>
+        <span class="text-draculared">{language.error}</span>
     {/snippet}
 
     <div class="flex flex-col gap-2">
-        <span class="whitespace-pre-wrap">{$alertStore.msg}</span>
+        <span class="text-textcolor whitespace-pre-wrap wrap-break-word">{$alertStore.msg}</span>
         {#if $alertStore.submsg}
             <span class="text-textcolor2 text-sm">{$alertStore.submsg}</span>
         {/if}
@@ -1131,8 +1128,7 @@
         }
     }}
 >
-    {#snippet title()}{language.confirm}{/snippet}
-    <span class="whitespace-pre-wrap">{$alertStore.msg}</span>
+    <span class="whitespace-pre-wrap text-textcolor">{$alertStore.msg}</span>
     {#snippet footer()}
         <ShButton variant="outline" onclick={() => alertStore.set({ type: 'none', msg: 'no' })}>{language.no}</ShButton>
         <ShButton onclick={() => alertStore.set({ type: 'none', msg: 'yes' })}>{language.yes}</ShButton>
@@ -1148,7 +1144,6 @@
         }
     }}
 >
-    {#snippet title()}Plugin Import{/snippet}
     {#if $alertStore.type === 'pluginconfirm'}
         {@const parts = $alertStore.msg.split('\n\n')}
         {@const mainPart = parts[0] ?? ''}
@@ -1211,32 +1206,33 @@
     closable={false}
     closeOnOutsideClick={false}
 >
-    {#snippet title()}{language.input}{/snippet}
-    {#if $alertStore.msg}
-        <p class="text-textcolor whitespace-pre-wrap">{$alertStore.msg}</p>
-    {/if}
-    <TextInput
-        bind:value={input}
-        id="alert-input"
-        autocomplete="off"
-        list="alert-input-list"
-        fullwidth
-        onkeydown={(e) => {
-            if (e.key === 'Enter' && !e.isComposing) {
-                alertStore.set({ type: 'none', msg: input })
-            }
-        }}
-    />
-    {#if $alertStore.datalist}
-        <datalist id="alert-input-list">
-            {#each $alertStore.datalist as item}
-                <option
-                    value={item[0]}
-                    label={item[1] ? item[1] : item[0]}
-                >{item[1] ? item[1] : item[0]}</option>
-            {/each}
-        </datalist>
-    {/if}
+    <div class="flex flex-col gap-3">
+        {#if $alertStore.msg}
+            <p class="text-textcolor whitespace-pre-wrap">{$alertStore.msg}</p>
+        {/if}
+        <TextInput
+            bind:value={input}
+            id="alert-input"
+            autocomplete="off"
+            list="alert-input-list"
+            fullwidth
+            onkeydown={(e) => {
+                if (e.key === 'Enter' && !e.isComposing) {
+                    alertStore.set({ type: 'none', msg: input })
+                }
+            }}
+        />
+        {#if $alertStore.datalist}
+            <datalist id="alert-input-list">
+                {#each $alertStore.datalist as item}
+                    <option
+                        value={item[0]}
+                        label={item[1] ? item[1] : item[0]}
+                    >{item[1] ? item[1] : item[0]}</option>
+                {/each}
+            </datalist>
+        {/if}
+    </div>
     {#snippet footer()}
         <ShButton variant="outline" onclick={() => alertStore.set({ type: 'none', msg: '' })}>{language.cancel}</ShButton>
         <ShButton onclick={() => alertStore.set({ type: 'none', msg: input })}>{language.confirm}</ShButton>
