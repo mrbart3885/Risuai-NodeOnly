@@ -6,6 +6,7 @@
     import { PinIcon, PinOffIcon } from "@lucide/svelte";
     import { openPersonaList, personaSelectCallback } from "src/ts/stores.svelte";
     import { v4 } from "uuid";
+    import ShButton from "../UI/GUI/ShButton.svelte";
 
     let currentChat = $derived(DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage])
 
@@ -64,14 +65,12 @@
 
 <div class="text-[11px] text-textcolor2 mt-4 px-1">{language.personaBindingLabel}</div>
 <div class="flex gap-1 mt-1 items-stretch">
-    <button class="flex-1 min-w-0 flex items-center gap-1.5 py-2 px-4 rounded-md border bg-darkbutton hover:bg-selected text-md cursor-pointer transition-colors shadow-xs"
-        class:border-darkborderc={!isPersonaBound}
-        class:text-textcolor2={!isPersonaBound}
-        class:opacity-50={!isPersonaBound}
-        class:hover:opacity-100={!isPersonaBound}
-        class:border-selected={isPersonaBound}
-        class:text-textcolor={isPersonaBound}
-        onclick={handlePersonaBindClick}>
+    <ShButton
+        className={`flex-1 min-w-0 justify-start ${isPersonaBound
+            ? 'border-selected text-textcolor'
+            : 'text-textcolor2 opacity-50 hover:opacity-100'}`}
+        onclick={handlePersonaBindClick}
+    >
         {#if isPersonaBound}
             <PinIcon size={16} class="shrink-0" />
         {:else}
@@ -81,5 +80,5 @@
         {#if displayPersona?.note}
             <span class="truncate text-xs opacity-60">({displayPersona.note})</span>
         {/if}
-    </button>
+    </ShButton>
 </div>

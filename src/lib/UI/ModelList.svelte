@@ -7,6 +7,7 @@
     import CheckInput from "./GUI/CheckInput.svelte";
     import { getModelInfo, getModelList } from 'src/ts/model/modellist';
     import { ArrowLeft } from "@lucide/svelte";
+    import ShButton from "./GUI/ShButton.svelte";
 
     interface Props {
         value?: string;
@@ -111,10 +112,9 @@
 {/if}
 
 {#if compact}
-    <button onclick={() => {openOptions = true}}
-        class="w-full min-w-0 flex items-center py-2 px-4 rounded-md border border-darkborderc bg-darkbutton hover:bg-selected text-md cursor-pointer transition-colors shadow-xs">
+    <ShButton className="w-full min-w-0 justify-start" onclick={() => {openOptions = true}}>
         <span class="truncate">{getModelInfo(value)?.shortName || getModelInfo(value)?.name || language.none}</span>
-    </button>
+    </ShButton>
 {:else}
     <button onclick={() => {openOptions = true}}
         class="mt-4 drop-shadow-lg p-3 flex justify-center items-center ml-2 mr-2 rounded-lg bg-darkbutton mb-4 border-darkborderc border">

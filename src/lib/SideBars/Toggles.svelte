@@ -11,6 +11,7 @@
     import { PinIcon, SaveIcon, FolderHeartIcon } from "@lucide/svelte";
     import Accordion from '../UI/Accordion.svelte'
     import CheckInput from "../UI/GUI/CheckInput.svelte";
+    import ShButton from "../UI/GUI/ShButton.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
     import OptionInput from "../UI/GUI/OptionInput.svelte";
     import TextAreaInput from '../UI/GUI/TextAreaInput.svelte'
@@ -197,35 +198,30 @@
             onclick={pinToChat}>
             <PinIcon size={16} />
         </button>
-        <button class="flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-4 rounded-md border text-md transition-colors shadow-xs"
-            class:bg-red-900={isDirty}
-            class:border-red-800={isDirty}
-            class:text-white={isDirty}
-            class:hover:bg-red-800={isDirty}
-            class:cursor-pointer={isDirty}
-            class:bg-darkbutton={!isDirty}
-            class:border-darkborderc={!isDirty}
-            class:text-textcolor2={!isDirty}
-            class:opacity-50={!isDirty}
-            class:cursor-default={!isDirty}
-            use:tooltip={language.togglePinUpdate}
-            onclick={isDirty ? updatePin : undefined}>
-            <SaveIcon size={16} class="shrink-0" />
-            <span class="truncate">{isDirty ? dirtyCount : language.togglePinUpdateLabel}</span>
-        </button>
+        <span class="flex-1 min-w-0 flex" use:tooltip={language.togglePinUpdate}>
+            <ShButton
+                variant={isDirty ? 'destructive' : 'default'}
+                disabled={!isDirty}
+                className="w-full"
+                onclick={isDirty ? updatePin : undefined}
+            >
+                <SaveIcon size={16} class="shrink-0" />
+                <span class="truncate">{isDirty ? dirtyCount : language.togglePinUpdateLabel}</span>
+            </ShButton>
+        </span>
     {:else}
-        <button class="flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 px-4 rounded-md border border-darkborderc bg-darkbutton hover:bg-selected text-textcolor2 text-md cursor-pointer transition-colors shadow-xs"
-            use:tooltip={language.togglePinToChat}
-            onclick={pinToChat}>
-            <PinIcon size={16} class="shrink-0" />
-            <span class="truncate">{language.togglePinLabel}</span>
-        </button>
+        <span class="flex-1 min-w-0 flex" use:tooltip={language.togglePinToChat}>
+            <ShButton className="w-full" onclick={pinToChat}>
+                <PinIcon size={16} class="shrink-0" />
+                <span class="truncate">{language.togglePinLabel}</span>
+            </ShButton>
+        </span>
     {/if}
-    <button class="flex items-center justify-center px-3 rounded-md border border-darkborderc bg-darkbutton hover:bg-selected text-textcolor2 cursor-pointer transition-colors shadow-xs"
-        use:tooltip={language.togglePresetList}
-        onclick={openPresetList}>
-        <FolderHeartIcon size={16} />
-    </button>
+    <span use:tooltip={language.togglePresetList}>
+        <ShButton size="icon" onclick={openPresetList}>
+            <FolderHeartIcon size={16} />
+        </ShButton>
+    </span>
 </div>
 {/if}
 

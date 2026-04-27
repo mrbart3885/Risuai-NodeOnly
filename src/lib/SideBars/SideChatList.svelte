@@ -10,7 +10,7 @@
     import { selectedCharID, chatDeselected } from "src/ts/stores.svelte";
 
     import CheckInput from "../UI/GUI/CheckInput.svelte";
-    import Button from "../UI/GUI/Button.svelte";
+    import ShButton from "../UI/GUI/ShButton.svelte";
     import TextInput from "../UI/GUI/TextInput.svelte";
 
     import { exportChat, importChat, exportAllChats } from "src/ts/characters";
@@ -140,7 +140,7 @@
     })
 </script>
 <div class="flex flex-col w-full">
-    <Button className="relative bottom-2" onclick={() => {
+    <ShButton className="relative bottom-2 w-full" onclick={() => {
         const len = chara.chats.length
         let chats = chara.chats
         const newChat = {
@@ -151,7 +151,7 @@
         changeChatTo(0)
         void requestImmediateSave()
         $ReloadGUIPointer += 1
-    }}>{language.newChat}</Button>
+    }}>{language.newChat}</ShButton>
 
     {#key sorted}
     <div class="flex flex-col mt-2 overflow-y-auto max-h-80" bind:this={listEle}>
@@ -540,16 +540,15 @@
                 <PersonaBind />
             {/if}
             <Toggles bind:chara={chara} noContainer />
-            <button class="flex w-full items-center justify-center gap-1.5 py-2 px-4 mt-2 rounded-md border border-darkborderc bg-darkbutton hover:bg-selected text-textcolor text-md cursor-pointer transition-colors shadow-xs"
-                onclick={() => {
-                    const char = DBState.db.characters[$selectedCharID]
-                    if (!char) return
-                    char.chats[char.chatPage].modules ??= []
-                    openModuleListStore.set(true)
-                }}>
+            <ShButton className="w-full mt-2" onclick={() => {
+                const char = DBState.db.characters[$selectedCharID]
+                if (!char) return
+                char.chats[char.chatPage].modules ??= []
+                openModuleListStore.set(true)
+            }}>
                 <PackageIcon size={16} class="shrink-0" />
                 <span class="truncate">{language.modules}</span>
-            </button>
+            </ShButton>
         {/if}
     </div>
 </div>
