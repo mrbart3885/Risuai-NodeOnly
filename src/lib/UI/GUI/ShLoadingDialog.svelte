@@ -31,8 +31,10 @@
         progress == null ? null : Math.max(0, Math.min(100, progress))
     );
 
+    // w-[calc(100vw-2rem)] guarantees a 1rem gutter on each side at any
+    // viewport (max-w-md caps the upper bound on desktop).
     const contentBase =
-        'fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 ' +
+        'fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 ' +
         'bg-darkbg border border-darkborderc rounded-md shadow-lg ' +
         'p-6 flex flex-col gap-4 items-center outline-none ' +
         'data-[state=open]:animate-in data-[state=closed]:animate-out ' +
