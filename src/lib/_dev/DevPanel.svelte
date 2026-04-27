@@ -28,6 +28,11 @@
     import { resetAllPluginPermissions } from "src/ts/plugins/apiV3/v3.svelte";
     import ShDialog from "src/lib/UI/GUI/ShDialog.svelte";
     import ShButton from "src/lib/UI/GUI/ShButton.svelte";
+    import ShBadge from "src/lib/UI/GUI/ShBadge.svelte";
+    import ShInput from "src/lib/UI/GUI/ShInput.svelte";
+    import ShToggle from "src/lib/UI/GUI/ShToggle.svelte";
+    import ShSelect from "src/lib/UI/GUI/ShSelect.svelte";
+    import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
 
     let lastResult = $state('');
 
@@ -297,6 +302,16 @@ function hello(): string {
 
     // ─── Section 5: Reset utilities ──────────────────────────────────────────
 
+    // ─── Section 6: Component gallery ────────────────────────────────────────
+    // Live preview of the Sh* components in their current vega-derived spec.
+    // Buttons are no-ops; widgets bind to local state for interaction feel.
+
+    let galleryToggle1 = $state(false);
+    let galleryToggle2 = $state(true);
+    let galleryToggle3 = $state(false);
+    let galleryInputText = $state('');
+    let gallerySelectValue = $state('option-2');
+
     async function resetPluginPermissions() {
         const ok = await alertConfirm(
             '모든 플러그인의 저장된 권한 응답(허용/거부 이력 + 캐시)을 삭제하시겠습니까?\n\n다음에 플러그인이 권한을 요청할 때 다시 묻습니다.'
@@ -395,6 +410,80 @@ function hello(): string {
         </p>
         <div class="flex flex-wrap gap-2">
             <ShButton variant="destructive" onclick={resetPluginPermissions}>플러그인 권한 리셋</ShButton>
+        </div>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="mt-4 flex flex-col gap-3">
+        <h3 class="text-sm font-semibold text-textcolor">6. 컴포넌트 갤러리</h3>
+        <p class="text-xs text-textcolor2">
+            vega-derived h-10 spec 시각 검증용. 같은 행에 놓인 컴포넌트들이 정렬되어야 함.
+        </p>
+
+        <!-- ShButton variants × default size -->
+        <div class="flex flex-col gap-1.5">
+            <span class="text-xs text-textcolor2">ShButton variants (default size, h-10)</span>
+            <div class="flex flex-wrap gap-2 items-center">
+                <ShButton variant="default">Default</ShButton>
+                <ShButton variant="outline">Outline</ShButton>
+                <ShButton variant="secondary">Secondary</ShButton>
+                <ShButton variant="ghost">Ghost</ShButton>
+                <ShButton variant="destructive">Destructive</ShButton>
+                <ShButton variant="link">Link</ShButton>
+            </div>
+        </div>
+
+        <!-- ShButton sizes -->
+        <div class="flex flex-col gap-1.5">
+            <span class="text-xs text-textcolor2">ShButton sizes (xs h-7 / sm h-8 / default h-10 / lg h-11)</span>
+            <div class="flex flex-wrap gap-2 items-center">
+                <ShButton size="xs">xs</ShButton>
+                <ShButton size="sm">sm</ShButton>
+                <ShButton size="default">default</ShButton>
+                <ShButton size="lg">lg</ShButton>
+            </div>
+        </div>
+
+        <!-- ShToggle -->
+        <div class="flex flex-col gap-1.5">
+            <span class="text-xs text-textcolor2">ShToggle (default h-10)</span>
+            <div class="flex flex-wrap gap-2 items-center">
+                <ShToggle bind:pressed={galleryToggle1}>Toggle</ShToggle>
+                <ShToggle bind:pressed={galleryToggle2} variant="default">Default variant</ShToggle>
+                <ShToggle bind:pressed={galleryToggle3} size="sm">sm</ShToggle>
+            </div>
+        </div>
+
+        <!-- ShBadge -->
+        <div class="flex flex-col gap-1.5">
+            <span class="text-xs text-textcolor2">ShBadge variants</span>
+            <div class="flex flex-wrap gap-2 items-center">
+                <ShBadge>default</ShBadge>
+                <ShBadge variant="secondary">secondary</ShBadge>
+                <ShBadge variant="destructive">destructive</ShBadge>
+                <ShBadge variant="outline">outline</ShBadge>
+                <ShBadge variant="ghost">ghost</ShBadge>
+                <ShBadge variant="warning">warning</ShBadge>
+                <ShBadge variant="info">info</ShBadge>
+                <ShBadge variant="success">success</ShBadge>
+            </div>
+        </div>
+
+        <!-- ShInput / ShSelect / ShButton 정렬 검증 -->
+        <div class="flex flex-col gap-1.5">
+            <span class="text-xs text-textcolor2">폼 정렬 (ShInput + ShSelect + ShButton 모두 h-10)</span>
+            <div class="flex flex-wrap gap-2 items-end">
+                <ShInput bind:value={galleryInputText} placeholder="ShInput (text-base md:text-sm)" className="max-w-xs" />
+                <ShSelect bind:value={gallerySelectValue} className="max-w-xs">
+                    <OptionInput value="option-1">옵션 1</OptionInput>
+                    <OptionInput value="option-2">옵션 2 (선택됨)</OptionInput>
+                    <OptionInput value="option-3">옵션 3</OptionInput>
+                </ShSelect>
+                <ShButton>제출</ShButton>
+            </div>
+            <p class="text-xs text-textcolor2/60 mt-1">
+                세 컨트롤의 위·아래 라인이 픽셀 단위로 맞아야 합니다.
+            </p>
         </div>
     </div>
 
