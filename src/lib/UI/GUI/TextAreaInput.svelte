@@ -75,6 +75,7 @@
                     e.preventDefault()
                     popUpEditorStore.value = value
                     popUpEditorStore.mode = 'default'
+                    popUpEditorStore.language = popupLanguage
                     popUpEditorStore.open = true
 
                     //lazy wait
@@ -92,6 +93,7 @@
                     e.preventDefault()
                     popUpEditorStore.value = value
                     popUpEditorStore.mode = 'default'
+                    popUpEditorStore.language = popupLanguage
                     popUpEditorStore.open = true
 
                     //lazy wait
@@ -118,6 +120,7 @@
                 e.preventDefault()
                 popUpEditorStore.value = value
                 popUpEditorStore.mode = 'default'
+                popUpEditorStore.language = popupLanguage
                 popUpEditorStore.open = true
 
                 while(popUpEditorStore.open){
@@ -136,6 +139,7 @@
                 e.preventDefault()
                 popUpEditorStore.value = value
                 popUpEditorStore.mode = 'default'
+                popUpEditorStore.language = popupLanguage
                 popUpEditorStore.open = true
 
                 const checkInterval = setInterval(() => {
@@ -190,6 +194,7 @@
         optimaizedInput?: boolean;
         highlight?: boolean;
         onchange?: () => void;
+        popupLanguage?: string;
     }
 
     let {
@@ -206,7 +211,8 @@
         className = '',
         optimaizedInput = true,
         highlight = false,
-        onchange = () => {}
+        onchange = () => {},
+        popupLanguage = 'markdown'
     }: Props = $props();
     let selectingAutoComplete = $state(0)
     // TODO: Review if highlight prop can change dynamically - if so, this needs to be reactive

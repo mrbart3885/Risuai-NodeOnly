@@ -173,7 +173,8 @@ export const loadoutModalStore = $state({
 export const popUpEditorStore = $state({
     open: false,
     value: '',
-    mode: 'default' as 'default'
+    mode: 'default' as 'default',
+    language: 'markdown' as string
 })
 
 //Set might be more ideal, however since Svelte doesn't support reactive Sets, using array for now
