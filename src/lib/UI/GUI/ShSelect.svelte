@@ -1,3 +1,7 @@
+<script lang="ts" module>
+    let selectIdCounter = 0;
+</script>
+
 <script lang="ts">
     // Sh select — vega-derived spec, h-10 default. Canonical select widget;
     // SelectInput.svelte is a thin alias kept for the existing 22+ call sites.
@@ -37,6 +41,12 @@
     let highlightedIndex = $state(-1);
     let triggerEl: HTMLDivElement | undefined = $state();
     let dropdownEl: HTMLDivElement | undefined = $state();
+    const selectId = `sh-select-${++selectIdCounter}`;
+    const listboxId = `${selectId}-listbox`;
+    const getOptionId = (index: number) => `${selectId}-option-${index}`;
+    const activeDescendant = $derived(
+        open && highlightedIndex >= 0 ? getOptionId(highlightedIndex) : undefined
+    );
 
     function extractOptions() {
         if (!selectEl) return;
@@ -51,12 +61,22 @@
         const currentIdx = extractedOptions.findIndex(o => o.value === String(value));
         highlightedIndex = currentIdx >= 0 ? currentIdx : 0;
         open = true;
-        requestAnimationFrame(positionDropdown);
+        requestAnimationFrame(() => {
+            positionDropdown();
+            ensureHighlightedVisible();
+        });
     }
 
     function closeDropdown() {
         open = false;
         highlightedIndex = -1;
+    }
+
+    function ensureHighlightedVisible() {
+        if (!dropdownEl || highlightedIndex < 0) return;
+        dropdownEl
+            .querySelector<HTMLElement>(`#${getOptionId(highlightedIndex)}`)
+            ?.scrollIntoView({ block: 'nearest' });
     }
 
     function selectOption(optValue: string) {
@@ -97,10 +117,12 @@
             case 'ArrowDown':
                 e.preventDefault();
                 highlightedIndex = Math.min(highlightedIndex + 1, extractedOptions.length - 1);
+                requestAnimationFrame(ensureHighlightedVisible);
                 break;
             case 'ArrowUp':
                 e.preventDefault();
                 highlightedIndex = Math.max(highlightedIndex - 1, 0);
+                requestAnimationFrame(ensureHighlightedVisible);
                 break;
             case 'Enter':
             case ' ':
@@ -197,7 +219,10 @@
     <div
         bind:this={triggerEl}
         role="combobox"
-        aria-expanded={open}
+        aria-controls={listboxId}
+        aria-expanded={open ? 'true' : 'false'}
+        aria-haspopup="listbox"
+        aria-activedescendant={activeDescendant}
         class="flex {heightClasses[size]} items-center justify-between gap-2 rounded-md border border-darkborderc
                bg-transparent {sizeClasses[size]} text-textcolor select-none
                transition-colors cursor-pointer
@@ -214,13 +239,18 @@
 
     {#if open}
         <div
+            id={listboxId}
             bind:this={dropdownEl}
+            role="listbox"
             class="fixed z-50 max-h-64 overflow-y-auto rounded-md bg-darkbg shadow-md
                    ring-1 ring-textcolor/10 p-1"
             style={dropdownStyle}
         >
             {#each extractedOptions as opt, i}
                 <button
+                    id={getOptionId(i)}
+                    role="option"
+                    aria-selected={opt.value === String(value)}
                     class="relative flex w-full items-center gap-2 rounded-md {itemSizeClasses[size]}
                            text-textcolor cursor-pointer select-none text-left
                            {i === highlightedIndex ? 'bg-selected' : 'hover:bg-selected/50'}"
