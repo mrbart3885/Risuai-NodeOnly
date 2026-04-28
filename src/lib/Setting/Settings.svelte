@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { AccessibilityIcon, ActivityIcon, PackageIcon, BotIcon, BoxIcon, CodeIcon, ContactIcon, ContainerIcon, LanguagesIcon, MonitorIcon, MonitorSmartphoneIcon, Sailboat, ScrollTextIcon, UserIcon, CircleXIcon, KeyboardIcon, SparkleIcon } from "@lucide/svelte";
+    import { AccessibilityIcon, ActivityIcon, PackageIcon, BotIcon, BoxIcon, CodeIcon, ContactIcon, ContainerIcon, FlaskConicalIcon, LanguagesIcon, MonitorIcon, MonitorSmartphoneIcon, Sailboat, ScrollTextIcon, UserIcon, CircleXIcon, KeyboardIcon, SparkleIcon } from "@lucide/svelte";
     import { language } from "src/lang";
     import DisplaySettings from "./Pages/DisplaySettings.svelte";
     import UserSettings from "./Pages/UserSettings.svelte";
@@ -26,6 +26,13 @@
     import NodeOnlySettings from "./Pages/NodeOnlySettings.svelte";
     import RemoteAccessSettings from "./Pages/RemoteAccessSettings.svelte";
     import PluginDefinedIcon from "../Others/PluginDefinedIcon.svelte";
+    import DevPanel from "src/lib/_dev/DevPanel.svelte";
+
+    // Dev panel is opt-in via localStorage['risu-dev-panel']='1' in devtools.
+    // Read once on mount — flag changes require reload. Gates both the menu
+    // button below and the route render branch (SettingsMenuIndex === 99).
+    const devPanelEnabled = typeof localStorage !== 'undefined'
+        && localStorage.getItem('risu-dev-panel') === '1';
 
     let openLoreList = $state(false)
     if(window.innerWidth >= 900 && $SettingsMenuIndex === -1 && !$MobileGUI){
@@ -182,6 +189,17 @@
                         <BoxIcon />
                         <span>{language.supporterThanks}</span>
                     </button>
+                    {#if devPanelEnabled}
+                        <button class="flex gap-2 items-center hover:text-textcolor"
+                            class:text-textcolor={$SettingsMenuIndex === 99}
+                            class:text-textcolor2={$SettingsMenuIndex !== 99}
+                            onclick={() => {
+                            $SettingsMenuIndex = 99
+                        }}>
+                            <FlaskConicalIcon />
+                            <span>Dev Panel</span>
+                        </button>
+                    {/if}
                     {#if additionalSettingsMenu.length > 0}
                         <div class="border-t border-selected mt-2 pt-2">
                             <span class="text-textcolor2 text-xs ml-1">{language.plugin}</span>
@@ -272,6 +290,8 @@
                         <LogsSettings/>
                     {:else if $SettingsMenuIndex === 77}
                         <ThanksPage/>
+                    {:else if $SettingsMenuIndex === 99 && devPanelEnabled}
+                        <DevPanel/>
                     {/if}
             </div>
             {/key}
