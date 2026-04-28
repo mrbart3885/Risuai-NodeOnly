@@ -41,6 +41,20 @@ interface GeminiChat {
     parts:|GeminiPart[]
 }
 
+// Exponential backoff between Gemini retries (1s, 2s, 4s, 8s cap),
+// resolves immediately when the abort signal fires so stop() can break out.
+function geminiRetryBackoff(failedAttempt: number, signal?: AbortSignal): Promise<void> {
+    const ms = Math.min(1000 * (2 ** (failedAttempt - 1)), 8000)
+    return new Promise(resolve => {
+        if (signal?.aborted) return resolve()
+        const timer = setTimeout(resolve, ms)
+        signal?.addEventListener('abort', () => {
+            clearTimeout(timer)
+            resolve()
+        }, { once: true })
+    })
+}
+
 export async function requestGoogleCloudVertex(arg:RequestDataArgumentExtended):Promise<requestDataResponse> {
 
     const formated = arg.formated
@@ -920,13 +934,17 @@ async function requestGoogle(url:string, body:any, headers:{[key:string]:string}
 
         body.contents = chat
 
-        // Send the next request recursively 
+        // Send the next request recursively
         let resRec
         let attempt = 0
         do {
             attempt++
+            if (attempt > 1) {
+                await geminiRetryBackoff(attempt - 1, arg.abortSignal)
+                if (arg?.abortSignal?.aborted) break
+            }
             resRec = await requestGoogle(url, body, headers, arg)
-            
+
             if (resRec.type != 'fail') {
                 break
             }
@@ -1236,9 +1254,13 @@ function wrapToolStream(
                         let resRec
                         let attempt = 0
                         let errorFlag = true
-                        
+
                         do {
                             attempt++
+                            if (attempt > 1) {
+                                await geminiRetryBackoff(attempt - 1, arg.abortSignal)
+                                if (arg?.abortSignal?.aborted) break
+                            }
                             resRec = await fetchNative(url, {
                                 headers: headers,
                                 body: JSON.stringify(body),
@@ -1247,7 +1269,7 @@ function wrapToolStream(
                                 signal: arg.abortSignal,
                                 interceptor: 'gemini_tool'
                             })
-                        
+
                             if(resRec.status == 200){
                                 addFetchLog({
                                     body: body,
