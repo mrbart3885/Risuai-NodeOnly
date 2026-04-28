@@ -16,6 +16,7 @@ export function stubToPlaceholder(stub: ChatStub): Chat {
         name: stub.name,
         localLore: [],
         id: stub.id,
+        fmIndex: -1,
         _placeholder: true,
     }
     if (stub.lastDate != null) placeholder.lastDate = stub.lastDate

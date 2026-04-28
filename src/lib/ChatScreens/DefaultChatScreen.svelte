@@ -919,27 +919,21 @@
                     onReroll={() => {
                         const cha = DBState.db.characters[$selectedCharID]
                         const chat = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage]
-                        if (chat.fmIndex >= (cha.alternateGreetings.length - 1)){
-                            chat.fmIndex = -1
-                        }
-                        else{
-                            chat.fmIndex += 1
-                        }
+                        if (chat._placeholder) return
+                        const cur = Number.isFinite(chat.fmIndex as number) ? (chat.fmIndex as number) : -1
+                        chat.fmIndex = (cur >= cha.alternateGreetings.length - 1) ? -1 : cur + 1
                         DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage] = chat
                     }}
                     unReroll={() => {
                         const cha = DBState.db.characters[$selectedCharID]
                         const chat = DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage]
-                        if (chat.fmIndex === -1){
-                            chat.fmIndex = (cha.alternateGreetings.length - 1)
-                        }
-                        else{
-                            chat.fmIndex -= 1
-                        }
+                        if (chat._placeholder) return
+                        const cur = Number.isFinite(chat.fmIndex as number) ? (chat.fmIndex as number) : -1
+                        chat.fmIndex = (cur === -1) ? cha.alternateGreetings.length - 1 : cur - 1
                         DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage] = chat
                     }}
                     isLastMemory={false}
-                    currentPage={(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex ?? -1) + 2}
+                    currentPage={(Number.isFinite(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex as number) ? (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex as number) : -1) + 2}
                     totalPages={DBState.db.characters[$selectedCharID].alternateGreetings.length + 1}
 
                 />
