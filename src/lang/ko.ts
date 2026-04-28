@@ -778,6 +778,7 @@ export const languageKorean = {
     "SwipeRegenerate": "스와이프 리롤 사용",
     "instantRemove": "삭제 시 그 이후 채팅 삭제",
     "instantRemoveConfirm": "메시지 한개만 삭제하시겠습니까? No를 선택할 시, 그 이후 메시지또한 삭제됩니다.",
+    "confirmReroll": "메시지 재생성 시 확인",
     "textColor": "텍스트 색상",
     "classicRisu": "클래식 Risu",
     "highcontrast": "고대비",

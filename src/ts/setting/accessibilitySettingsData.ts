@@ -25,6 +25,13 @@ export const accessibilitySettingsItems: SettingItem[] = [
         keywords: ['instant', 'remove', 'delete']
     },
     {
+        id: 'acc.confirmReroll',
+        type: 'check',
+        labelKey: 'confirmReroll',
+        bindKey: 'confirmReroll',
+        keywords: ['reroll', 'regenerate', 'confirm', 'message']
+    },
+    {
         id: 'acc.sendWithEnter',
         type: 'check',
         labelKey: 'sendWithEnter',

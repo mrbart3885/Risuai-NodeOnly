@@ -778,6 +778,7 @@ export const languageChineseTraditional = {
     "SwipeRegenerate": "點擊箭頭以重新生成訊息",
     "instantRemove": "刪除訊息時一併刪除後續訊息",
     "instantRemoveConfirm": "只刪除選定的單一訊息嗎？若選擇「否」，該訊息之後的所有訊息也將一併刪除。",
+    "confirmReroll": "重新生成訊息時確認",
     "textColor": "文字顏色",
     "classicRisu": "經典 Risu",
     "highcontrast": "高對比度",

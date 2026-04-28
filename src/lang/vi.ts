@@ -692,6 +692,7 @@ export const languageVietnamese = {
     "SwipeRegenerate": "Sử dụng Vuốt để tái tạo",
     "instantRemove": "Xóa tiếp theo khi xóa tin nhắn",
     "instantRemoveConfirm": "Bạn có muốn xóa chỉ một tin nhắn không? Nếu bạn chọn Không thì tin nhắn sau đó cũng sẽ bị xóa.",
+    "confirmReroll": "Xác nhận khi tái tạo tin nhắn",
     "textColor": "Văn bản màu",
     "classicRisu": "Risu cổ điển",
     "highcontrast": "Độ tương phản cao",

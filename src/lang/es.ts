@@ -692,6 +692,7 @@ export const languageSpanish = {
     "SwipeRegenerate": "Usar Swipe para Regeneración",
     "instantRemove": "Eliminar Subsecuente cuando se Elimina Mensaje",
     "instantRemoveConfirm": "¿Deseas eliminar solo un mensaje? Si seleccionas No, entonces el mensaje posterior también se eliminará.",
+    "confirmReroll": "Confirmar al Regenerar Mensaje",
     "textColor": "Color del Texto",
     "classicRisu": "Risu Clásico",
     "highcontrast": "Alto Contraste",

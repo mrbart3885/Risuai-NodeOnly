@@ -891,6 +891,7 @@ export const languageEnglish = {
     SwipeRegenerate: "Use Swipe for Regeneration",
     instantRemove: "Remove subsequent when message remove",
     instantRemoveConfirm: "Do you want to remove just one message? If you select No, then the message after it will also be remove.",
+    confirmReroll: "Confirm on Message Regeneration",
     textColor: "Text Color",
     classicRisu: "Classic Risu",
     highcontrast: "High-Contrast",

@@ -692,6 +692,7 @@ export const languageChinese = {
     "SwipeRegenerate": "使用滑动箭头重新产生消息",
     "instantRemove": "删除消息时连带删除后续消息",
     "instantRemoveConfirm": "你想只删除一条消息吗？若选择“否”，后续消息也将被删除。",
+    "confirmReroll": "重新生成消息时确认",
     "textColor": "文字颜色",
     "classicRisu": "经典叡苏",
     "highcontrast": "高对比度",

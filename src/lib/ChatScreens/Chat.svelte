@@ -784,7 +784,7 @@
             <!-- Normal messages: ← counter → ↻ -->
             <button class="flex items-center shrink-0 hover:text-blue-500 transition-colors button-icon-unreroll" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'} onclick={async () => {
                 if (totalPages <= 1) {
-                    if (await alertConfirm(language.noSwipesRerollConfirm)) onReroll()
+                    if (!DBState.db.confirmReroll || await alertConfirm(language.noSwipesRerollConfirm)) onReroll()
                 } else {
                     unReroll()
                 }
@@ -796,7 +796,7 @@
             {/if}
             <button class="flex items-center shrink-0 hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'} onclick={async () => {
                 if (totalPages <= 1) {
-                    if (await alertConfirm(language.noSwipesRerollConfirm)) onReroll()
+                    if (!DBState.db.confirmReroll || await alertConfirm(language.noSwipesRerollConfirm)) onReroll()
                 } else {
                     onNextSwipe()
                 }
@@ -804,7 +804,7 @@
                 <ArrowRight size={22}/>
             </button>
             <button class="flex items-center shrink-0 hover:text-blue-500 transition-colors button-icon-reroll" class:dyna-icon={rerollIcon === 'dynamic' || rerollIcon === 'force'} class:force-show={rerollIcon === 'force'} onclick={async () => {
-                if (await alertConfirm(language.rerollConfirm)) onReroll()
+                if (!DBState.db.confirmReroll || await alertConfirm(language.rerollConfirm)) onReroll()
             }}>
                 <RefreshCcwIcon size={20}/>
             </button>

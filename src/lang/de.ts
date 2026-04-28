@@ -692,6 +692,7 @@ export const languageGerman = {
     "SwipeRegenerate": "Zum Aktualisieren runter wischen",
     "instantRemove": "Löschung einer Nachricht sollte alle Folgenachrichten entfernen",
     "instantRemoveConfirm": "Möchten Sie nur eine Nachricht entfernen? Wenn Sie Nein auswählen, werden auch die darauf folgenden Nachrichten entfernt",
+    "confirmReroll": "Beim Neugenerieren einer Nachricht bestätigen",
     "textColor": "Textfarbe",
     "classicRisu": "Klassisches Risu",
     "highcontrast": "Hoher Kontrast",

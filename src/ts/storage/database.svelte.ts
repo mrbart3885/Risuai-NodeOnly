@@ -233,6 +233,9 @@ export function setDatabase(data:Database){
     if(checkNullish(data.askRemoval)){
         data.askRemoval = true
     }
+    if(checkNullish(data.confirmReroll)){
+        data.confirmReroll = true
+    }
     if(checkNullish(data.sdConfig)){
         data.sdConfig = {
             width:512,
@@ -940,6 +943,7 @@ export interface Database{
     bias: [string, number][]
     swipe:boolean
     instantRemove:boolean
+    confirmReroll:boolean
     textTheme: string
     customTextTheme: {
         FontColorStandard: string,
