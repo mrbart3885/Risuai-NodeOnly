@@ -31,6 +31,8 @@ export const languageEnglish = {
         networkFetchPlain: "This can be a plain fetch error. try disabling force plain fetch option in settings.",
         requestLogRemoved: "This request log is removed.",
         requestLogRemovedDesc: "This request log removes when client is refreshed or reloaded.",
+        persistFailureTitle: "Server save failed — changes are not being written to disk",
+        persistFailureAttemptedSize: "attempted size",
     },
     showHelp: "Show Help",
     help: {

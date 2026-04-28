@@ -29,7 +29,9 @@ export const languageKorean = {
         "requestLogRemovedDesc": "요청 로그는 앱이 재시작되거나 새로고침되면 삭제됩니다.",
         "vertexAuthError": "Vertex AI 인증 정보가 누락되었습니다.",
         "coldStorageWriteFailed": "콜드 스토리지 저장에 실패했습니다. 채팅 데이터는 보존되었습니다.",
-        "coldStorageVerifyFailed": "콜드 스토리지 검증에 실패했습니다. 채팅 데이터는 보존되었습니다."
+        "coldStorageVerifyFailed": "콜드 스토리지 검증에 실패했습니다. 채팅 데이터는 보존되었습니다.",
+        "persistFailureTitle": "서버 저장 실패 — 변경사항이 디스크에 반영되지 않습니다",
+        "persistFailureAttemptedSize": "시도 크기"
     },
     "showHelp": "도움말 보기",
     "help": {

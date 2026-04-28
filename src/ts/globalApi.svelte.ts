@@ -6,14 +6,14 @@ import { setDatabase, type Database, defaultSdDataFunc, getDatabase, appVer, nod
 import { checkRisuUpdate } from "./update";
 import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, selIdState, ReloadGUIPointer, bodyIntercepterStore, loadingOverlayStore, chatDeselected } from "./stores.svelte";
 import { loadPlugins } from "./plugins/plugins.svelte";
-import { alertConfirm, alertError, alertMd, alertNormalWait, alertSelect, alertTOS, waitAlert, notifySuccess } from "./alert";
+import { alertConfirm, alertError, alertMd, alertNormalWait, alertSelect, alertTOS, waitAlert, notifySuccess, notifyError } from "./alert";
 import { hasher } from "./parser/parser.svelte";
 import { characterURLImport, hubURL } from "./characterCards";
 import { defaultJailbreak, defaultMainPrompt, oldJailbreak, oldMainPrompt } from "./storage/defaultPrompts";
 import { decodeRisuSave, encodeRisuSaveLegacy, RisuSaveEncoder, RisuSavePatcher, type toSaveType } from "./storage/risuSave";
 import { isHydrating, saveChatToServer, ensureChatHydrated } from "./storage/chatStorage";
 import { AutoStorage } from "./storage/autoStorage";
-import { ConflictError } from "./storage/nodeStorage";
+import { ConflictError, type PersistWarning } from "./storage/nodeStorage";
 import { supportsPatchSync } from "./platform";
 import { updateAnimationSpeed } from "./gui/animation";
 import { updateColorScheme, updateTextThemeAndCSS } from "./gui/colorscheme";
@@ -250,6 +250,24 @@ let requestImmediateSaveImpl: ((options?: {
     forceFullWrite?: boolean
 }) => Promise<void> | void) = () => {}
 let patchSyncBaseline: Database | null = null
+
+// Surfaces server-side persist failures (Stage 1 visibility — see issues.md).
+// The same failure is re-attached on every patch response until cleared, so we
+// dedupe by timestamp to fire one toast per distinct failure event.
+let lastShownPersistWarningTs = 0
+
+function showPersistWarningOnce(warning: PersistWarning) {
+    if (warning.timestamp <= lastShownPersistWarningTs) return
+    lastShownPersistWarningTs = warning.timestamp
+
+    const sizeStr = warning.attemptedSize != null
+        ? ` (${language.errors.persistFailureAttemptedSize} ${(warning.attemptedSize / 1024 / 1024 / 1024).toFixed(2)}GB)`
+        : ''
+    notifyError(`${language.errors.persistFailureTitle}${sizeStr}`, {
+        description: warning.message,
+        source: 'persist-failure',
+    })
+}
 
 export function requestImmediateSave(options?: {
     forceFullWrite?: boolean
@@ -749,6 +767,9 @@ export async function saveDb() {
             if (patchResult.etag) {
                 newEtag = patchResult.etag
                 forageStorage.setDbEtag(patchResult.etag)
+            }
+            if (patchResult.persistWarning) {
+                showPersistWarningOnce(patchResult.persistWarning)
             }
         }
         if (!saved) {

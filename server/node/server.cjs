@@ -66,6 +66,40 @@ function queueStorageOperation(operation) {
 
 const DB_HEX_KEY = Buffer.from('database/database.bin', 'utf-8').toString('hex');
 
+// ─── Persist failure tracking (Stage 1 visibility) ───────────────────────────
+// Debounced persist runs in setTimeout, so failures cannot be returned in the
+// triggering response. Record the latest failure here and surface it on the
+// next /api/patch response. Cleared on next successful persist.
+let lastPersistFailure = null;
+
+function recordPersistFailure(error, source) {
+    const message = String(error?.message || error || 'unknown error');
+    const attemptedSize = typeof error?.attemptedSize === 'number' ? error.attemptedSize : null;
+    // Preserve timestamp when the failure is identical to the last one — every
+    // debounce cycle re-records the same failure, and clients dedupe by ts.
+    // Without this guard a fresh ts every 5s would re-fire the toast.
+    if (lastPersistFailure
+        && lastPersistFailure.source === source
+        && lastPersistFailure.message === message
+        && lastPersistFailure.attemptedSize === attemptedSize) {
+        return;
+    }
+    lastPersistFailure = {
+        timestamp: Date.now(),
+        message,
+        attemptedSize,
+        source,
+    };
+}
+
+function clearPersistFailure() {
+    lastPersistFailure = null;
+}
+
+function currentPersistWarning() {
+    return lastPersistFailure;
+}
+
 // ─── Server-side database backup ─────────────────────────────────────────────
 const BACKUP_BUDGET_BYTES = 500 * 1024 * 1024; // 500 MB
 const BACKUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -295,7 +329,16 @@ async function persistDbCacheWithChats(filePath, decodedKey) {
     await ensureChatStore();
     const fullDb = reassembleFullDb(strippedDb);
     const data = Buffer.from(encodeRisuSaveLegacy(fullDb));
-    kvSet(decodedKey, data);
+    try {
+        kvSet(decodedKey, data);
+    } catch (err) {
+        // Tag with BLOB size so the visibility layer can surface it to the user.
+        // The dominant failure mode (better-sqlite3 INT_MAX) is size-driven.
+        if (err && typeof err === 'object') {
+            try { err.attemptedSize = data.length; } catch {}
+        }
+        throw err;
+    }
 }
 
 function shouldCompress(req, res) {
@@ -3006,13 +3049,28 @@ app.post('/api/patch', async (req, res, next) => {
                         await persistDbCacheWithChats(filePath, decodedKey);
                     } else {
                         const data = Buffer.from(encodeRisuSaveLegacy(dbCache[filePath]));
-                        kvSet(decodedKey, data);
+                        try {
+                            kvSet(decodedKey, data);
+                        } catch (err) {
+                            if (err && typeof err === 'object') {
+                                try { err.attemptedSize = data.length; } catch {}
+                            }
+                            throw err;
+                        }
                     }
+                    // Persist succeeded — clear before backup so a backup-only
+                    // failure isn't attributed to data loss.
+                    clearPersistFailure();
                     if (decodedKey === 'database/database.bin') {
-                        createBackupAndRotate();
+                        try {
+                            createBackupAndRotate();
+                        } catch (backupErr) {
+                            logger.warn(`[Patch] Backup rotation failed for ${decodedKey}:`, backupErr);
+                        }
                     }
                 } catch (error) {
                     logger.error(`[Patch] Error saving ${decodedKey}:`, error);
+                    recordPersistFailure(error, `patch:${decodedKey}`);
                 } finally {
                     delete saveTimers[filePath];
                 }
@@ -3023,11 +3081,16 @@ app.post('/api/patch', async (req, res, next) => {
                 dbEtag = computeBufferEtag(Buffer.from(encodeRisuSaveLegacy(dbCache[filePath])));
             }
 
-            res.send({
+            const responsePayload = {
                 success: true,
                 appliedOperations: result.length,
                 etag: decodedKey === 'database/database.bin' ? dbEtag : undefined,
-            });
+            };
+            const persistWarning = currentPersistWarning();
+            if (persistWarning) {
+                responsePayload.persistWarning = persistWarning;
+            }
+            res.send(responsePayload);
         });
     } catch (error) {
         logger.error(`[Patch] Error applying patch to ${filePath}:`, error.name);
@@ -3797,12 +3860,28 @@ app.post('/api/chat-content/:chaId/:chatIndex', async (req, res, next) => {
                         if (raw) {
                             const dbObj = normalizeJSON(await decodeRisuSave(raw));
                             const fullDb = reassembleFullDb(stripChatsFromDb(dbObj));
-                            kvSet('database/database.bin', Buffer.from(encodeRisuSaveLegacy(fullDb)));
+                            const encoded = Buffer.from(encodeRisuSaveLegacy(fullDb));
+                            try {
+                                kvSet('database/database.bin', encoded);
+                            } catch (err) {
+                                if (err && typeof err === 'object') {
+                                    try { err.attemptedSize = encoded.length; } catch {}
+                                }
+                                throw err;
+                            }
                         }
                     }
-                    createBackupAndRotate();
+                    // Persist succeeded — clear before backup so a backup-only
+                    // failure isn't attributed to data loss.
+                    clearPersistFailure();
+                    try {
+                        createBackupAndRotate();
+                    } catch (backupErr) {
+                        logger.warn('[ChatContent] Backup rotation failed:', backupErr);
+                    }
                 } catch (error) {
                     logger.error('[ChatContent] Error persisting chat:', error);
+                    recordPersistFailure(error, 'chat-content');
                 } finally {
                     delete saveTimers[DB_HEX_KEY];
                 }

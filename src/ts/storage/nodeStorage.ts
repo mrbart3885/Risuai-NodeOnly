@@ -20,6 +20,21 @@ export class ConflictError extends Error {
     }
 }
 
+// Warning the server attaches to /api/patch responses when the most recent
+// debounced persist failed (Stage 1 visibility — see issues.md).
+export interface PersistWarning {
+    timestamp: number
+    message: string
+    attemptedSize: number | null
+    source: string
+}
+
+export interface PatchItemResult {
+    success: boolean
+    etag?: string
+    persistWarning?: PersistWarning
+}
+
 export class NodeStorage{
     private static readonly BULK_WRITE_CLIENT_BATCH = 20
 
@@ -306,7 +321,7 @@ export class NodeStorage{
         this._lastDbEtag = etag
     }
 
-    async patchItem(key: string, patchData: { patch: any[], expectedHash: string }): Promise<{success: boolean, etag?: string}> {
+    async patchItem(key: string, patchData: { patch: any[], expectedHash: string }): Promise<PatchItemResult> {
         const da = await this.authFetch('/api/patch', {
             method: "POST",
             body: JSON.stringify(patchData),
@@ -335,7 +350,8 @@ export class NodeStorage{
         if (key === 'database/database.bin' && nextEtag) {
             this._lastDbEtag = nextEtag
         }
-        return { success: true, etag: nextEtag }
+        const persistWarning = data.persistWarning as PersistWarning | undefined
+        return { success: true, etag: nextEtag, persistWarning }
     }
 
     // ── Bulk asset operations (3-2-B) ──────────────────────────────────────────
