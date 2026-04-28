@@ -1083,6 +1083,7 @@
                                     if (!confirmed) return
                                     applyToggleValues(preset.values)
                                     notifySuccess((language.togglePresetApplied as any)(name))
+                                    closeTogglePresets()
                                 }}>
                                     <div class="text-xs text-textcolor2 leading-tight">{preset.promptPresetName ?? language.togglePresetNoPromptPreset}</div>
                                     {preset.name}
