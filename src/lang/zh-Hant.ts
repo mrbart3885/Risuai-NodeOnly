@@ -1466,4 +1466,12 @@ export const languageChineseTraditional = {
     nanoGPTSelectFromList: "從列表中選擇",
     nanoGPTManualInput: "手動輸入",
     nanoGPTManualModelSelect: "手動模式選擇",
+
+    "fetchLogConsent": "外掛 {} 正在請求取得記錄，這可能會洩露敏感資訊。是否允許？",
+    "getFullDatabaseConsent": "外掛 {} 正在請求存取完整資料庫，這可能會洩露敏感資訊。是否允許？",
+    "mainDomAccessConsent": "外掛 {} 正在請求存取主要文件，這可能會洩露敏感資訊。是否允許？",
+    "replacerPermissionConsent": "外掛 {} 正在請求取代聊天內容的權限，這可能被用於操控對話。是否允許？",
+    "providerPermissionConsent": "外掛 {} 正在請求存取 Provider 的權限，這可能允許其進行未授權的 API 呼叫。是否允許？",
+    "sendChatConsent": "外掛 {} 正在請求代表您傳送聊天訊息的權限，這將觸發 AI 回覆。是否允許？",
+    "pluginV2Warning": "外掛 V2 和 V2.1 被視為不安全，將在未來版本中停止運作。**請勿使用這些版本的外掛。**如果您是此外掛的開發者，請盡快更新至 V3。",
 } satisfies DeepPartial<typeof import('./en').languageEnglish>;
