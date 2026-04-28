@@ -382,13 +382,17 @@ export function alertRequestLogs(){
     })
 }
 
-export async function alertTogglePresets(){
+export async function alertTogglePresets(): Promise<void> {
     // Toggle preset selector lives in its own store (togglePresetsOpenStore)
     // rather than alertStore. This way, alertConfirm / alertInput triggered
     // from inside the toggle preset menu overlay on top instead of replacing
     // the alertStore singleton, so the legacy reopenPresets() round-trip
     // disappears.
-    return new Promise<string>(resolve => {
+    //
+    // Returns void: applying a preset now happens directly in AlertComp's
+    // onclick handler (via applyToggleValues) rather than being threaded
+    // back through this function's return value.
+    return new Promise<void>(resolve => {
         togglePresetsOpenStore.set(true)
         const unsub = togglePresetsOpenStore.subscribe(v => {
             if (!v) {
@@ -396,7 +400,7 @@ export async function alertTogglePresets(){
                 // then again only on changes. Skip initial true and resolve
                 // once the consumer flips it back to false.
                 unsub()
-                resolve('')
+                resolve()
             }
         })
     })
