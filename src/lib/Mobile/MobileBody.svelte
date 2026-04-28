@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { MobileGUIStack, MobileSideBar, selectedCharID } from "src/ts/stores.svelte";
+    import { MobileGUIStack, MobileSearch, MobileSideBar, selectedCharID } from "src/ts/stores.svelte";
     import Settings from "../Setting/Settings.svelte";
     import RealmMain from "../UI/Realm/RealmMain.svelte";
     import MobileCharacters from "./MobileCharacters.svelte";
@@ -49,7 +49,7 @@
     {:else if $MobileGUIStack === 0}
         <RealmMain />
     {:else if $MobileGUIStack === 1}
-        <MobileCharacters />
+        <MobileCharacters search={$MobileSearch} />
     {:else if $MobileGUIStack === 2}
         <Settings />
     {/if}
