@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { characterFormatUpdate, getCharImage, removeChar } from "../../ts/characters";
+    import { changeChar, getCharImage, removeChar } from "../../ts/characters";
     import { type Database } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import BarIcon from "../SideBars/BarIcon.svelte";
@@ -19,9 +19,8 @@
     let search = $state('')
     let selected = $state(3)
 
-    function changeChar(index = -1){
-        characterFormatUpdate(index)
-        selectedCharID.set(index)
+    function selectAndClose(index = -1){
+        changeChar(index)
         endGrid()
     }
 
@@ -96,9 +95,9 @@
                     {#each formatChars(search, DBState.db) as char}
                         <div class="flex items-center text-textcolor">
                             {#if char.image}
-                                <BarIcon onClick={() => {changeChar(char.index)}} additionalStyle={getCharImage(char.image, 'css')}></BarIcon>
+                                <BarIcon onClick={() => {selectAndClose(char.index)}} additionalStyle={getCharImage(char.image, 'css')}></BarIcon>
                             {:else}
-                                <BarIcon onClick={() => {changeChar(char.index)}} additionalStyle={char.index === $selectedCharID ? 'background:var(--risu-theme-selected)' : ''}>
+                                <BarIcon onClick={() => {selectAndClose(char.index)}} additionalStyle={char.index === $selectedCharID ? 'background:var(--risu-theme-selected)' : ''}>
                                             <User/>
                                 </BarIcon>
                             {/if}
@@ -109,13 +108,13 @@
         {:else if selected === 1}
             {#each formatChars(search, DBState.db) as char}
                 <div class="flex p-2 border border-darkborderc rounded-md mb-2">
-                    <BarIcon onClick={() => {changeChar(char.index)}} additionalStyle={getCharImage(char.image, 'css')}></BarIcon>
+                    <BarIcon onClick={() => {selectAndClose(char.index)}} additionalStyle={getCharImage(char.image, 'css')}></BarIcon>
                     <div class="flex-1 flex flex-col ml-2">
                         <h4 class="text-textcolor font-bold text-lg mb-1">{char.name || "Unnamed"}</h4>
                         <span class="text-textcolor2">{parseMultilangString(char.desc)['en'] || parseMultilangString(char.desc)['xx'] || 'No description'}</span>
                         <div class="flex gap-2 justify-end">
                             <button class="hover:text-textcolor text-textcolor2" onclick={() => {
-                                changeChar(char.index)
+                                selectAndClose(char.index)
                             }}>
                                 <SquareMousePointer />
                             </button>
@@ -132,7 +131,7 @@
             <span class="text-textcolor2 text-sm mb-2">{language.trashDesc}</span>
             {#each formatChars(search, DBState.db, true) as char}
                 <div class="flex p-2 border border-darkborderc rounded-md mb-2">
-                    <BarIcon onClick={() => {changeChar(char.index)}} additionalStyle={getCharImage(char.image, 'css')}></BarIcon>
+                    <BarIcon onClick={() => {selectAndClose(char.index)}} additionalStyle={getCharImage(char.image, 'css')}></BarIcon>
                     <div class="flex-1 flex flex-col ml-2">
                         <h4 class="text-textcolor font-bold text-lg mb-1">{char.name || "Unnamed"}</h4>
                         <span class="text-textcolor2">{parseMultilangString(char.desc)['en'] || parseMultilangString(char.desc)['xx'] || 'No description'}</span>
