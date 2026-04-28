@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { AccessibilityIcon, ActivityIcon, PackageIcon, BotIcon, BoxIcon, CodeIcon, ContactIcon, FlaskConicalIcon, ImageIcon, LanguagesIcon, MonitorIcon, MonitorSmartphoneIcon, Sailboat, ScrollTextIcon, UserIcon, CircleXIcon, KeyboardIcon, SparkleIcon } from "@lucide/svelte";
+    import { AccessibilityIcon, ActivityIcon, PackageIcon, BotIcon, BoxIcon, CodeIcon, CogIcon, ContactIcon, FlaskConicalIcon, ImageIcon, LanguagesIcon, MonitorIcon, MonitorSmartphoneIcon, Sailboat, UserIcon, CircleXIcon, KeyboardIcon, SparkleIcon } from "@lucide/svelte";
     import { language } from "src/lang";
     import DisplaySettings from "./Pages/DisplaySettings.svelte";
     import UserSettings from "./Pages/UserSettings.svelte";
@@ -8,7 +8,7 @@
     import PluginSettings from "./Pages/PluginSettings.svelte";
     import FilesSettings from "./Pages/FilesSettings.svelte";
     import AdvancedSettings from "./Pages/AdvancedSettings.svelte";
-    import LogsSettings from "./Pages/LogsSettings.svelte";
+    import SystemSettings from "./Pages/SystemSettings.svelte";
     import { additionalSettingsMenu, easyPanelStore, MobileGUI, SettingsMenuIndex, settingsOpen } from "src/ts/stores.svelte";
     import { DBState } from "src/ts/stores.svelte";
     import Communities from "./Pages/Communities.svelte";
@@ -177,8 +177,8 @@
                         onclick={() => {
                         $SettingsMenuIndex = 22
                     }}>
-                        <ScrollTextIcon />
-                        <span>{language.systemLogs}</span>
+                        <CogIcon />
+                        <span>{language.system}</span>
                     </button>
                     <button class="flex gap-2 items-center hover:text-textcolor"
                         class:text-textcolor={$SettingsMenuIndex === 77}
@@ -287,7 +287,7 @@
                     {:else if $SettingsMenuIndex === 21}
                         <RemoteAccessSettings/>
                     {:else if $SettingsMenuIndex === 22}
-                        <LogsSettings/>
+                        <SystemSettings/>
                     {:else if $SettingsMenuIndex === 77}
                         <ThanksPage/>
                     {:else if $SettingsMenuIndex === 99 && devPanelEnabled}

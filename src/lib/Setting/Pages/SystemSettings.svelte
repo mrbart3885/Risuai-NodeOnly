@@ -1,5 +1,6 @@
 <script lang="ts">
     import SettingPage from 'src/lib/UI/GUI/SettingPage.svelte'
+    import SettingTabs from 'src/lib/UI/GUI/SettingTabs.svelte'
     import ShButton from 'src/lib/UI/GUI/ShButton.svelte'
     import ShInput from 'src/lib/UI/GUI/ShInput.svelte'
     import ShBadge from 'src/lib/UI/GUI/ShBadge.svelte'
@@ -43,6 +44,7 @@
 
     const PAGE_SIZE = 200
 
+    let submenu = $state(0)
     let entries = $state<LogEntry[]>([])
     let totalCount = $state(0)
     let loading = $state(false)
@@ -351,7 +353,12 @@
     })
 </script>
 
-<SettingPage title={language.systemLogs}>
+<SettingPage title={language.system}>
+    <SettingTabs tabs={[
+        { label: language.systemLogs, value: 0 },
+    ]} bind:selected={submenu} />
+
+    {#if submenu === 0}
     <p class="text-textcolor2 text-sm mb-4">{language.systemLogsDesc}</p>
 
     <!-- Toolbar -->
@@ -589,5 +596,6 @@
                 {loadingMore ? language.systemLogsLoading : language.systemLogsLoadMore}
             </ShButton>
         </div>
+    {/if}
     {/if}
 </SettingPage>

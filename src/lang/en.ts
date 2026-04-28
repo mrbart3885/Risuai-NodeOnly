@@ -1819,7 +1819,8 @@ export const languageEnglish = {
     remoteAccessWarning: "Never share the QR code or link with others. Anyone with the link can freely access your server. If accidentally shared, close the connection and create a new one.",
     remoteAccessInfo: "The link expires when you close remote access or restart the server. A new link is generated each time. The connection stays active even if you close this page or browser.",
 
-    // System logs page
+    // System page
+    system: "System",
     systemLogs: "System Logs",
     systemLogsDesc: "View errors, warnings, and info events captured across this server and connected browsers.",
     systemLogsEmpty: "No logs yet",
