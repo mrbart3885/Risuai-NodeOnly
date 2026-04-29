@@ -96,11 +96,14 @@
         const spaceBelow = window.innerHeight - rect.bottom;
         const spaceAbove = rect.top;
         const dropHeight = dropdownEl.scrollHeight;
+        // Grow with content but never shrink below the trigger; clamp so we
+        // don't run past the viewport edge when an option is wider than space.
+        const maxWidth = Math.max(rect.width, window.innerWidth - rect.left - 16);
 
         if (spaceBelow >= dropHeight || spaceBelow >= spaceAbove) {
-            dropdownStyle = `top: ${rect.bottom + 4}px; left: ${rect.left}px; width: ${rect.width}px;`;
+            dropdownStyle = `top: ${rect.bottom + 4}px; left: ${rect.left}px; min-width: ${rect.width}px; max-width: ${maxWidth}px;`;
         } else {
-            dropdownStyle = `bottom: ${window.innerHeight - rect.top + 4}px; left: ${rect.left}px; width: ${rect.width}px;`;
+            dropdownStyle = `bottom: ${window.innerHeight - rect.top + 4}px; left: ${rect.left}px; min-width: ${rect.width}px; max-width: ${maxWidth}px;`;
         }
     }
 
@@ -252,7 +255,7 @@
                     role="option"
                     aria-selected={opt.value === String(value)}
                     class="relative flex w-full items-center gap-2 rounded-md {itemSizeClasses[size]}
-                           text-textcolor cursor-pointer select-none text-left
+                           text-textcolor cursor-pointer select-none text-left whitespace-nowrap
                            {i === highlightedIndex ? 'bg-selected' : 'hover:bg-selected/50'}"
                     onmouseenter={() => highlightedIndex = i}
                     onclick={() => selectOption(opt.value)}
