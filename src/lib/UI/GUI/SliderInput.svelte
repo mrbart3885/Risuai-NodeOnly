@@ -9,7 +9,7 @@
     onchange
 > -->
 
-<div class="w-full flex" class:mb-4={marginBottom}>
+<div class="w-full flex {className ?? ''}" class:mb-4={marginBottom}>
   {#if disableable}
 
     <div class="relative h-8 border-darkborderc border rounded-full cursor-pointer rounded-r-none border-r-0 flex justify-center items-center pl-2">
@@ -80,6 +80,7 @@
     multiple?: number;
     disableable?: boolean;
     customText?: string|undefined;
+    className?: string;
     onchange?: Function;
   }
 
@@ -93,6 +94,7 @@
     multiple = 1,
     disableable = false,
     customText = undefined,
+    className,
     onchange
   }: Props = $props();
 

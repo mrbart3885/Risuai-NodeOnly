@@ -8,7 +8,7 @@ export const advancedSettingsItems: SettingItem[] = [
     {
         id: 'adv.lbDepth', type: 'number', labelKey: 'loreBookDepth', bindKey: 'loreBookDepth',
         options: { min: 0, max: 20 },
-        classes: 'mt-4 mb-2'
+        classes: 'mt-4'
     },
     {
         id: 'adv.lbToken', type: 'number', labelKey: 'loreBookToken', bindKey: 'loreBookToken',
