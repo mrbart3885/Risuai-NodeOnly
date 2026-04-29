@@ -1,5 +1,7 @@
-<div 
-    class={"border border-darkborderc relative n-scroll focus-within:border-borderc rounded-md shadow-xs text-textcolor bg-transparent focus-within:ring-borderc focus-within:ring-2 focus-within:outline-hidden transition-colors duration-200 z-20 focus-within:z-40" + ((className) ? (' ' + className) : '')} 
+<div
+    class={"border border-darkborderc relative n-scroll focus-within:border-borderc rounded-md shadow-xs text-textcolor bg-transparent focus-within:ring-borderc focus-within:ring-2 focus-within:outline-hidden transition-colors duration-200 z-20 focus-within:z-40"
+        + (margin === 'top' ? ' mt-4' : margin === 'bottom' ? ' mb-4' : margin === 'both' ? ' mt-2 mb-2' : '')
+        + ((className) ? (' ' + className) : '')}
     class:text-sm={size === 'sm' || (size === 'default' && $textAreaTextSize === 1)}
     class:text-md={size === 'md' || (size === 'default' && $textAreaTextSize === 2)}
     class:text-lg={size === 'lg' || (size === 'default' && $textAreaTextSize === 3)}
@@ -29,10 +31,6 @@
     class:min-h-64={height === 'default' && $textAreaSize === 3}
     class:min-h-72={height === 'default' && $textAreaSize === 4}
     class:min-h-80={height === 'default' && $textAreaSize === 5}
-    class:mb-4={margin === 'bottom'}
-    class:mb-2={margin === 'both'}
-    class:mt-4={margin === 'top'}
-    class:mt-2={margin === 'both'}
     bind:this={highlightDom}
     onfocusout={() => {
         hideAutoComplete()
