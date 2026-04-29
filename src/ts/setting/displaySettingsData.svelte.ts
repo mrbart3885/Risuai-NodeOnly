@@ -9,9 +9,19 @@ import { changeFullscreen } from '../util';
 import { updateAnimationSpeed } from '../gui/animation';
 import { guiSizeText, updateGuisize } from '../gui/guisize';
 import { updateTextThemeAndCSS } from '../gui/colorscheme';
-import { CustomGUISettingMenuStore } from '../stores.svelte';
+import { openThemePresetList } from '../stores.svelte';
 
 export const displayThemeSettingsItems: SettingItem[] = [
+    {
+        id: 'display.themePresets',
+        type: 'button',
+        labelKey: 'themePresets',
+        classes: 'mt-4',
+        options: {
+            onClick: () => openThemePresetList.set(true),
+        },
+        keywords: ['theme', 'presets'],
+    },
     {
         id: 'display.theme',
         type: 'select',
@@ -20,7 +30,8 @@ export const displayThemeSettingsItems: SettingItem[] = [
         classes: 'mt-4',
         options: {
             selectOptions: [
-                { value: '', label: 'Standard Risu' },
+                { value: '', label: 'NodeOnly Standard' },
+                { value: 'standardRisu', label: 'Standard Risu' },
                 { value: 'waifu', label: 'Waifulike' },
                 { value: 'mobilechat', label: 'Mobile Chat' },
                 { value: 'cardboard', label: 'CardBoard' },
@@ -30,16 +41,6 @@ export const displayThemeSettingsItems: SettingItem[] = [
         keywords: ['theme', 'gui', 'layout'],
     },
     {
-        id: 'display.customGui',
-        type: 'button',
-        labelKey: 'defineCustomGUI',
-        condition: (ctx) => ctx.db.theme === 'custom',
-        options: {
-            onClick: () => CustomGUISettingMenuStore.set(true),
-        },
-        keywords: ['custom', 'gui'],
-    },
-    {
         id: 'display.guiHTML',
         type: 'textarea',
         labelKey: 'chatHTML',
@@ -47,6 +48,16 @@ export const displayThemeSettingsItems: SettingItem[] = [
         bindKey: 'guiHTML',
         condition: (ctx) => ctx.db.theme === 'customHTML',
         keywords: ['custom', 'html', 'chat'],
+    },
+    {
+        id: 'display.customCSS',
+        type: 'textarea',
+        labelKey: 'customCSS',
+        helpKey: 'customCSS',
+        bindKey: 'customCSS',
+        classes: 'mt-4',
+        onChange: () => updateTextThemeAndCSS(),
+        keywords: ['custom', 'css'],
     },
     {
         id: 'display.waifuWidth',
@@ -257,9 +268,9 @@ export const displayOtherSettingsItems: SettingItem[] = [
         keywords: ['fullscreen'],
     },
     { id: 'display.showMemoryLimit', type: 'check', labelKey: 'showMemoryLimit', bindKey: 'showMemoryLimit', keywords: ['memory', 'limit'] },
-    { id: 'display.showFirstMessagePages', type: 'check', labelKey: 'showFirstMessagePages', bindKey: 'showFirstMessagePages', keywords: ['first', 'message', 'pages'] },
     { id: 'display.hideRealm', type: 'check', labelKey: 'hideRealm', bindKey: 'hideRealm', keywords: ['realm', 'hide'] },
     { id: 'display.hideAllImages', type: 'check', labelKey: 'hideAllImages', helpKey: 'hideAllImagesDesc', bindKey: 'hideAllImages', keywords: ['images', 'hide'] },
+    { id: 'display.hideMessagePageCount', type: 'check', labelKey: 'hideMessagePageCount', helpKey: 'hideMessagePageCountDesc', bindKey: 'hideMessagePageCount', keywords: ['message', 'page', 'count', 'hide'] },
     { id: 'display.showFolderName', type: 'check', labelKey: 'showFolderNameInIcon', bindKey: 'showFolderName', keywords: ['folder', 'name', 'icon'] },
     { id: 'display.customBackground', type: 'custom', componentId: 'CustomBackgroundToggle', keywords: ['custom', 'background'] },
     { id: 'display.playMessage', type: 'check', labelKey: 'playMessage', helpKey: 'msgSound', bindKey: 'playMessage', keywords: ['message', 'sound'] },
@@ -293,7 +304,6 @@ export const displayOtherSettingsItems: SettingItem[] = [
     },
     { id: 'display.useChatCopy', type: 'check', labelKey: 'useChatCopy', bindKey: 'useChatCopy', keywords: ['chat', 'copy'] },
     { id: 'display.useAdditionalAssetsPreview', type: 'check', labelKey: 'useAdditionalAssetsPreview', bindKey: 'useAdditionalAssetsPreview', keywords: ['additional', 'assets', 'preview'] },
-    { id: 'display.useLegacyGUI', type: 'check', labelKey: 'useLegacyGUI', bindKey: 'useLegacyGUI', keywords: ['legacy', 'gui'] },
     { id: 'display.hideApiKey', type: 'check', labelKey: 'hideApiKeys', bindKey: 'hideApiKey', keywords: ['api', 'key', 'hide'] },
     { id: 'display.unformatQuotes', type: 'check', labelKey: 'unformatQuotes', bindKey: 'unformatQuotes', keywords: ['quotes'] },
     { id: 'display.blockquoteStyling', type: 'check', labelKey: 'blockquoteStyling', bindKey: 'blockquoteStyling', keywords: ['blockquote', 'quote'] },
@@ -358,16 +368,6 @@ export const displayOtherSettingsItems: SettingItem[] = [
         bindKey: 'useChatSticker',
         condition: (ctx) => ctx.db.showUnrecommended,
         keywords: ['chat', 'sticker'],
-    },
-    {
-        id: 'display.customCSS',
-        type: 'textarea',
-        labelKey: 'customCSS',
-        helpKey: 'customCSS',
-        bindKey: 'customCSS',
-        classes: 'mt-4',
-        onChange: () => updateTextThemeAndCSS(),
-        keywords: ['custom', 'css'],
     },
 ];
 

@@ -1102,7 +1102,6 @@ export const languageVietnamese = {
     "translatorNote": "Ghi chú của người dịch",
     "formatGroupInSingle": "Định dạng nhóm trong đơn",
     "groupInnerFormat": "Định dạng nội bộ không phải người nói",
-    "defineCustomGUI": "Xác định GUI tùy chỉnh",
     "chatHTML": "HTML trò chuyện",
     "logShare": "Hiển thị nút chia sẻ nhật ký",
     "preview": "Xem trước",

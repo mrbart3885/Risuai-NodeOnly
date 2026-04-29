@@ -55,7 +55,6 @@ export const CustomCSSStore = writable('')
 export const SafeModeStore = writable(false)
 export const MobileSearch = writable('')
 export const CharConfigSubMenu = writable(0)
-export const CustomGUISettingMenuStore = writable(false)
 export const alertStore = writable({
     type: 'none',
     msg: 'n',

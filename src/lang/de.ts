@@ -1102,7 +1102,6 @@ export const languageGerman = {
     "translatorNote": "Anmerkung des Übersetzers",
     "formatGroupInSingle": "Gruppenformat im Einzelmodus formatieren",
     "groupInnerFormat": "Inneres Format für Nicht-Sprecher",
-    "defineCustomGUI": "Benutzerdefinierte GUI definieren",
     "chatHTML": "Chat-HTML",
     "logShare": "Teilen-Log-Button anzeigen",
     "preview": "Vorschau",

@@ -1102,7 +1102,6 @@ export const languageChinese = {
     "translatorNote": "翻译器备注",
     "formatGroupInSingle": "单一群组格式",
     "groupInnerFormat": "非发言者内部格式",
-    "defineCustomGUI": "自定义界面",
     "chatHTML": "聊天介面 HTML",
     "logShare": "显示分享记录按钮",
     "preview": "预览",

@@ -1320,7 +1320,6 @@ export const languageEnglish = {
     translatorNote: "Translator's Note",
     formatGroupInSingle: "Format Group in Single",
     groupInnerFormat: "Non-Speaker Inner Format",
-    defineCustomGUI: "Define Custom GUI",
     chatHTML: "Chat HTML",
     logShare: "Show Share Log Button",
     preview: "Preview",

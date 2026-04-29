@@ -1204,7 +1204,6 @@ export const languageChineseTraditional = {
     "translatorNote": "翻譯備註 (TL Note)",
     "formatGroupInSingle": "單一群組格式",
     "groupInnerFormat": "非發言者內部格式",
-    "defineCustomGUI": "自訂介面",
     "chatHTML": "對話介面 HTML",
     "logShare": "顯示分享記錄按鈕",
     "preview": "預覽",

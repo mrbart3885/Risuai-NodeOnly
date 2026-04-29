@@ -1207,7 +1207,6 @@ export const languageKorean = {
     "translatorNote": "번역가의 노트",
     "formatGroupInSingle": "그룹을 하나로 포맷",
     "groupInnerFormat": "비화자 내부 포맷",
-    "defineCustomGUI": "커스텀 GUI 정의",
     "chatHTML": "채팅 HTML",
     "logShare": "공유 로그 버튼 보이기",
     "preview": "미리보기",

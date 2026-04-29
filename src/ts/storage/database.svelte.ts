@@ -130,7 +130,7 @@ export function setDatabase(data:Database){
     if(checkNullish(data.iconsize)){
         data.iconsize = 100
     }
-    if(checkNullish(data.theme)){
+    if(checkNullish(data.theme) || data.theme === 'custom'){
         data.theme = ''
     }
     if(checkNullish(data.subModel)){

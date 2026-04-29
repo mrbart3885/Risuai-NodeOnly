@@ -1102,7 +1102,6 @@ export const languageSpanish = {
     "translatorNote": "Nota del Traductor",
     "formatGroupInSingle": "Formatear Grupo en Único",
     "groupInnerFormat": "Formato Interno de No Hablante",
-    "defineCustomGUI": "Definir GUI Personalizada",
     "chatHTML": "HTML del Chat",
     "logShare": "Mostrar Botón de Compartir Registro",
     "preview": "Vista Previa",
