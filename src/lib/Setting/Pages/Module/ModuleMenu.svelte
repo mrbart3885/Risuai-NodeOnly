@@ -196,16 +196,16 @@
 
 {#if submenu === 0}
     <span>{language.name}</span>
-    <TextInput bind:value={currentModule.name} className="mt-1"/>
+    <TextInput bind:value={currentModule.name} className="mt-2"/>
     <span class="mt-4">{language.description}</span>
-    <TextInput bind:value={currentModule.description} className="mt-1" size="sm"/>
+    <TextInput bind:value={currentModule.description} className="mt-2" size="sm"/>
     <span class="mt-4">{language.namespace} <Help key="namespace" /></span>
-    <TextInput bind:value={currentModule.namespace} className="mt-1" size="sm"/>
+    <TextInput bind:value={currentModule.namespace} className="mt-2" size="sm"/>
     <div class="flex items-center mt-4">
         <Check bind:check={currentModule.hideIcon} name={language.hideChatIcon}/>
     </div>
     <span class="mt-4">{language.customPromptTemplateToggle} <Help key='customPromptTemplateToggle' /></span>
-    <TextAreaInput bind:value={currentModule.customModuleToggle}/>
+    <TextAreaInput className="mt-2" bind:value={currentModule.customModuleToggle}/>
 {/if}
 {#if submenu === 1 && (Array.isArray(currentModule.lorebook))}
     <LoreBookList externalLoreBooks={currentModule.lorebook} />

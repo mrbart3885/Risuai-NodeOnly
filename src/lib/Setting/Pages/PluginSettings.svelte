@@ -178,6 +178,7 @@
 
                             {#if plugin?.argMeta?.[arg]?.textarea}
                                 <TextAreaInput
+                                    className="mt-2"
                                     bind:value={
                                         DBState.db.plugins[i].realArg[arg] as string
                                     }
@@ -198,6 +199,7 @@
                                 {/each}
                             {:else}
                                 <TextInput
+                                    className="mt-2"
                                     bind:value={
                                         DBState.db.plugins[i].realArg[arg] as string
                                     }
@@ -231,6 +233,7 @@
                                 {/each}
                             {:else}
                                 <NumberInput
+                                    className="mt-2"
                                     bind:value={
                                         DBState.db.plugins[i].realArg[arg] as number
                                     }
