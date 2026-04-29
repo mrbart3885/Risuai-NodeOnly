@@ -205,7 +205,7 @@
         <Check bind:check={currentModule.hideIcon} name={language.hideChatIcon}/>
     </div>
     <span class="mt-4">{language.customPromptTemplateToggle} <Help key='customPromptTemplateToggle' /></span>
-    <TextAreaInput className="mt-2" bind:value={currentModule.customModuleToggle}/>
+    <TextAreaInput className="mt-2 mb-4" bind:value={currentModule.customModuleToggle}/>
 {/if}
 {#if submenu === 1 && (Array.isArray(currentModule.lorebook))}
     <LoreBookList externalLoreBooks={currentModule.lorebook} />

@@ -343,7 +343,7 @@
 
     {#if DBState.db.aiModel === 'echo_model' || DBState.db.subModel === 'echo_model'}
         <span class="text-textcolor mt-2">Echo Message</span>
-        <TextAreaInput className="mt-2" margin="bottom" bind:value={DBState.db.echoMessage} placeholder={"The message you want to receive as the bot's response\n(e.g., Lumi tilts her head, her white hair sliding down as her pretty green and aqua eyes sparkle…)"}/>
+        <TextAreaInput className="mt-2 mb-4" margin="bottom" bind:value={DBState.db.echoMessage} placeholder={"The message you want to receive as the bot's response\n(e.g., Lumi tilts her head, her white hair sliding down as her pretty green and aqua eyes sparkle…)"}/>
         <span class="text-textcolor mt-2">Echo Delay (Seconds)</span>
         <NumberInput className="mt-2" marginBottom={true} bind:value={DBState.db.echoDelay} min={0}/>
     {/if}
@@ -714,13 +714,13 @@
 {#if submenu === 2}
     {#if !DBState.db.promptTemplate}
         <span class="text-textcolor">{language.mainPrompt} <Help key="mainprompt"/></span>
-        <TextAreaInput className="mt-2" fullwidth autocomplete="off" height={"32"} bind:value={DBState.db.mainPrompt}></TextAreaInput>
+        <TextAreaInput className="mt-2 mb-4" fullwidth autocomplete="off" height={"32"} bind:value={DBState.db.mainPrompt}></TextAreaInput>
         <span class="text-textcolor2 mb-6 text-sm mt-2">{tokens.mainPrompt} {language.tokens}</span>
         <span class="text-textcolor">{language.jailbreakPrompt} <Help key="jailbreak"/></span>
-        <TextAreaInput className="mt-2" fullwidth autocomplete="off" height={"32"} bind:value={DBState.db.jailbreak}></TextAreaInput>
+        <TextAreaInput className="mt-2 mb-4" fullwidth autocomplete="off" height={"32"} bind:value={DBState.db.jailbreak}></TextAreaInput>
         <span class="text-textcolor2 mb-6 text-sm mt-2">{tokens.jailbreak} {language.tokens}</span>
         <span class="text-textcolor">{language.globalNote} <Help key="globalNote"/></span>
-        <TextAreaInput className="mt-2" fullwidth autocomplete="off" height={"32"} bind:value={DBState.db.globalNote}></TextAreaInput>
+        <TextAreaInput className="mt-2 mb-4" fullwidth autocomplete="off" height={"32"} bind:value={DBState.db.globalNote}></TextAreaInput>
         <span class="text-textcolor2 mb-6 text-sm mt-2">{tokens.globalNote} {language.tokens}</span>  
         <span class="text-textcolor mb-2 mt-4">{language.formatingOrder} <Help key="formatOrder"/></span>
         <DropList bind:list={DBState.db.formatingOrder} />

@@ -142,7 +142,7 @@
             <TextInput className="mt-2" marginBottom size="lg" bind:value={DBState.db.userNote} placeholder={`Put a unique identifier for this persona here.\nExample: [Alternate Hunters persona]`} />
         {/if}
         <span class="text-sm text-textcolor2">{language.description}</span>
-        <TextAreaInput className="mt-2" autocomplete="off" bind:value={DBState.db.personaPrompt} placeholder={`Put the description of this persona here.\nExample: [<user> is a 20 year old girl.]`} />
+        <TextAreaInput className="mt-2 mb-4" autocomplete="off" bind:value={DBState.db.personaPrompt} placeholder={`Put the description of this persona here.\nExample: [<user> is a 20 year old girl.]`} />
         <div class="flex gap-2 mt-4 max-w-full flex-wrap">
             <Button onclick={exportUserPersona}>{language.export}</Button>
             <Button onclick={importUserPersona}>{language.import}</Button>

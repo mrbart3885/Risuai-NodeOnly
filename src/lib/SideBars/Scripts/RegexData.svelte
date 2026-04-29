@@ -113,7 +113,7 @@ interface Props {
                 $ReloadGUIPointer += 1
             }} />
             <span class="text-textcolor mt-4">Modification Type</span>
-            <SelectInput className="mt-2" bind:value={value.type} onchange={(e) => {
+            <SelectInput className="mt-2 mb-4" bind:value={value.type} onchange={(e) => {
                 $ReloadGUIPointer += 1
             }}>
                 <OptionInput value="editinput">{language.editInput}</OptionInput>
@@ -126,7 +126,7 @@ interface Props {
             <span class="text-textcolor mt-6">IN:</span>
             <TextInput className="mt-2" size="sm" bind:value={value.in} />
             <span class="text-textcolor mt-6">OUT:</span>
-            <TextAreaInput className="mt-2" highlight autocomplete="off" size="sm" bind:value={value.out} onInput={(e) => {
+            <TextAreaInput className="mt-2 mb-4" highlight autocomplete="off" size="sm" bind:value={value.out} onInput={(e) => {
                 $ReloadGUIPointer += 1
             }} />
             {#if value.ableFlag}

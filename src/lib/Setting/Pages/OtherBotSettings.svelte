@@ -704,7 +704,7 @@
             <NumberInput className="mt-2" size="sm" marginBottom min={0} max={2048} bind:value={DBState.db.sdConfig.height}/>
 
             <span class="text-textcolor mt-4">Model</span>
-            <SelectInput className="mt-2" bind:value={DBState.db.falModel}>
+            <SelectInput className="mt-2 mb-4" bind:value={DBState.db.falModel}>
                 <OptionInput value="fal-ai/flux/dev" >Flux[Dev]</OptionInput>
                 <OptionInput value="fal-ai/flux-lora" >Flux[Dev] with Lora</OptionInput>
                 <OptionInput value="fal-ai/flux-pro" >Flux[Pro]</OptionInput>
@@ -1108,11 +1108,11 @@
                 </SelectInput>
                 <span class="text-textcolor">{language.summarizationPrompt} <Help key="summarizationPrompt"/></span>
                 <div class="mb-4">
-                    <TextAreaInput className="mt-2" size="sm" placeholder={language.hypaV3Settings.supaMemoryPromptPlaceHolder} bind:value={settings.summarizationPrompt} />
+                    <TextAreaInput className="mt-2 mb-4" size="sm" placeholder={language.hypaV3Settings.supaMemoryPromptPlaceHolder} bind:value={settings.summarizationPrompt} />
                 </div>
                 <span class="text-textcolor">{language.reSummarizationPrompt} <Help key="reSummarizationPrompt"/></span>
                 <div class="mb-4">
-                    <TextAreaInput className="mt-2" size="sm" placeholder={language.hypaV3Settings.supaMemoryPromptPlaceHolder} bind:value={settings.reSummarizationPrompt} />
+                    <TextAreaInput className="mt-2 mb-4" size="sm" placeholder={language.hypaV3Settings.supaMemoryPromptPlaceHolder} bind:value={settings.reSummarizationPrompt} />
                 </div>
                 {#await getMaxMemoryRatio() then maxMemoryRatio}
                 <span class="text-textcolor">{language.hypaV3Settings.maxMemoryTokensRatioLabel}</span>

@@ -14,7 +14,7 @@
 </script>
 
 <span class="text-textcolor">{language.thinkingType ?? 'Thinking Mode'}</span>
-<SelectInput className="mt-2" bind:value={value.thinking_type}>
+<SelectInput className="mt-2 mb-4" bind:value={value.thinking_type}>
     <OptionInput value="off">Off</OptionInput>
     <OptionInput value="budget">Budget (Manual Tokens)</OptionInput>
     <OptionInput value="adaptive">Adaptive</OptionInput>
@@ -25,7 +25,7 @@
 {/if}
 {#if value.thinking_type === 'adaptive'}
     <span class="text-textcolor">{language.adaptiveThinkingEffort ?? 'Adaptive Thinking Effort'}</span>
-    <SelectInput className="mt-2" bind:value={value.adaptive_thinking_effort}>
+    <SelectInput className="mt-2 mb-4" bind:value={value.adaptive_thinking_effort}>
         <OptionInput value="low">Low</OptionInput>
         <OptionInput value="medium">Medium</OptionInput>
         <OptionInput value="high">High</OptionInput>
