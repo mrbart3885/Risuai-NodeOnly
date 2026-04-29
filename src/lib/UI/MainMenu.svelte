@@ -107,7 +107,7 @@
 
       {:else}
         <div class="flex items-center mt-4">
-          <button class="mr-2 text-textcolor2 hover:text-green-500" onclick={() => ($OpenRealmStore = false)}>
+          <button class="mr-2 text-textcolor2 hover:text-primary" onclick={() => ($OpenRealmStore = false)}>
             <ArrowLeft/>
           </button>
         </div>

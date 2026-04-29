@@ -226,7 +226,7 @@
                     {/if}
                 {/if}
                 {#if window.innerWidth < 700 && !$MobileGUI}
-                    <button class="absolute top-2 right-2 hover:text-green-500 text-textcolor" onclick={() => {
+                    <button class="absolute top-2 right-2 hover:text-primary text-textcolor" onclick={() => {
                         settingsOpen.set(false)
                     }}> <CircleXIcon size={DBState.db.settingsCloseButtonSize} /> </button>
                 {/if}
@@ -281,7 +281,7 @@
             </div>
             {/key}
             {#if !$MobileGUI}
-                <button class="absolute top-2 right-2 hover:text-green-500 text-textcolor" onclick={() => {
+                <button class="absolute top-2 right-2 hover:text-primary text-textcolor" onclick={() => {
                     if(window.innerWidth >= 700){
                         settingsOpen.set(false)
                     }

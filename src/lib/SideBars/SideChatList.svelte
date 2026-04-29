@@ -188,7 +188,7 @@
                             if(e.key === 'Enter'){
                                 e.currentTarget.click()
                             }
-                        }} class="text-textcolor2 hover:text-green-500 mr-1 cursor-pointer" onclick={async (e) => {
+                        }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={async (e) => {
                             e.stopPropagation()
                             const sel = parseInt(await alertSelect([language.changeFolderColor, language.cancel]))
                             switch (sel) {
@@ -205,7 +205,7 @@
                             if(e.key === 'Enter'){
                                 e.currentTarget.click()
                             }
-                        }} class="text-textcolor2 hover:text-green-500 mr-1 cursor-pointer" onclick={() => {
+                        }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={() => {
                             editMode = !editMode
                         }}>
                             <PencilIcon size={18}/>
@@ -214,7 +214,7 @@
                             if(e.key === 'Enter'){
                                 e.currentTarget.click()
                             }
-                        }} class="text-textcolor2 hover:text-green-500 cursor-pointer" onclick={async (e) => {
+                        }} class="text-textcolor2 hover:text-red-400 cursor-pointer" onclick={async (e) => {
                             e.stopPropagation()
                             const d = await alertConfirm(`${language.removeConfirm}${folder.name}`)
                             if (d) {
@@ -260,7 +260,7 @@
                                 if(e.key === 'Enter'){
                                     e.currentTarget.click()
                                 }
-                            }} class="text-textcolor2 hover:text-green-500 mr-1 cursor-pointer" onclick={async () => {
+                            }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={async () => {
                                 const option = await alertChatOptions()
                                 switch(option){
                                     case 0:{
@@ -311,7 +311,7 @@
                                 if(e.key === 'Enter'){
                                     e.currentTarget.click()
                                 }
-                            }} class="text-textcolor2 hover:text-green-500 mr-1 cursor-pointer" onclick={() => {
+                            }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={() => {
                                 editMode = !editMode
                             }}>
                                 <PencilIcon size={18}/>
@@ -320,7 +320,7 @@
                                 if(e.key === 'Enter'){
                                     e.currentTarget.click()
                                 }
-                            }} class="text-textcolor2 hover:text-green-500 mr-1 cursor-pointer" onclick={async (e) => {
+                            }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={async (e) => {
                                 e.stopPropagation()
                                 exportChat(chara.chats.indexOf(chat))
                             }}>
@@ -330,7 +330,7 @@
                                 if(e.key === 'Enter'){
                                     e.currentTarget.click()
                                 }
-                            }} class="text-textcolor2 hover:text-green-500 cursor-pointer" onclick={async (e) => {
+                            }} class="text-textcolor2 hover:text-red-400 cursor-pointer" onclick={async (e) => {
                                 e.stopPropagation()
                                 if(chara.chats.length === 1){
                                     notifyError(language.errors.onlyOneChat)
@@ -381,7 +381,7 @@
                         if(e.key === 'Enter'){
                             e.currentTarget.click()
                         }
-                    }} class="text-textcolor2 hover:text-green-500 mr-1 cursor-pointer" onclick={async () => {
+                    }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={async () => {
                         const option = await alertChatOptions()
                         switch(option){
                             case 0:{
@@ -432,7 +432,7 @@
                         if(e.key === 'Enter'){
                             e.currentTarget.click()
                         }
-                    }} class="text-textcolor2 hover:text-green-500 mr-1 cursor-pointer" onclick={() => {
+                    }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={() => {
                         editMode = !editMode
                     }}>
                         <PencilIcon size={18}/>
@@ -441,7 +441,7 @@
                         if(e.key === 'Enter'){
                             e.currentTarget.click()
                         }
-                    }} class="text-textcolor2 hover:text-green-500 mr-1 cursor-pointer" onclick={async (e) => {
+                    }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={async (e) => {
                         e.stopPropagation()
                         exportChat(i)
                     }}>
@@ -451,7 +451,7 @@
                         if(e.key === 'Enter'){
                             e.currentTarget.click()
                         }
-                    }} class="text-textcolor2 hover:text-green-500 cursor-pointer" onclick={async (e) => {
+                    }} class="text-textcolor2 hover:text-red-400 cursor-pointer" onclick={async (e) => {
                         e.stopPropagation()
                         if(chara.chats.length === 1){
                             notifyError(language.errors.onlyOneChat)
@@ -479,22 +479,22 @@
 
     <div class="border-t border-selected mt-2">
         <div class="flex mt-2 ml-2 items-center">
-            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer" onclick={() => {
                 exportAllChats()
             }}>
                 <DownloadIcon size={18}/>
             </button>
-            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer" onclick={() => {
                 importChat()
             }}>
                 <HardDriveUploadIcon size={18}/>
             </button>
-            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer" onclick={() => {
                 editMode = !editMode
             }}>
                 <PencilIcon size={18}/>
             </button>
-            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer" onclick={() => {
                 alertStore.set({
                   type: "branches",
                   msg: ""
@@ -502,12 +502,12 @@
             }}>
                 <SplitIcon size={18}/>
             </button>
-            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer" onclick={() => {
                 $bookmarkListOpen = true;
             }}>
                 <BookmarkCheckIcon size={18}/>
             </button>
-            <button class="ml-auto text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" onclick={() => {
+            <button class="ml-auto text-textcolor2 hover:text-primary mr-2 cursor-pointer" onclick={() => {
                 if (!chara.chatFolders) {
                     chara.chatFolders = []
                 }

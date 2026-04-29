@@ -435,7 +435,7 @@
                                     <TextInput marginBottom size='lg' bind:value={DBState.db.characters[$selectedCharID].emotionImages[i][0]} />
                                 </td>
                                 <td>
-                                    <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
+                                    <button class="font-medium cursor-pointer hover:text-red-400" onclick={() => {
                                         rmCharEmotion($selectedCharID,i)
                                     }}><TrashIcon /></button>
                                 </td>
@@ -450,7 +450,7 @@
 
             <div class="text-textcolor2 hover:text-textcolor mt-2 flex">
                 {#if !$addingEmotion}
-                    <button class="cursor-pointer hover:text-green-500" onclick={() => {addCharEmotion($selectedCharID)}}>
+                    <button class="cursor-pointer hover:text-primary" onclick={() => {addCharEmotion($selectedCharID)}}>
                         <PlusIcon />
                     </button>
                 {:else}
@@ -512,7 +512,7 @@
                     <tr>
                         <th class="font-medium">{language.value}</th>
                         <th class="font-medium cursor-pointer w-10">
-                            <button class="hover:text-green-500" onclick={async () => {
+                            <button class="hover:text-primary" onclick={async () => {
                                 if(DBState.db.characters[$selectedCharID].type === 'character'){
                                     const da = await selectMultipleFile(['png', 'webp', 'mp4', 'mp3', 'gif', 'jpeg', 'jpg', 'ttf', 'otf', 'css', 'webm', 'woff', 'woff2', 'svg', 'avif'])
                                     DBState.db.characters[$selectedCharID].additionalAssets = DBState.db.characters[$selectedCharID].additionalAssets ?? []
@@ -607,7 +607,7 @@
         <span class="text-textcolor mt-4">{language.regexScript} <Help key="regexScript"/></span>
         <RegexList bind:value={DBState.db.characters[$selectedCharID].customscript} />
         <div class="text-textcolor2 mt-2 flex gap-2">
-            <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
+            <button class="font-medium cursor-pointer hover:text-primary" onclick={() => {
                 if(DBState.db.characters[$selectedCharID].type === 'character'){
                     let script = DBState.db.characters[$selectedCharID].customscript
                     script.push({
@@ -619,10 +619,10 @@
                     DBState.db.characters[$selectedCharID].customscript = script
                 }
             }}><PlusIcon /></button>
-            <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
+            <button class="font-medium cursor-pointer hover:text-primary" onclick={() => {
                 exportRegex(DBState.db.characters[$selectedCharID].customscript)
             }}><DownloadIcon /></button>
-            <button class="font-medium cursor-pointer hover:text-green-500" onclick={async () => {
+            <button class="font-medium cursor-pointer hover:text-primary" onclick={async () => {
                 DBState.db.characters[$selectedCharID].customscript = await importRegex(DBState.db.characters[$selectedCharID].customscript)
             }}><HardDriveUploadIcon /></button>
         </div>
@@ -974,7 +974,7 @@
                 <th class="font-medium w-1/2">Bias</th>
                 <th class="font-medium w-1/3">{language.value}</th>
                 <th>
-                    <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
+                    <button class="font-medium cursor-pointer hover:text-primary" onclick={() => {
                         if(DBState.db.characters[$selectedCharID].type === 'character'){
                             (DBState.db.characters[$selectedCharID] as character).bias.push(['', 0])
                         }
@@ -996,7 +996,7 @@
                         <NumberInput fullh fullwidth bind:value={(DBState.db.characters[$selectedCharID] as character).bias[i][1]} max={100} min={-100} />
                     </td>
                     <td>
-                        <button class="font-medium flex justify-center items-center w-full h-full cursor-pointer hover:text-green-500" onclick={() => {
+                        <button class="font-medium flex justify-center items-center w-full h-full cursor-pointer hover:text-red-400" onclick={() => {
                             if(DBState.db.characters[$selectedCharID].type === 'character'){
                                 (DBState.db.characters[$selectedCharID] as character).bias.splice(i, 1)
                             }
@@ -1063,7 +1063,7 @@
                 <tr>
                     <th class="font-medium">{language.value}</th>
                     <th class="font-medium cursor-pointer w-8">
-                        <button class="hover:text-green-500" onclick={() => {
+                        <button class="hover:text-primary" onclick={() => {
                             if(DBState.db.characters[$selectedCharID].type === 'character'){
                                 let alternateGreetings = DBState.db.characters[$selectedCharID].alternateGreetings
                                 alternateGreetings.push('')

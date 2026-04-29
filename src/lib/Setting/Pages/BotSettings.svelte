@@ -417,7 +417,7 @@
         {#if DBState.db.localStopStrings}
             <div class="flex flex-col p-2 rounded-sm border border-selected mt-2 gap-1">
                 <div class="p-2">
-                    <button class="font-medium flex justify-center items-center h-full cursor-pointer hover:text-green-500 w-full" onclick={() => {
+                    <button class="font-medium flex justify-center items-center h-full cursor-pointer hover:text-primary w-full" onclick={() => {
                         let localStopStrings = DBState.db.localStopStrings
                         localStopStrings.push('')
                         DBState.db.localStopStrings = localStopStrings
@@ -429,7 +429,7 @@
                             <TextInput marginBottom bind:value={DBState.db.localStopStrings[i]} fullwidth fullh/>
                         </div>
                         <div>
-                            <button class="font-medium flex justify-center items-center h-full cursor-pointer hover:text-green-500 w-full" onclick={() => {
+                            <button class="font-medium flex justify-center items-center h-full cursor-pointer hover:text-red-400 w-full" onclick={() => {
                                 let localStopStrings = DBState.db.localStopStrings
                                 localStopStrings.splice(i, 1)
                                 DBState.db.localStopStrings = localStopStrings
@@ -517,7 +517,7 @@
                 <th class="font-medium">Bias</th>
                 <th class="font-medium">{language.value}</th>
                 <th>
-                    <button class="font-medium cursor-pointer hover:text-green-500 w-full flex justify-center items-center" onclick={() => {
+                    <button class="font-medium cursor-pointer hover:text-primary w-full flex justify-center items-center" onclick={() => {
                         let bia = DBState.db.bias
                         bia.push(['', 0])
                         DBState.db.bias = bia
@@ -538,7 +538,7 @@
                         <NumberInput bind:value={DBState.db.bias[i][1]} max={100} min={-101} fullwidth/>
                     </td>
                     <td>
-                        <button class="font-medium flex justify-center items-center h-full cursor-pointer hover:text-green-500 w-full" onclick={() => {
+                        <button class="font-medium flex justify-center items-center h-full cursor-pointer hover:text-red-400 w-full" onclick={() => {
                             let bia = DBState.db.bias
                             bia.splice(i, 1)
                             DBState.db.bias = bia
@@ -571,7 +571,7 @@
                 <th class="font-medium">{language.key}</th>
                 <th class="font-medium">{language.value}</th>
                 <th>
-                    <button class="font-medium cursor-pointer hover:text-green-500 w-full flex justify-center items-center" onclick={() => {
+                    <button class="font-medium cursor-pointer hover:text-primary w-full flex justify-center items-center" onclick={() => {
                         let additionalParams = DBState.db.additionalParams
                         additionalParams.push(['', ''])
                         DBState.db.additionalParams = additionalParams
@@ -592,7 +592,7 @@
                         <TextInput bind:value={DBState.db.additionalParams[i][1]} fullwidth/>
                     </td>
                     <td>
-                        <button class="font-medium flex justify-center items-center h-full cursor-pointer hover:text-green-500 w-full" onclick={() => {
+                        <button class="font-medium flex justify-center items-center h-full cursor-pointer hover:text-red-400 w-full" onclick={() => {
                             let additionalParams = DBState.db.additionalParams
                             additionalParams.splice(i, 1)
                             DBState.db.additionalParams = additionalParams

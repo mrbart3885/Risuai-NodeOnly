@@ -11,7 +11,7 @@
 <SettingPage title={language.globalRegexScript}>
 <RegexList bind:value={DBState.db.globalscript} />
 <div class="text-textcolor2 mt-2 flex gap-2">
-    <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
+    <button class="font-medium cursor-pointer hover:text-primary" onclick={() => {
         let script = DBState.db.globalscript
         script.push({
             comment: "",
@@ -21,10 +21,10 @@
         })
         DBState.db.globalscript = script
     }}><PlusIcon /></button>
-    <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
+    <button class="font-medium cursor-pointer hover:text-primary" onclick={() => {
         exportRegex()
     }}><DownloadIcon /></button>
-    <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
+    <button class="font-medium cursor-pointer hover:text-primary" onclick={() => {
         importRegex()
     }}><HardDriveUploadIcon /></button>
 </div>

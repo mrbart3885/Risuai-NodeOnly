@@ -145,7 +145,7 @@
         {/if}
         <div class="w-full max-w-4xl flex flex-col p-2">
             <div class="flex items-center mt-4">
-                <button class="mr-2 text-textcolor2 hover:text-green-500" onclick={() => ($PlaygroundStore = 1)}>
+                <button class="mr-2 text-textcolor2 hover:text-primary" onclick={() => ($PlaygroundStore = 1)}>
                 <ArrowLeft/>
                 </button>
             </div>

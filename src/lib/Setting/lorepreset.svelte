@@ -15,7 +15,7 @@
         <div class="flex items-center text-textcolor mb-4">
             <h2 class="mt-0 mb-0">{language.loreBook}</h2>
             <div class="grow flex justify-end">
-                <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer items-center" onclick={close}>
+                <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer items-center" onclick={close}>
                     <XIcon size={24}/>
                 </button>
             </div>
@@ -32,7 +32,7 @@
                     <span>{lore.name}</span>
                 {/if}
                 <div class="grow flex justify-end">
-                    <div class="text-textcolor2 hover:text-green-500 cursor-pointer" role="button" tabindex="0" onclick={async (e) => {
+                    <div class="text-textcolor2 hover:text-red-400 cursor-pointer" role="button" tabindex="0" onclick={async (e) => {
                         e.stopPropagation()
                         if(DBState.db.loreBook.length === 1){
                             return
@@ -55,7 +55,7 @@
             </button>
         {/each}
         <div class="flex mt-2 items-center">
-            <button class="text-textcolor2 hover:text-green-500 cursor-pointer mr-1" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary cursor-pointer mr-1" onclick={() => {
                 let loreBooks = DBState.db.loreBook
                 let newLoreBook = {
                     name: `New LoreBook`,
@@ -67,7 +67,7 @@
             }}>
                 <PlusIcon/>
             </button>
-            <button class="text-textcolor2 hover:text-green-500 cursor-pointer" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary cursor-pointer" onclick={() => {
                 editMode = !editMode
             }}>
                 <SquarePenIcon size={18}/>

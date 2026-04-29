@@ -231,13 +231,13 @@
     <TextAreaInput bind:value={currentModule.backgroundEmbedding} className="mt-2" placeholder={language.backgroundHTML}/>
     <RegexList bind:value={currentModule.regex}/>
     <div class="text-textcolor2 mt-2 flex gap-2">
-        <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
+        <button class="font-medium cursor-pointer hover:text-primary" onclick={() => {
             addRegex()
         }}><PlusIcon /></button>
-        <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
+        <button class="font-medium cursor-pointer hover:text-primary" onclick={() => {
             exportRegex(currentModule.regex)
         }}><DownloadIcon /></button>
-        <button class="font-medium cursor-pointer hover:text-green-500" onclick={async () => {
+        <button class="font-medium cursor-pointer hover:text-primary" onclick={async () => {
             currentModule.regex = await importRegex(currentModule.regex)
         }}><HardDriveUploadIcon /></button>
     </div>
@@ -250,7 +250,7 @@
             <tr>
                 <th class="font-medium">{language.value}</th>
                 <th class="font-medium cursor-pointer w-10">
-                    <button class="hover:text-green-500" onclick={async () => {
+                    <button class="hover:text-primary" onclick={async () => {
                         const da = await selectMultipleFile(['png', 'webp', 'mp4', 'mp3', 'gif', 'jpeg', 'jpg', 'ttf', 'otf', 'css', 'webm', 'woff', 'woff2', 'svg', 'avif'])
                         currentModule.assets = currentModule.assets ?? []
                         if(!da){
@@ -291,7 +291,7 @@
                         </td>
                         
                         <th class="font-medium cursor-pointer w-10">
-                            <button class="hover:text-green-500" onclick={() => {
+                            <button class="hover:text-red-400" onclick={() => {
                                 let additionalAssets = currentModule.assets
                                 additionalAssets.splice(i, 1)
                                 currentModule.assets = additionalAssets

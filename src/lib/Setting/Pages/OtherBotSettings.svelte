@@ -408,11 +408,11 @@
                     }
                 }}>
                     {#if !DBState.db.NAIImgConfig.vibe_data || !DBState.db.NAIImgConfig.vibe_data.thumbnail}
-                        <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500 flex items-center justify-center">
+                        <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary flex items-center justify-center">
                             <span class="text-sm">Upload<br />Vibe</span>
                         </div>
                     {:else}
-                        <img src={DBState.db.NAIImgConfig.vibe_data.thumbnail} alt="Vibe Preview" class="rounded-md h-40 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500" />
+                        <img src={DBState.db.NAIImgConfig.vibe_data.thumbnail} alt="Vibe Preview" class="rounded-md h-40 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary" />
                     {/if}
                 </button>
 
@@ -496,16 +496,16 @@
                         console.log('Character image set:', DBState.db.NAIImgConfig.character_image)
                     }}>
                         {#if !DBState.db.NAIImgConfig.character_image || DBState.db.NAIImgConfig.character_image === ''}
-                            <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500 flex items-center justify-center">
+                            <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary flex items-center justify-center">
                                 <span class="text-sm">Upload<br />Image</span>
                             </div>
                         {:else}
                             {#await getCharImage(DBState.db.NAIImgConfig.character_image, 'plain')}
-                                <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500 flex items-center justify-center">
+                                <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary flex items-center justify-center">
                                     <span class="text-sm">Uploading<br />Image..</span>
                                 </div>
                             {:then im}
-                                <img src={im} class="rounded-md h-40 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500" alt="Base Preview"/>
+                                <img src={im} class="rounded-md h-40 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary" alt="Base Preview"/>
                             {/await}
                         {/if}
                     </button>
@@ -575,16 +575,16 @@
                         DBState.db.NAIImgConfig.image = saveId
                     }}>
                         {#if !DBState.db.NAIImgConfig.image || DBState.db.NAIImgConfig.image === ''}
-                            <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500 flex items-center justify-center">
+                            <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary flex items-center justify-center">
                                 <span class="text-sm">Upload<br />Image</span>
                             </div>
                         {:else}
                             {#await getCharImage(DBState.db.NAIImgConfig.image, 'plain')}
-                                <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500 flex items-center justify-center">
+                                <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary flex items-center justify-center">
                                     <span class="text-sm">Uploading<br />Image..</span>
                                 </div>
                             {:then im}
-                                <img src={im} class="rounded-md h-40 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500" alt="Base Preview"/>
+                                <img src={im} class="rounded-md h-40 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary" alt="Base Preview"/>
                             {/await}
                         {/if}
                     </button>
@@ -876,16 +876,16 @@
                             console.log('Character image set:', DBState.db.wavespeedImage.reference_image)
                         }}>
                             {#if !DBState.db.wavespeedImage.reference_image || DBState.db.wavespeedImage.reference_image === ''}
-                                <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500 flex items-center justify-center">
+                                <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary flex items-center justify-center">
                                     <span class="text-sm">Upload<br />Image</span>
                                 </div>
                             {:else}
                                 {#await getCharImage(DBState.db.wavespeedImage.reference_image, 'plain')}
-                                    <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500 flex items-center justify-center">
+                                    <div class="rounded-md h-20 w-20 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary flex items-center justify-center">
                                         <span class="text-sm">Uploading<br />Image..</span>
                                     </div>
                                 {:then im}
-                                    <img src={im} class="rounded-md h-40 shadow-lg bg-textcolor2 cursor-pointer hover:text-green-500" alt="Base Preview"/>
+                                    <img src={im} class="rounded-md h-40 shadow-lg bg-textcolor2 cursor-pointer hover:text-primary" alt="Base Preview"/>
                                 {/await}
                             {/if}
                         </button>
@@ -983,7 +983,7 @@
             </SelectInput>
 
             <div class="flex items-center mb-8">
-                <button class="mr-2 text-textcolor2 hover:text-green-500 cursor-pointer" onclick={() => {
+                <button class="mr-2 text-textcolor2 hover:text-primary cursor-pointer" onclick={() => {
                     const newPreset = createHypaV3Preset()
                     const presets = DBState.db.hypaV3Presets
 
@@ -994,7 +994,7 @@
                     <PlusIcon size={24}/>
                 </button>
 
-                <button class="mr-2 text-textcolor2 hover:text-green-500 cursor-pointer" onclick={async () => {
+                <button class="mr-2 text-textcolor2 hover:text-primary cursor-pointer" onclick={async () => {
                     const presets = DBState.db.hypaV3Presets
 
                     if(presets.length === 0){
@@ -1014,7 +1014,7 @@
                     <PencilIcon size={24}/>
                 </button>
 
-                <button class="mr-2 text-textcolor2 hover:text-green-500 cursor-pointer" onclick={async (e) => {
+                <button class="mr-2 text-textcolor2 hover:text-red-400 cursor-pointer" onclick={async (e) => {
                     const presets = DBState.db.hypaV3Presets
 
                     if(presets.length <= 1){
@@ -1037,7 +1037,7 @@
 
                 <div class="ml-2 mr-4 w-px h-full bg-darkborderc"></div>
 
-                <button class="mr-2 text-textcolor2 hover:text-green-500 cursor-pointer" onclick={async() => {
+                <button class="mr-2 text-textcolor2 hover:text-primary cursor-pointer" onclick={async() => {
                     try {
                         const presets = DBState.db.hypaV3Presets
                         
@@ -1063,7 +1063,7 @@
                     <DownloadIcon size={24}/>
                 </button>
 
-                <button class="mr-2 text-textcolor2 hover:text-green-500 cursor-pointer" onclick={async() => {
+                <button class="mr-2 text-textcolor2 hover:text-primary cursor-pointer" onclick={async() => {
                     try {
                         const bytesImport = (await selectSingleFile(['json'])).data
 

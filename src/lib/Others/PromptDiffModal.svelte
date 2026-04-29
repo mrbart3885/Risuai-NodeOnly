@@ -1597,7 +1597,7 @@
         {/if}
       </div>
 
-      <button class="text-textcolor2 hover:text-green-500" onclick={(e) => {handleClose()}}>
+      <button class="text-textcolor2 hover:text-primary" onclick={(e) => {handleClose()}}>
         <XIcon size={20}/>
       </button>
     </div>

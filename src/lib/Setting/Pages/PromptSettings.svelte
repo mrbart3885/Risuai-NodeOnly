@@ -236,7 +236,7 @@
         {/key}
     </div>
 
-    <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
+    <button class="font-medium cursor-pointer hover:text-primary" onclick={() => {
         let value = DBState.db.promptTemplate ?? []
         value.push({
             type: "plain",

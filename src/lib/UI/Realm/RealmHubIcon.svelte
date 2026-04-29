@@ -39,19 +39,19 @@
         <div class="grow"></div>
         <div class="flex flex-wrap w-full flex-row-reverse gap-1">
             {#if chara.hasEmotion}
-                <div class="text-textcolor2 hover:text-green-500 transition-colors" role="button" tabindex="0" onclick={((e) => {
+                <div class="text-textcolor2 hover:text-primary transition-colors" role="button" tabindex="0" onclick={((e) => {
                     e.stopPropagation()
                     notifyInfo("This character includes emotion images")
                 })} onkeydown={(e) => {}}><SmileIcon /></div>
             {/if}
             {#if chara.hasAsset}
-                <div class="text-textcolor2 hover:text-green-500 transition-colors" role="button" tabindex="0" onclick={((e) => {
+                <div class="text-textcolor2 hover:text-primary transition-colors" role="button" tabindex="0" onclick={((e) => {
                     e.stopPropagation()
                     notifyInfo("This character includes additional assets")
                 })} onkeydown={(e) => {}}><ImageIcon /></div>
             {/if}
             {#if chara.hasLore}
-                <div class="text-textcolor2 hover:text-green-500 transition-colors" role="button" tabindex="0" onclick={((e) => {
+                <div class="text-textcolor2 hover:text-primary transition-colors" role="button" tabindex="0" onclick={((e) => {
                     e.stopPropagation()
                     notifyInfo("This character includes lorebook")
                 })} onkeydown={(e) => {}}><BookIcon /></div>

@@ -1,13 +1,13 @@
-<button title={name+' '+language.showHelp} class="relative help inline-flex items-center cursor-default hover:text-green-500" style="vertical-align: -2px;" onclick={() => {
+<button title={name+' '+language.showHelp} class="relative help inline-flex items-center cursor-default hover:text-primary" style="vertical-align: -2px;" onclick={() => {
     alertMd(language.help[key])
 }}>
     
     {#if key === "experimental"}
-        <div class="text-red-500 hover:text-green-500">
+        <div class="text-red-500 hover:text-primary">
             <FlaskConicalIcon size={16} />
         </div>
     {:else if unrecommended}
-        <div class="text-red-500 hover:text-green-500">
+        <div class="text-red-500 hover:text-primary">
             <TriangleAlert size={14} />
         </div>
     {:else}

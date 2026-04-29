@@ -959,7 +959,7 @@
                 }}>
                     <!-- svelte-ignore block_empty -->
                     {#if DBState.db.characters[$selectedCharID].ttsMode === 'webspeech' || DBState.db.characters[$selectedCharID].ttsMode === 'elevenlab'}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                        <div class="flex items-center cursor-pointer hover:text-primary transition-colors" onclick={() => {
                             stopTTS()
                         }}>
                             <MicOffIcon />
@@ -967,7 +967,7 @@
                         </div>
                     {/if}
 
-                    <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors"
+                    <div class="flex items-center cursor-pointer hover:text-primary transition-colors"
                         class:text-textcolor2={(DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length < 2) || (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].role !== 'char')}
                         onclick={() => {
                             if((DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length < 2) || (DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message[DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].message.length - 1].role !== 'char')){
@@ -982,7 +982,7 @@
 
 
                     {#if DBState.db.showMenuChatList}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                        <div class="flex items-center cursor-pointer hover:text-primary transition-colors" onclick={() => {
                             openChatList = true
                             openMenu = false
                         }}>
@@ -993,7 +993,7 @@
 
                     
                     {#if DBState.db.enableRisuaiProTools && !DBState.db.hideEasyPanel}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                        <div class="flex items-center cursor-pointer hover:text-primary transition-colors" onclick={() => {
                             easyPanelStore.open = !easyPanelStore.open
                         }}>
                             <SparkleIcon />
@@ -1002,7 +1002,7 @@
                     {/if}
 
                     {#each additionalChatMenu as menu}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                        <div class="flex items-center cursor-pointer hover:text-primary transition-colors" onclick={() => {
                             menu.callback()
                             openMenu = false
                         }}>
@@ -1013,7 +1013,7 @@
 
                     {#if DBState.db.showMenuHypaMemoryModal}
                         {#if DBState.db.hypaV3}
-                            <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                            <div class="flex items-center cursor-pointer hover:text-primary transition-colors" onclick={() => {
                                 $hypaV3ModalOpen = true
                                 openMenu = false
                             }}>
@@ -1026,7 +1026,7 @@
                     {/if}
                     
                     {#if DBState.db.translator !== ''}
-                        <div class={"flex items-center cursor-pointer "+ (DBState.db.useAutoTranslateInput ? 'text-green-500':'lg:hover:text-green-500')} onclick={() => {
+                        <div class={"flex items-center cursor-pointer "+ (DBState.db.useAutoTranslateInput ? 'text-green-500':'lg:hover:text-primary')} onclick={() => {
                             DBState.db.useAutoTranslateInput = !DBState.db.useAutoTranslateInput
                         }}>
                             <GlobeIcon />
@@ -1035,14 +1035,14 @@
                         
                     {/if}
             
-                    <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                    <div class="flex items-center cursor-pointer hover:text-primary transition-colors" onclick={() => {
                         screenShot()
                     }}>
                         <CameraIcon />
                         <span class="ml-2">{language.screenshot}</span>
                     </div>
 
-                    <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={async () => {
+                    <div class="flex items-center cursor-pointer hover:text-primary transition-colors" onclick={async () => {
                         const results = await postChatFile(messageInput)
                         if(!results) return
                         for(const res of results){
@@ -1061,7 +1061,7 @@
                     </div>
 
 
-                    <div class={"flex items-center cursor-pointer "+ (DBState.db.useAutoSuggestions ? 'text-green-500':'lg:hover:text-green-500')} onclick={async () => {
+                    <div class={"flex items-center cursor-pointer "+ (DBState.db.useAutoSuggestions ? 'text-green-500':'lg:hover:text-primary')} onclick={async () => {
                         DBState.db.useAutoSuggestions = !DBState.db.useAutoSuggestions
                     }}>
                         <ReplyIcon />
@@ -1069,7 +1069,7 @@
                     </div>
 
 
-                    <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                    <div class="flex items-center cursor-pointer hover:text-primary transition-colors" onclick={() => {
                         DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].modules ??= []
                         openModuleList = true
                         openMenu = false
@@ -1079,13 +1079,13 @@
                     </div>
 
                     {#if DBState.db.sideMenuRerollButton}
-                        <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={reroll}>
+                        <div class="flex items-center cursor-pointer hover:text-primary transition-colors" onclick={reroll}>
                             <RefreshCcwIcon />
                             <span class="ml-2">{language.reroll}</span>
                         </div>
                     {/if}
 
-                    <div class="flex items-center cursor-pointer hover:text-green-500 transition-colors" onclick={() => {
+                    <div class="flex items-center cursor-pointer hover:text-primary transition-colors" onclick={() => {
                         openMenu = false
                         quickMenu()
                     }}>

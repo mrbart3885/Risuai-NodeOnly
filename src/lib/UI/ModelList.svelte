@@ -76,12 +76,12 @@
                 {#await getHordeModels()}
                     <button class="p-2">Loading...</button>
                 {:then models}
-                    <button onclick={() => {changeModel("horde:::" + 'auto')}} class="p-2 hover:text-green-500">
+                    <button onclick={() => {changeModel("horde:::" + 'auto')}} class="p-2 hover:text-primary">
                         Auto Model
                         <br><span class="text-textcolor2 text-sm">Performace: Auto</span>
                     </button>
                     {#each models as model}
-                        <button onclick={() => {changeModel("horde:::" + model.name)}} class="p-2 hover:text-green-500">
+                        <button onclick={() => {changeModel("horde:::" + model.name)}} class="p-2 hover:text-primary">
                             {model.name.trim()}
                             <br><span class="text-textcolor2 text-sm">Performace: {model.performance.toFixed(1)}</span>
                         </button>

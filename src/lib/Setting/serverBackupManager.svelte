@@ -111,7 +111,7 @@
         <div class="flex items-center text-textcolor mb-4">
             <h2 class="mt-0 mb-0">{language.serverBackupHeader}</h2>
             <div class="grow flex justify-end">
-                <button class="text-textcolor2 hover:text-green-500 cursor-pointer" onclick={close}>
+                <button class="text-textcolor2 hover:text-primary cursor-pointer" onclick={close}>
                     <XIcon size={24}/>
                 </button>
             </div>
@@ -129,11 +129,11 @@
                         <span class="text-xs text-textcolor2">{formatBytes(backup.size)}</span>
                     </div>
                     <div class="grow flex justify-end items-center">
-                        <button class="text-textcolor2 hover:text-green-500 cursor-pointer mr-2" title={language.serverBackupRestore}
+                        <button class="text-textcolor2 hover:text-primary cursor-pointer mr-2" title={language.serverBackupRestore}
                             onclick={() => restoreBackup(backup)}>
                             <RotateCcwIcon size={18}/>
                         </button>
-                        <button class="text-textcolor2 hover:text-green-500 cursor-pointer mr-2" title={language.serverBackupDownload}
+                        <button class="text-textcolor2 hover:text-primary cursor-pointer mr-2" title={language.serverBackupDownload}
                             onclick={() => downloadBackup(backup)}>
                             <DownloadIcon size={18}/>
                         </button>

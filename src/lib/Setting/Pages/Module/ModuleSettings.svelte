@@ -61,8 +61,8 @@
                                 "mr-2 cursor-pointer text-blue-500" :
                                 rmodule.namespace && 
                                 DBState.db.moduleIntergration?.split(',').map((s) => s.trim()).includes(rmodule.namespace) ?
-                                "text-amber-500 hover:text-green-500 mr-2 cursor-pointer" :
-                                "text-textcolor2 hover:text-green-500 mr-2 cursor-pointer"
+                                "text-amber-500 hover:text-primary mr-2 cursor-pointer" :
+                                "text-textcolor2 hover:text-primary mr-2 cursor-pointer"
                             } use:tooltip={language.enableGlobal} onclick={async (e) => {
                             e.stopPropagation()
                             if(DBState.db.enabledModules.includes(rmodule.id)){
@@ -76,13 +76,13 @@
                             <Globe size={18}/>
                         </button>
                         {#if !rmodule.mcp}
-                            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" use:tooltip={language.download} onclick={async (e) => {
+                            <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer" use:tooltip={language.download} onclick={async (e) => {
                                 e.stopPropagation()
                                 exportModule(rmodule)
                             }}>
                                 <Share2Icon size={18}/>
                             </button>
-                            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" use:tooltip={language.edit} onclick={async (e) => {
+                            <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer" use:tooltip={language.edit} onclick={async (e) => {
                                 e.stopPropagation()
                                 const index = DBState.db.modules.findIndex((v) => v.id === rmodule.id)
                                 tempModule = rmodule
@@ -99,7 +99,7 @@
                                 <SquarePen size={18}/>
                             </button>
                         {/if}
-                        <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" use:tooltip={language.remove} onclick={async (e) => {
+                        <button class="text-textcolor2 hover:text-red-400 mr-2 cursor-pointer" use:tooltip={language.remove} onclick={async (e) => {
                             e.stopPropagation()
                             const d = await alertConfirm(`${language.removeConfirm}` + rmodule.name)
                             if(d){

@@ -66,7 +66,7 @@
         <div class="flex items-center text-textcolor mb-4">
             <h2 class="mt-0 mb-0">{language.themePresets}</h2>
             <div class="grow flex justify-end">
-                <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer items-center" onclick={close}>
+                <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer items-center" onclick={close}>
                     <XIcon size={24}/>
                 </button>
             </div>
@@ -148,7 +148,7 @@
                     <span>{preset.name}</span>
                 {/if}
                 <div class="grow flex justify-end">
-                    <div class="text-textcolor2 hover:text-green-500 cursor-pointer mr-2" role="button" tabindex="0" onclick={(e) => {
+                    <div class="text-textcolor2 hover:text-primary cursor-pointer mr-2" role="button" tabindex="0" onclick={(e) => {
                         e.stopPropagation()
                         copyThemePreset(i)
                     }} onkeydown={(e) => {
@@ -158,7 +158,7 @@
                     }}>
                         <CopyIcon size={18}/>
                     </div>
-                    <div class="text-textcolor2 hover:text-green-500 cursor-pointer mr-2" role="button" tabindex="0" onclick={async (e) => {
+                    <div class="text-textcolor2 hover:text-primary cursor-pointer mr-2" role="button" tabindex="0" onclick={async (e) => {
                         e.stopPropagation()
                         downloadThemePreset(i, 'json')
                     }} onkeydown={(e) => {
@@ -168,7 +168,7 @@
                     }}>
                         <Share2Icon size={18} />
                     </div>
-                    <div class="text-textcolor2 hover:text-green-500 cursor-pointer" role="button" tabindex="0" onclick={async (e) => {
+                    <div class="text-textcolor2 hover:text-red-400 cursor-pointer" role="button" tabindex="0" onclick={async (e) => {
                         e.stopPropagation()
                         if(DBState.db.themePresets.length === 1){
                             notifyError(language.errors.onlyOneChat)
@@ -216,7 +216,7 @@
         </div>
 
         <div class="flex mt-2 items-center">
-            <button class="text-textcolor2 hover:text-green-500 cursor-pointer mr-1" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary cursor-pointer mr-1" onclick={() => {
                 let themePresets = DBState.db.themePresets
                 let newPreset = safeStructuredClone(themePresetTemplate)
                 newPreset.name = `New Theme`
@@ -225,12 +225,12 @@
             }}>
                 <PlusIcon/>
             </button>
-            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer" onclick={() => {
                 importThemePreset()
             }}>
                 <HardDriveUploadIcon size={18}/>
             </button>
-            <button class="text-textcolor2 hover:text-green-500 cursor-pointer" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary cursor-pointer" onclick={() => {
                 editMode = !editMode
             }}>
                 <PencilIcon size={18}/>

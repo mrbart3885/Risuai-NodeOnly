@@ -21,7 +21,7 @@
         <div class="flex items-center text-textcolor mb-4">
             <h2 class="mt-0 mb-0">{language.chatList}</h2>
             <div class="grow flex justify-end">
-                <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer items-center" onclick={close}>
+                <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer items-center" onclick={close}>
                     <XIcon size={24}/>
                 </button>
             </div>
@@ -39,7 +39,7 @@
                     <span>{chat.name}</span>
                 {/if}
                 <div class="grow flex justify-end">
-                    <div class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" role="button" tabindex="0" onclick={async (e) => {
+                    <div class="text-textcolor2 hover:text-primary mr-2 cursor-pointer" role="button" tabindex="0" onclick={async (e) => {
                         e.stopPropagation()
                         exportChat(i)
                     }} onkeydown={() => {
@@ -47,7 +47,7 @@
                     }}>
                         <DownloadIcon size={18}/>
                     </div>
-                    <div class="text-textcolor2 hover:text-green-500 cursor-pointer" role="button" tabindex="0" onclick={async (e) => {
+                    <div class="text-textcolor2 hover:text-red-400 cursor-pointer" role="button" tabindex="0" onclick={async (e) => {
                         e.stopPropagation()
                         if(DBState.db.characters[$selectedCharID].chats.length === 1){
                             notifyError(language.errors.onlyOneChat)
@@ -70,7 +70,7 @@
             </button>
         {/each}
         <div class="flex mt-2 items-center">
-            <button class="text-textcolor2 hover:text-green-500 cursor-pointer mr-1" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary cursor-pointer mr-1" onclick={() => {
                 const len = DBState.db.characters[$selectedCharID].chats.length
                 let chats = DBState.db.characters[$selectedCharID].chats
                 const newChat = {
@@ -84,12 +84,12 @@
             }}>
                 <PlusIcon/>
             </button>
-            <button class="text-textcolor2 hover:text-green-500 mr-2 cursor-pointer" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary mr-2 cursor-pointer" onclick={() => {
                 importChat()
             }}>
                 <HardDriveUploadIcon size={18}/>
             </button>
-            <button class="text-textcolor2 hover:text-green-500 cursor-pointer" onclick={() => {
+            <button class="text-textcolor2 hover:text-primary cursor-pointer" onclick={() => {
                 editMode = !editMode
             }}>
                 <SquarePenIcon size={18}/>

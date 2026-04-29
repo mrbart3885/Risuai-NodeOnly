@@ -521,7 +521,7 @@
                 <span>
                     {language.shareExport}
                 </span>
-                <button class="float-right text-textcolor2 hover:text-green-500" onclick={() => {
+                <button class="float-right text-textcolor2 hover:text-primary" onclick={() => {
                     alertStore.set({
                         type: 'none',
                         msg: JSON.stringify({
