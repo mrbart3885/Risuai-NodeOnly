@@ -194,7 +194,7 @@
         {#if value.mode === 'folder'}
         <div class="border-0 outline-hidden w-full mt-2 flex flex-col mb-2">
             <span class="text-textcolor mt-6 mb-2">{language.folderName}</span>
-            <TextInput size="sm" bind:value={value.comment}/>
+            <TextInput bind:value={value.comment}/>
 
             <div class="mt-4">
                 <LoreBookList externalLoreBooks={externalLoreBooks} showFolder={value.key} />
@@ -221,21 +221,21 @@
         {:else}
         <div class="border-0 outline-hidden w-full mt-2 flex flex-col mb-2">
             <span class="text-textcolor mt-6">{language.name} <Help key="loreName"/></span>
-            <TextInput size="sm" bind:value={value.comment}/>
+            <TextInput bind:value={value.comment}/>
             {#if !value.alwaysActive}
                 <span class="text-textcolor mt-6">{language.activationKeys} <Help key="loreActivationKey"/></span>
                 <span class="text-xs text-textcolor2">{language.activationKeysInfo}</span>
-                <TextInput size="sm" bind:value={value.key}/>
+                <TextInput bind:value={value.key}/>
 
                 {#if value.selective}
                     <span class="text-textcolor mt-6">{language.SecondaryKeys}</span>
                     <span class="text-xs text-textcolor2">{language.activationKeysInfo}</span>
-                    <TextInput size="sm" bind:value={value.secondkey}/>
+                    <TextInput bind:value={value.secondkey}/>
                 {/if}
             {/if}
             {#if !(value.activationPercent === undefined || value.activationPercent === null)}
                 <span class="text-textcolor mt-6">{language.activationProbability}</span>
-                <NumberInput size="sm" bind:value={value.activationPercent} onChange={() => {
+                <NumberInput bind:value={value.activationPercent} onChange={() => {
                     if(isNaN(value.activationPercent) || !value.activationPercent || value.activationPercent < 0){
                         value.activationPercent = 0
                     }
@@ -245,7 +245,7 @@
                 }} />
             {/if}
             <span class="text-textcolor mt-4">{language.insertOrder} <Help key="loreorder"/></span>
-            <NumberInput size="sm" bind:value={value.insertorder} min={0} max={1000}/>
+            <NumberInput bind:value={value.insertorder} min={0} max={1000}/>
             <span class="text-textcolor mt-4 mb-2">{language.prompt}</span>
             <TextAreaInput highlight autocomplete="off" bind:value={value.content} />
             {#await getTokens(value.content)}

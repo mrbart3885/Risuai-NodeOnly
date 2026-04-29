@@ -51,16 +51,16 @@
 
 {#if model === 'openai3small' || model === 'openai3large' || model === 'ada'}
     <span class="text-textcolor text-lg">OpenAI API Key</span>
-    <TextInput size="sm" marginBottom bind:value={DBState.db.supaMemoryKey}/>
+    <TextInput marginBottom bind:value={DBState.db.supaMemoryKey}/>
 {/if}
 
 {#if model === "custom"}
     <span class="text-textcolor text-lg">URL</span>
-    <TextInput size="sm" marginBottom bind:value={DBState.db.hypaCustomSettings.url}/>
+    <TextInput marginBottom bind:value={DBState.db.hypaCustomSettings.url}/>
     <span class="text-textcolor text-lg">Key/Password</span>
-    <TextInput size="sm" marginBottom bind:value={DBState.db.hypaCustomSettings.key}/>
+    <TextInput marginBottom bind:value={DBState.db.hypaCustomSettings.key}/>
     <span class="text-textcolor text-lg">Request Model</span>
-    <TextInput size="sm" marginBottom bind:value={DBState.db.hypaCustomSettings.model}/>
+    <TextInput marginBottom bind:value={DBState.db.hypaCustomSettings.model}/>
 {/if}
 
 <div class="mb-4"></div>

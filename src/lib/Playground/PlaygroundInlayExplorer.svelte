@@ -268,7 +268,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
       <div class="flex flex-col gap-1 text-sm text-textcolor2">
         <span>{language.playground.inlaySort}</span>
-        <SelectInput bind:value={sortKey} size="sm">
+        <SelectInput bind:value={sortKey}>
           <OptionInput value="updated-desc">{language.playground.inlaySortUpdatedDesc}</OptionInput>
           <OptionInput value="updated-asc">{language.playground.inlaySortUpdatedAsc}</OptionInput>
           <OptionInput value="created-desc">{language.playground.inlaySortCreatedDesc}</OptionInput>
@@ -278,7 +278,7 @@
 
       <div class="flex flex-col gap-1 text-sm text-textcolor2">
         <span>{language.character}</span>
-        <SelectInput bind:value={characterFilter} size="sm">
+        <SelectInput bind:value={characterFilter}>
           <OptionInput value="">{language.none}</OptionInput>
           {#each characterIndex as char (char.chaId)}
             <OptionInput value={char.chaId}>{char.name}</OptionInput>
@@ -288,7 +288,7 @@
 
       <div class="flex flex-col gap-1 text-sm text-textcolor2">
         <span>{language.Chat}</span>
-        <SelectInput bind:value={chatFilter} size="sm">
+        <SelectInput bind:value={chatFilter}>
           <OptionInput value="">{language.none}</OptionInput>
           {#each availableChats as chat (chat.id)}
             <OptionInput value={chat.id}>{chat.name}</OptionInput>
@@ -298,7 +298,7 @@
 
       <div class="flex flex-col gap-1 text-sm text-textcolor2">
         <span>{language.playground.inlayFilter}</span>
-        <SelectInput bind:value={specialFilter} size="sm">
+        <SelectInput bind:value={specialFilter}>
           <OptionInput value="all">{language.playground.inlayFilterAll}</OptionInput>
           <OptionInput value="meta-missing">{language.playground.inlayFilterMetaMissing}</OptionInput>
           <OptionInput value="orphan-character">{language.playground.inlayFilterOrphanCharacter}</OptionInput>

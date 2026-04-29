@@ -101,7 +101,7 @@
             </div>
         </div>
 
-        <TextInput bind:value={searchQuery} placeholder={language.openRouterSearchModel} size="sm" />
+        <TextInput bind:value={searchQuery} placeholder={language.openRouterSearchModel} />
     {/if}
 
     <div class="h-80 overflow-y-auto rounded-lg border border-darkborderc bg-bgcolor">

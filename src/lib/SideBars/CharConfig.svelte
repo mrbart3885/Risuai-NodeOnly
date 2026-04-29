@@ -551,7 +551,7 @@
                                             <img src={assetFilePath[i]} class="w-16 h-16 m-1 rounded-md" alt={assets[0]}/>
                                         {/if}
                                     {/if}
-                                    <TextInput size="sm" marginBottom bind:value={DBState.db.characters[$selectedCharID].additionalAssets[i][0]} placeholder="..." />
+                                    <TextInput marginBottom bind:value={DBState.db.characters[$selectedCharID].additionalAssets[i][0]} placeholder="..." />
                                 </td>
                                 
                                 <th class="font-medium cursor-pointer w-10">
@@ -765,16 +765,16 @@
                 </SelectInput>
                 {/if}
                 <span class="text-textcolor">Speed scale</span>
-                <NumberInput size={"sm"} marginBottom bind:value={DBState.db.characters[$selectedCharID].voicevoxConfig.SPEED_SCALE}/>
+                <NumberInput marginBottom bind:value={DBState.db.characters[$selectedCharID].voicevoxConfig.SPEED_SCALE}/>
 
                 <span class="text-textcolor">Pitch scale</span>
-                <NumberInput size={"sm"} marginBottom bind:value={DBState.db.characters[$selectedCharID].voicevoxConfig.PITCH_SCALE}/>
+                <NumberInput marginBottom bind:value={DBState.db.characters[$selectedCharID].voicevoxConfig.PITCH_SCALE}/>
 
                 <span class="text-textcolor">Volume scale</span>
-                <NumberInput size={"sm"} marginBottom bind:value={DBState.db.characters[$selectedCharID].voicevoxConfig.VOLUME_SCALE}/>
+                <NumberInput marginBottom bind:value={DBState.db.characters[$selectedCharID].voicevoxConfig.VOLUME_SCALE}/>
 
                 <span class="text-textcolor">Intonation scale</span>
-                <NumberInput size={"sm"} marginBottom bind:value={DBState.db.characters[$selectedCharID].voicevoxConfig.INTONATION_SCALE}/>
+                <NumberInput marginBottom bind:value={DBState.db.characters[$selectedCharID].voicevoxConfig.INTONATION_SCALE}/>
                 <span class="text-sm mb-2 text-textcolor2">To use VOICEVOX, you need to run a colab and put the localtunnel URL in "Settings → Other Bots". https://colab.research.google.com/drive/1tyeXJSklNfjW-aZJAib1JfgOMFarAwze</span>
         {:else if DBState.db.characters[$selectedCharID].ttsMode === 'novelai'}
             <span class="text-textcolor">Custom Voice Seed</span>
@@ -794,7 +794,7 @@
                 </SelectInput>
             {:else}
                 <span class="text-textcolor">Voice</span>
-                <TextInput size={"sm"} bind:value={DBState.db.characters[$selectedCharID].naittsConfig.voice}/>
+                <TextInput bind:value={DBState.db.characters[$selectedCharID].naittsConfig.voice}/>
             {/if}
             <span class="text-textcolor">Version</span>
             <SelectInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].naittsConfig.version}>
@@ -1042,18 +1042,18 @@
         <TextAreaInput margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].translatorNote}></TextAreaInput>
 
         <span class="text-textcolor">{language.creator}</span>
-        <TextInput size="sm" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].additionalData.creator} />
+        <TextInput autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].additionalData.creator} />
 
         <span class="text-textcolor">{language.CharVersion}</span>
-        <TextInput size="sm" bind:value={DBState.db.characters[$selectedCharID].additionalData.character_version}/>
+        <TextInput bind:value={DBState.db.characters[$selectedCharID].additionalData.character_version}/>
 
         <span class="text-textcolor">{language.nickname} <Help key="nickname" /></span>
-        <TextInput size="sm" bind:value={DBState.db.characters[$selectedCharID].nickname}/>
+        <TextInput bind:value={DBState.db.characters[$selectedCharID].nickname}/>
 
         <span class="text-textcolor">{language.depthPrompt}</span>
         <div class="flex justify-center items-center">
-            <NumberInput size="sm" bind:value={DBState.db.characters[$selectedCharID].depth_prompt.depth} className="w-12"/>
-            <TextInput size="sm" bind:value={DBState.db.characters[$selectedCharID].depth_prompt.prompt} className="flex-1"/>
+            <NumberInput bind:value={DBState.db.characters[$selectedCharID].depth_prompt.depth} className="w-12"/>
+            <TextInput bind:value={DBState.db.characters[$selectedCharID].depth_prompt.prompt} className="flex-1"/>
         </div>
 
         <span class="text-textcolor mt-2">{language.altGreet}</span>

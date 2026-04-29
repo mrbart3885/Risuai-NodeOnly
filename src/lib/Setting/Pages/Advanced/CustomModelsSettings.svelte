@@ -89,13 +89,13 @@
             {#if openedModels.has(model.id)}
             <div class="flex flex-col border border-selected p-2 rounded-b-md overflow-x-auto">
             <span class="text-textcolor mt-4">{language.name}</span>
-            <TextInput className="mt-2" size={"sm"} bind:value={DBState.db.customModels[index].name}/>
+            <TextInput className="mt-2" bind:value={DBState.db.customModels[index].name}/>
             <span class="text-textcolor mt-4">{language.proxyRequestModel}</span>
-            <TextInput className="mt-2" size={"sm"} bind:value={DBState.db.customModels[index].internalId}/>
+            <TextInput className="mt-2" bind:value={DBState.db.customModels[index].internalId}/>
             <span class="text-textcolor mt-4">URL</span>
-            <TextInput className="mt-2" size={"sm"} bind:value={DBState.db.customModels[index].url}/>
+            <TextInput className="mt-2" bind:value={DBState.db.customModels[index].url}/>
             <span class="text-textcolor mt-4">{language.tokenizer}</span>
-            <SelectInput className="mt-2 mb-4" size={"sm"} value={DBState.db.customModels[index].tokenizer.toString()} onchange={(e) => {
+            <SelectInput className="mt-2 mb-4" value={DBState.db.customModels[index].tokenizer.toString()} onchange={(e) => {
                 DBState.db.customModels[index].tokenizer = parseInt(e.currentTarget.value) as LLMTokenizer
             }}>
                 <OptionInput value="0">Unknown</OptionInput>
@@ -113,7 +113,7 @@
                 <OptionInput value="13">DeepSeek</OptionInput>
             </SelectInput>
             <span class="text-textcolor">{language.format}</span>
-            <SelectInput className="mt-2 mb-4" size={"sm"} value={DBState.db.customModels[index].format.toString()} onchange={(e) => {
+            <SelectInput className="mt-2 mb-4" value={DBState.db.customModels[index].format.toString()} onchange={(e) => {
                 DBState.db.customModels[index].format = parseInt(e.currentTarget.value) as LLMFormat
             }}>
                 <OptionInput value="0">OpenAICompatible</OptionInput>
@@ -133,8 +133,8 @@
                 <OptionInput value="18">OpenAIResponseAPI</OptionInput>
             </SelectInput>
             <span class="text-textcolor">{language.proxyAPIKey}</span>
-            <TextInput className="mt-2" size={"sm"} bind:value={DBState.db.customModels[index].key}/>
-            <span class="text-textcolor">{language.additionalParams}</span>
+            <TextInput className="mt-2" bind:value={DBState.db.customModels[index].key}/>
+            <span class="text-textcolor mt-4">{language.additionalParams}</span>
             <TextAreaInput className="mt-2 mb-4" bind:value={DBState.db.customModels[index].params} placeholder={`temperature=0.7
     max_tokens=2000
     reasoning_effort="high"

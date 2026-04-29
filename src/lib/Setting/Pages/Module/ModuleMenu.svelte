@@ -198,9 +198,9 @@
     <span>{language.name}</span>
     <TextInput bind:value={currentModule.name} className="mt-2"/>
     <span class="mt-4">{language.description}</span>
-    <TextInput bind:value={currentModule.description} className="mt-2" size="sm"/>
+    <TextInput bind:value={currentModule.description} className="mt-2"/>
     <span class="mt-4">{language.namespace} <Help key="namespace" /></span>
-    <TextInput bind:value={currentModule.namespace} className="mt-2" size="sm"/>
+    <TextInput bind:value={currentModule.namespace} className="mt-2"/>
     <div class="flex items-center mt-4">
         <Check bind:check={currentModule.hideIcon} name={language.hideChatIcon}/>
     </div>
@@ -228,7 +228,7 @@
 {/if}
 
 {#if submenu === 2 && (Array.isArray(currentModule.regex))}
-    <TextAreaInput bind:value={currentModule.backgroundEmbedding} className="mt-2" placeholder={language.backgroundHTML} size="sm"/>
+    <TextAreaInput bind:value={currentModule.backgroundEmbedding} className="mt-2" placeholder={language.backgroundHTML}/>
     <RegexList bind:value={currentModule.regex}/>
     <div class="text-textcolor2 mt-2 flex gap-2">
         <button class="font-medium cursor-pointer hover:text-green-500" onclick={() => {
@@ -287,7 +287,7 @@
                                     <img src={assetFilePath[i]} class="w-16 h-16 m-1 rounded-md" alt={assets[0]}/>
                                 {/if}
                             {/if}
-                            <TextInput fullwidth size="sm" marginBottom bind:value={currentModule.assets[i][0]} placeholder="..." />
+                            <TextInput fullwidth marginBottom bind:value={currentModule.assets[i][0]} placeholder="..." />
                         </td>
                         
                         <th class="font-medium cursor-pointer w-10">
