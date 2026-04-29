@@ -532,10 +532,10 @@
             {#each DBState.db.bias as bias, i}
                 <tr>
                     <td class="font-medium truncate">
-                        <TextInput bind:value={DBState.db.bias[i][0]} size="lg" fullwidth/>
+                        <TextInput bind:value={DBState.db.bias[i][0]} fullwidth/>
                     </td>
                     <td class="font-medium truncate">
-                        <NumberInput bind:value={DBState.db.bias[i][1]} max={100} min={-101} size="lg" fullwidth/>
+                        <NumberInput bind:value={DBState.db.bias[i][1]} max={100} min={-101} fullwidth/>
                     </td>
                     <td>
                         <button class="font-medium flex justify-center items-center h-full cursor-pointer hover:text-green-500 w-full" onclick={() => {
@@ -586,10 +586,10 @@
             {#each DBState.db.additionalParams as additionalParams, i}
                 <tr>
                     <td class="font-medium truncate">
-                        <TextInput bind:value={DBState.db.additionalParams[i][0]} size="lg" fullwidth/>
+                        <TextInput bind:value={DBState.db.additionalParams[i][0]} fullwidth/>
                     </td>
                     <td class="font-medium truncate">
-                        <TextInput bind:value={DBState.db.additionalParams[i][1]} size="lg" fullwidth/>
+                        <TextInput bind:value={DBState.db.additionalParams[i][1]} fullwidth/>
                     </td>
                     <td>
                         <button class="font-medium flex justify-center items-center h-full cursor-pointer hover:text-green-500 w-full" onclick={() => {

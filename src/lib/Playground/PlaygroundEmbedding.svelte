@@ -66,11 +66,11 @@
 <div class="mb-4"></div>
 
 <span class="text-textcolor text-lg">Query</span>
-<TextInput bind:value={query} size="lg" fullwidth />
+<TextInput bind:value={query} fullwidth />
 
 <span class="text-textcolor text-lg mt-6">Data</span>
 {#each data as item, i}
-    <TextInput bind:value={data[i]} size="lg" fullwidth marginBottom />
+    <TextInput bind:value={data[i]} fullwidth marginBottom />
 {/each}
 <Button styled="outlined" onclick={() => {
     data.push("");
