@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { AccessibilityIcon, ActivityIcon, PackageIcon, BotIcon, BoxIcon, CodeIcon, CogIcon, ContactIcon, FlaskConicalIcon, ImageIcon, LanguagesIcon, MonitorIcon, MonitorSmartphoneIcon, Sailboat, UserIcon, CircleXIcon, KeyboardIcon, SparkleIcon } from "@lucide/svelte";
+    import { AccessibilityIcon, ActivityIcon, PackageIcon, BotIcon, CodeIcon, CogIcon, ContactIcon, FlaskConicalIcon, ImageIcon, LanguagesIcon, MonitorIcon, MonitorSmartphoneIcon, Sailboat, UserIcon, CircleXIcon, KeyboardIcon, SparkleIcon } from "@lucide/svelte";
     import { language } from "src/lang";
     import DisplaySettings from "./Pages/DisplaySettings.svelte";
     import UserSettings from "./Pages/UserSettings.svelte";
@@ -11,7 +11,6 @@
     import SystemSettings from "./Pages/SystemSettings.svelte";
     import { additionalSettingsMenu, easyPanelStore, MobileGUI, SettingsMenuIndex, settingsOpen } from "src/ts/stores.svelte";
     import { DBState } from "src/ts/stores.svelte";
-    import Communities from "./Pages/Communities.svelte";
     import GlobalLoreBookSettings from "./Pages/GlobalLoreBookSettings.svelte";
     import Lorepreset from "./lorepreset.svelte";
     import GlobalRegex from "./Pages/GlobalRegex.svelte";
@@ -19,7 +18,6 @@
     import AccessibilitySettings from "./Pages/AccessibilitySettings.svelte";
     import PersonaSettings from "./Pages/PersonaSettings.svelte";
     import PromptSettings from "./Pages/PromptSettings.svelte";
-    import ThanksPage from "./Pages/ThanksPage.svelte";
     import ModuleSettings from "./Pages/Module/ModuleSettings.svelte";
   import { isLite } from "src/ts/lite";
     import HotkeySettings from "./Pages/HotkeySettings.svelte";
@@ -180,15 +178,6 @@
                         <CogIcon />
                         <span>{language.system}</span>
                     </button>
-                    <button class="flex gap-2 items-center hover:text-textcolor"
-                        class:text-textcolor={$SettingsMenuIndex === 77}
-                        class:text-textcolor2={$SettingsMenuIndex !== 77}
-                        onclick={() => {
-                        $SettingsMenuIndex = 77
-                    }}>
-                        <BoxIcon />
-                        <span>{language.supporterThanks}</span>
-                    </button>
                     {#if devPanelEnabled}
                         <button class="flex gap-2 items-center hover:text-textcolor"
                             class:text-textcolor={$SettingsMenuIndex === 99}
@@ -262,8 +251,6 @@
                         <FilesSettings />
                     {:else if $SettingsMenuIndex === 6}
                         <AdvancedSettings />
-                    {:else if $SettingsMenuIndex === 7}
-                        <Communities />
                     {:else if $SettingsMenuIndex === 8}
                         <GlobalLoreBookSettings bind:openLoreList />
                     {:else if $SettingsMenuIndex === 9}
@@ -288,8 +275,6 @@
                         <RemoteAccessSettings/>
                     {:else if $SettingsMenuIndex === 22}
                         <SystemSettings/>
-                    {:else if $SettingsMenuIndex === 77}
-                        <ThanksPage/>
                     {:else if $SettingsMenuIndex === 99 && devPanelEnabled}
                         <DevPanel/>
                     {/if}
