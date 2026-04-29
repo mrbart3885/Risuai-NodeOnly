@@ -36,6 +36,7 @@
     {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
 </span>
 <TextAreaInput
+    className="mt-2"
     bind:value={localValue}
     placeholder={item.options?.placeholder}
 />

@@ -49,7 +49,7 @@
     {getLabel(item)}
     {#if item.helpKey}<Help key={item.helpKey as any}/>{/if}
 </span>
-<SelectInput bind:value={localValue}>
+<SelectInput className="mt-2" bind:value={localValue}>
     {#each processedOptions as opt}
         <OptionInput value={opt.value}>
             {opt.labelKey ? (language as any)[opt.labelKey] : opt.label}
