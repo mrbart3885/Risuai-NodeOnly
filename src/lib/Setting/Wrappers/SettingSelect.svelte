@@ -35,11 +35,12 @@
     // Process options to support labelKey translation and conditional rendering
     let processedOptions = $derived((item.options?.selectOptions ?? []).filter(opt => !opt.condition || opt.condition(ctx)));
 
-    // Reset value if current selection becomes hidden
+    // Reset value if current selection becomes hidden.
+    // Falls back to the first option (treated as the default by convention — see SelectOption).
     $effect(() => {
         const currentValue = untrack(() => localValue);
         if (processedOptions.length > 0 && currentValue !== undefined && !processedOptions.some(o => o.value === currentValue)) {
-            localValue = processedOptions[processedOptions.length - 1].value;
+            localValue = processedOptions[0].value;
         }
     });
 </script>
