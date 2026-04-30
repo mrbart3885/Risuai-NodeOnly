@@ -216,6 +216,7 @@ export const helpKo = {
         "unrecommendedClaudeCachingRetrival": "Claude 응답을 캐싱해 같은 요청 시 재사용을 시도합니다. 캐시 무효화 조건이 까다로워 의도하지 않은 결과를 반환할 수 있어 비권장입니다.",
         "lightningRealmImport": "동기화(account.useSync)가 켜진 상태에서, RisuRealm에서 캐릭터를 가져올 때 빠른 경로를 사용합니다. 실험적 옵션입니다.",
         "unrecommendedTriggerV1": "Trigger V1을 추가/편집할 수 있게 합니다. Trigger V1은 더 이상 권장되지 않으며, 동일 작업은 V2/V3로 작성하세요. 기존 V1 트리거 호환을 위해서만 사용하세요.",
+        "themePresets": "현재 \"소리 및 디스플레이\" 설정(레이아웃, 색상/폰트, 크기, 소리 토글 등)을 묶어 프리셋으로 저장하고 전환합니다. 아래 옵션을 수정하면 현재 프리셋에 자동 반영되며, 버튼을 누르면 프리셋 목록 창이 열려 추가·전환·이름 변경·삭제를 할 수 있습니다.",
         "theme": "전체 채팅 화면 레이아웃 테마입니다.\n\n- **NodeOnly Standard**: 기본 (NodeOnly 디자인)\n- **Standard Risu**: 기존 RisuAI 레이아웃\n- **Waifulike**: 캐릭터 일러스트 중심, 양쪽에 배경 캐릭터\n- **Mobile Chat**: 모바일 채팅 스타일\n- **CardBoard**: 카드 형태\n- **Custom HTML**: 아래 \"채팅 HTML\"로 직접 작성",
         "waifuWidth": "Waifulike 테마에서 캐릭터 일러스트의 너비입니다 (50-200%). 100%가 기본 크기입니다. Waifulike 테마에서만 노출됩니다.",
         "waifuWidth2": "Waifulike 테마의 두 번째 캐릭터(또는 보조 요소)의 너비입니다 (20-150%). 1인 캐릭터일 때는 0에 가깝게 두면 숨길 수 있습니다.",

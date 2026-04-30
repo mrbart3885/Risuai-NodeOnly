@@ -16,7 +16,9 @@ export const displayThemeSettingsItems: SettingItem[] = [
         id: 'display.themePresets',
         type: 'button',
         labelKey: 'themePresets',
+        helpKey: 'themePresets',
         classes: 'mt-4',
+        getValue: (db) => db.themePresets?.[db.themePresetsId]?.name ?? 'Default',
         options: {
             onClick: () => openThemePresetList.set(true),
         },

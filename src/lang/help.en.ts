@@ -387,6 +387,8 @@ export const helpEn = {
             "Use a faster import path when importing characters from RisuRealm while account sync is enabled. Experimental.",
         unrecommendedTriggerV1:
             "Allow adding and editing Trigger V1. Trigger V1 is deprecated; use V2/V3 for new work. Keep this only for legacy V1 compatibility.",
+        themePresets:
+            "Bundle the current Sound & Display settings (layout, color/font, sizes, sound toggles, etc.) as a preset and switch between them. The active preset auto-syncs with edits you make below; clicking opens the preset list to add, switch, rename, or delete.",
         theme:
             "Overall chat layout theme.\n\n- **NodeOnly Standard**: default NodeOnly design\n- **Standard Risu**: original RisuAI layout\n- **Waifulike**: character-art-focused layout with side character visuals\n- **Mobile Chat**: mobile chat style\n- **CardBoard**: card-style layout\n- **Custom HTML**: use the custom Chat HTML below",
         waifuWidth:
