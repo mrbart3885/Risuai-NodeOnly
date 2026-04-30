@@ -817,7 +817,7 @@ export const languageKorean = {
     "customInnerFormat": "커스텀 내부 포맷",
     "innerFormat": "내부 포맷",
     "HypaMemory": "하이파메모리",
-    "ToggleHypaMemory": "하이파메모리 토글",
+    "ToggleHypaMemory": "하이파 메모리 켜기",
     "resetPromptTemplateConfirm": "정말로 프롬프트 템플릿을 초기화하시겠습니까?",
     "emotionMethod": "감정 방식",
     "continueResponse": "응답 계속하기",

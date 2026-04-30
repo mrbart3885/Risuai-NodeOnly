@@ -12,6 +12,8 @@
     import ShAccordion from '../UI/GUI/ShAccordion.svelte'
     import CheckInput from "../UI/GUI/CheckInput.svelte";
     import ShButton from "../UI/GUI/ShButton.svelte";
+    import ShSwitch from "../UI/GUI/ShSwitch.svelte";
+    import Help from "../Others/Help.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
     import OptionInput from "../UI/GUI/OptionInput.svelte";
     import TextAreaInput from '../UI/GUI/TextAreaInput.svelte'
@@ -232,16 +234,20 @@
         {/if}
         {@render toggles(groupedToggles, true)}
         {#if chara && DBState.db.hypaV3}
-            <div class="flex mt-2 items-center w-full" class:justify-end={$MobileGUI}>
-                <CheckInput
-                    check={DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage]?.supaMemory ?? chara.supaMemory ?? false}
-                    onChange={() => {
+            <div class="flex mt-2 items-center justify-between gap-2 w-full">
+                <span class="flex items-center gap-1">
+                    <span>{language.ToggleHypaMemory}</span>
+                    <Help key="toggleHypaMemory" />
+                </span>
+                <ShSwitch
+                    checked={DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage]?.supaMemory ?? chara.supaMemory ?? false}
+                    onCheckedChange={() => {
                         const char = DBState.db.characters[$selectedCharID]
                         const chat = char?.chats?.[char.chatPage]
                         if (!chat) return
                         chat.supaMemory = !(chat.supaMemory ?? char.supaMemory ?? false)
                     }}
-                    reverse name={language.ToggleHypaMemory}/>
+                />
             </div>
         {/if}
     </div>
@@ -253,16 +259,20 @@
     {/if}
     {@render toggles(groupedToggles)}
     {#if DBState.db.hypaV3}
-        <div class="flex mt-2 items-center">
-            <CheckInput
-                check={DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage]?.supaMemory ?? chara.supaMemory ?? false}
-                onChange={() => {
+        <div class="flex mt-2 items-center justify-between gap-2 w-full">
+            <span class="flex items-center gap-1">
+                <span>{language.ToggleHypaMemory}</span>
+                <Help key="toggleHypaMemory" />
+            </span>
+            <ShSwitch
+                checked={DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage]?.supaMemory ?? chara.supaMemory ?? false}
+                onCheckedChange={() => {
                     const char = DBState.db.characters[$selectedCharID]
                     const chat = char?.chats?.[char.chatPage]
                     if (!chat) return
                     chat.supaMemory = !(chat.supaMemory ?? char.supaMemory ?? false)
                 }}
-                name={language.ToggleHypaMemory}/>
+            />
         </div>
     {/if}
 {/if}

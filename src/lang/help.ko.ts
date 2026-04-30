@@ -153,6 +153,7 @@ export const helpKo = {
         "hypaV3EnableSimilarityCorrection": "활성화 시 최근 채팅 원문의 전체 요약본을 추가로 유사도 분석에 사용합니다. 실험적 하이파메모리 V3에서는 작동하지 않습니다.",
         "hypaV3UseExperimentalImpl": "실험적 하이파메모리 V3으로 전환합니다. Rate limit 설정이 가능해지고 쿼리 방식이 변경됩니다.",
         "hypaV3AlwaysToggleOn": "활성화 시 캐릭터를 선택할 때 하이파메모리 토글이 자동으로 활성화됩니다.",
+        "toggleHypaMemory": "이 채팅에서 하이파 메모리(장기 기억)를 사용할지 결정합니다.\n\n- 켜면 컨텍스트가 한도에 도달했을 때 과거 메시지를 자동으로 요약해 장기 기억으로 저장하고, 이후 응답에서 관련 요약을 다시 끌어와 사용합니다.\n- 끄면 컨텍스트를 넘어선 과거 메시지는 단순히 잘려 모델에 전달되지 않습니다.\n\n캐릭터별 기본값과 별개로 채팅 단위로 저장되므로, 같은 캐릭터의 다른 채팅에는 영향을 주지 않습니다. 요약 동작 자체의 세부 설정은 프리셋의 HypaV3 항목에서 조정합니다.",
         "hypaV3SummarizationRequestsPerMinute": "요약 시 분당 최대 수파메모리 모델 요청 수입니다. 수파메모리 모델이 보조 모델인 경우에만 적용됩니다.",
         "hypaV3SummarizationMaxConcurrent": "요약 시 최대 동시 수파메모리 모델 요청 수입니다. 수파메모리 모델이 보조 모델인 경우에만 적용됩니다.",
         "hypaV3EmbeddingRequestsPerMinute": "유사도 검색 시 분당 최대 임베딩 모델 요청 수입니다.",
