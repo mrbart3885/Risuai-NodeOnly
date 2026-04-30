@@ -253,7 +253,7 @@ export function reformater(formated:OpenAIChat[],modelInfo:LLMModel|LLMFlags[]){
 
     if(!flags.includes(LLMFlags.hasFullSystemPrompt)){
         if(flags.includes(LLMFlags.hasFirstSystemPrompt)){
-            while(formated[0].role === 'system'){
+            while(formated[0]?.role === 'system'){
                 if(systemPrompt){
                     systemPrompt.content += '\n\n' + formated[0].content
                 }

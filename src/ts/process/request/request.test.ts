@@ -533,3 +533,24 @@ describe('Ollama Cloud request helpers', () => {
         ])
     })
 })
+
+describe('reformater', () => {
+    test('keeps a sole system prompt for models that only support the first system prompt', async () => {
+        const { reformater } = await import('./request')
+
+        const result = reformater(
+            [{ role: 'system', content: 'intro' }],
+            ['has-first-system-prompt'] as any,
+        )
+
+        expect(result).toEqual([{ role: 'system', content: 'intro' }])
+    })
+
+    test('handles an empty prompt for models that only support the first system prompt', async () => {
+        const { reformater } = await import('./request')
+
+        const result = reformater([], ['has-first-system-prompt'] as any)
+
+        expect(result).toEqual([])
+    })
+})
