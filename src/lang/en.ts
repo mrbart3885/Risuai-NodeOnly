@@ -1022,6 +1022,8 @@ export const languageEnglish = {
     hideChatIcon: "Hide Icon UI",
     loadInternalBackup: "Load Internal Backup",
     createCopy: "Create a Copy",
+    copyChatConfirm: "Create a copy of: ",
+    copyChatSuccess: "Chat copied",
     bindPersona: "Bind Persona",
     chatOptions: "Chat Options",
     doYouWantToBindCurrentPersona: "Do you want to bind the current persona to this chat?",

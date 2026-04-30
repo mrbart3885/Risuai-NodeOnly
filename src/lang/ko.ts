@@ -1016,6 +1016,8 @@ export const languageKorean = {
     "hideChatIcon": "아이콘 UI 숨기기",
     "loadInternalBackup": "내부 백업 불러오기",
     "createCopy": "복사본 생성",
+    "copyChatConfirm": "복사본을 만드시겠습니까: ",
+    "copyChatSuccess": "채팅을 복사했어요",
     "bindPersona": "페르소나 바인드",
     "chatOptions": "채팅 옵션",
     "doYouWantToBindCurrentPersona": "현재 페르소나를 이 채팅에 바인드하시겠습니까?",
