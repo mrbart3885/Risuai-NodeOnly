@@ -970,6 +970,15 @@
     </div>
     {/if}
   </div>
+  {#if !DBState.db.hideLeftBarCollapseButton}
+  <button
+    class="hidden max-xs:flex h-8 min-h-8 w-14 min-w-14 cursor-pointer mt-2 items-center justify-center rounded-md border border-borderc text-textcolor transition-colors hover:border-primary hover:text-primary"
+    aria-label="Collapse sidebar"
+    onclick={() => leftBarCollapsed.set(true)}
+  >
+    <ChevronsLeft size={20} />
+  </button>
+  {/if}
   <button
     class="flex h-8 min-h-8 w-14 min-w-14 cursor-pointer text-white mb-2 mt-2 items-center justify-center rounded-md bg-textcolor2 transition-colors hover:bg-primary"
     class:max-xs:hidden={$leftBarCollapsed}
