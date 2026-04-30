@@ -9,7 +9,7 @@
     import { alertConfirm, alertTogglePresets, notifySuccess } from "src/ts/alert";
     import { tooltip } from "src/ts/gui/tooltip";
     import { PinIcon, SaveIcon, FolderHeartIcon } from "@lucide/svelte";
-    import Accordion from '../UI/Accordion.svelte'
+    import ShAccordion from '../UI/GUI/ShAccordion.svelte'
     import CheckInput from "../UI/GUI/CheckInput.svelte";
     import ShButton from "../UI/GUI/ShButton.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
@@ -141,11 +141,9 @@
 {#snippet toggles(items: sidebarToggle[], reverse: boolean = false)}
     {#each items as toggle, index}
         {#if toggle.type === 'group' && toggle.children.length > 0}
-            <div class="w-full">
-                <Accordion styled name={toggle.value}>
-                    {@render toggles((toggle as sidebarToggleGroup).children, reverse)}
-                </Accordion>
-            </div>
+            <ShAccordion class="w-full mt-1" name={toggle.value}>
+                {@render toggles((toggle as sidebarToggleGroup).children, reverse)}
+            </ShAccordion>
         {:else if toggle.type === 'select'}
             <div class="w-full flex gap-2 mt-2 items-center rounded-md px-1 -mx-1 transition-colors" class:justify-end={$MobileGUI} class:bg-red-900={isToggleDirty(toggle.key)} class:bg-opacity-15={isToggleDirty(toggle.key)}>
                 <span>{toggle.value}</span>
@@ -193,11 +191,11 @@
 <div class="text-[11px] text-textcolor2 mt-4 px-1">{language.toggleBindingLabel}</div>
 <div class="flex gap-1 mt-1 items-stretch">
     {#if isPinned}
-        <button class="flex items-center justify-center px-3 rounded-md border border-green-600 bg-green-700 text-white hover:bg-green-600 cursor-pointer transition-colors shadow-xs"
-            use:tooltip={language.togglePinRemove}
-            onclick={pinToChat}>
-            <PinIcon size={16} />
-        </button>
+        <span use:tooltip={language.togglePinRemove}>
+            <ShButton variant="primary" size="icon" onclick={pinToChat}>
+                <PinIcon size={16} />
+            </ShButton>
+        </span>
         <span class="flex-1 min-w-0 flex" use:tooltip={language.togglePinUpdate}>
             <ShButton
                 variant={isDirty ? 'destructive' : 'default'}
