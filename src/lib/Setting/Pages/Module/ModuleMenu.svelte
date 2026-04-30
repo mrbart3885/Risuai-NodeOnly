@@ -195,14 +195,15 @@
 </div>
 
 {#if submenu === 0}
-    <span>{language.name}</span>
+    <span>{language.name} <Help key="moduleName" /></span>
     <TextInput bind:value={currentModule.name} className="mt-2"/>
-    <span class="mt-4">{language.description}</span>
+    <span class="mt-4">{language.description} <Help key="moduleDescription" /></span>
     <TextInput bind:value={currentModule.description} className="mt-2"/>
     <span class="mt-4">{language.namespace} <Help key="namespace" /></span>
     <TextInput bind:value={currentModule.namespace} className="mt-2"/>
     <div class="flex items-center mt-4">
         <Check bind:check={currentModule.hideIcon} name={language.hideChatIcon}/>
+        <Help key="moduleHideChatIcon" />
     </div>
     <span class="mt-4">{language.customPromptTemplateToggle} <Help key='customPromptTemplateToggle' /></span>
     <TextAreaInput className="mt-2 mb-4" bind:value={currentModule.customModuleToggle}/>
@@ -228,7 +229,9 @@
 {/if}
 
 {#if submenu === 2 && (Array.isArray(currentModule.regex))}
+    <span class="mt-2 flex items-center">{language.backgroundHTML} <Help key="moduleBackgroundEmbedding" /></span>
     <TextAreaInput bind:value={currentModule.backgroundEmbedding} className="mt-2" placeholder={language.backgroundHTML}/>
+    <span class="mt-4 flex items-center">{language.regexScript} <Help key="moduleRegexList" /></span>
     <RegexList bind:value={currentModule.regex}/>
     <div class="text-textcolor2 mt-2 flex gap-2">
         <button class="font-medium cursor-pointer hover:text-primary" onclick={() => {
@@ -244,6 +247,7 @@
 {/if}
 
 {#if submenu === 5 && (Array.isArray(currentModule.assets))}
+    <span class="mb-2 flex items-center">{language.additionalAssets} <Help key="moduleAdditionalAssets" /></span>
     <div class="w-full max-w-full border border-selected rounded-md p-2">
         <table class="contain w-full max-w-full tabler mt-2">
             <tbody>

@@ -11,7 +11,7 @@ export interface alertData{
     type: 'error'|'normal'|'none'|'ask'|'wait'|'selectChar'
             |'input'|'wait2'|'markdown'|'select'|'login'
             |'tos'|'cardexport'|'requestdata'|'addchar'|'selectModule'
-            |'chatOptions'|'pukmakkurit'|'branches'|'progress'|'pluginconfirm'|'requestlogs',
+            |'pukmakkurit'|'branches'|'progress'|'pluginconfirm'|'requestlogs',
     msg: string,
     submsg?: string
     datalist?: [string, string][],
@@ -139,16 +139,6 @@ export async function alertAddCharacter() {
     await waitAlert()
 
     return get(alertStoreImported).msg
-}
-
-export async function alertChatOptions() {
-    alertStoreImported.set({
-        'type': 'chatOptions',
-        'msg': language.chatOptions
-    })
-    await waitAlert()
-
-    return parseInt(get(alertStoreImported).msg)
 }
 
 export async function alertLogin(){

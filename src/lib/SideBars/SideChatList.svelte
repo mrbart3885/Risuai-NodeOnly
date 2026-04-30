@@ -2,7 +2,7 @@
     import { onDestroy, onMount } from "svelte";
     import { v4 } from "uuid";
     import Sortable from 'sortablejs/modular/sortable.core.esm.js';
-    import { DownloadIcon, PencilIcon, HardDriveUploadIcon, MenuIcon, TrashIcon, SplitIcon, FolderPlusIcon, BookmarkCheckIcon, PackageIcon } from "@lucide/svelte";
+    import { DownloadIcon, PencilIcon, HardDriveUploadIcon, MenuIcon, TrashIcon, SplitIcon, FolderPlusIcon, BookmarkCheckIcon, PackageIcon, CopyIcon } from "@lucide/svelte";
 
     import type { Chat, ChatFolder, character } from "src/ts/storage/database.svelte";
     import { ensureChatHydrated } from "src/ts/storage/chatStorage";
@@ -14,7 +14,7 @@
     import TextInput from "../UI/GUI/TextInput.svelte";
 
     import { exportChat, importChat, exportAllChats } from "src/ts/characters";
-    import { alertChatOptions, alertConfirm, alertError, alertSelect, alertStore, notifySuccess, notifyError } from "src/ts/alert";
+    import { alertConfirm, alertError, alertSelect, alertStore, notifySuccess, notifyError } from "src/ts/alert";
     import { findCharacterbyId, sleep, sortableOptions } from "src/ts/util";
 
     import { bookmarkListOpen, openModuleListStore } from "src/ts/stores.svelte";
@@ -260,52 +260,28 @@
                                 if(e.key === 'Enter'){
                                     e.currentTarget.click()
                                 }
-                            }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={async () => {
-                                const option = await alertChatOptions()
-                                switch(option){
-                                    case 0:{
-                                        const chatIdx = chara.chats.indexOf(chat)
-                                        // Hydrate placeholder before copying to ensure full data
-                                        if(chara.chats[chatIdx]?._placeholder){
-                                            await ensureChatHydrated(chara.chats, chatIdx, (chara as character).chaId)
-                                        }
-                                        if(chara.chats[chatIdx]?._placeholder){
-                                            alertError('Failed to load chat data.')
-                                            break
-                                        }
-                                        const newChat = $state.snapshot(chara.chats[chatIdx])
-                                        newChat.name = createChatCopyName(newChat.name, 'Copy')
-                                        newChat.id = v4()
-                                        chara.chats.unshift(newChat)
-                                        changeChatTo(0)
-                                        chara.chats = chara.chats
-                                        void requestImmediateSave()
-                                        break
-                                    }
-                                    case 1:{
-                                        if(chat.bindedPersona){
-                                            const confirm = await alertConfirm(language.doYouWantToUnbindCurrentPersona)
-                                            if(confirm){
-                                                chat.bindedPersona = ''
-                                                notifySuccess(language.personaUnbindedSuccess)
-                                            }
-                                        }
-                                        else{
-                                            const confirm = await alertConfirm(language.doYouWantToBindCurrentPersona)
-                                            if(confirm){
-                                                if(!DBState.db.personas[DBState.db.selectedPersona].id){
-                                                    DBState.db.personas[DBState.db.selectedPersona].id = v4()
-                                                }
-                                                chat.bindedPersona = DBState.db.personas[DBState.db.selectedPersona].id
-                                                console.log(DBState.db.personas[DBState.db.selectedPersona])
-                                                notifySuccess(language.personaBindedSuccess)
-                                            }
-                                        }
-                                        break
-                                    }
+                            }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={async (e) => {
+                                e.stopPropagation()
+                                const confirmed = await alertConfirm(`${language.copyChatConfirm}${chat.name}`)
+                                if(!confirmed) return
+                                const chatIdx = chara.chats.indexOf(chat)
+                                if(chara.chats[chatIdx]?._placeholder){
+                                    await ensureChatHydrated(chara.chats, chatIdx, (chara as character).chaId)
                                 }
+                                if(chara.chats[chatIdx]?._placeholder){
+                                    alertError('Failed to load chat data.')
+                                    return
+                                }
+                                const newChat = $state.snapshot(chara.chats[chatIdx])
+                                newChat.name = createChatCopyName(newChat.name, 'Copy')
+                                newChat.id = v4()
+                                chara.chats.unshift(newChat)
+                                changeChatTo(0)
+                                chara.chats = chara.chats
+                                void requestImmediateSave()
+                                notifySuccess(language.copyChatSuccess)
                             }}>
-                                <MenuIcon size={18}/>
+                                <CopyIcon size={18}/>
                             </div>
                             <div role="button" tabindex="0" onkeydown={(e) => {
                                 if(e.key === 'Enter'){
@@ -381,52 +357,27 @@
                         if(e.key === 'Enter'){
                             e.currentTarget.click()
                         }
-                    }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={async () => {
-                        const option = await alertChatOptions()
-                        switch(option){
-                            case 0:{
-                                // Hydrate placeholder before copying to ensure full data
-                                if(chara.chats[i]?._placeholder){
-                                    await ensureChatHydrated(chara.chats, i, (chara as character).chaId)
-                                }
-                                if(chara.chats[i]?._placeholder){
-                                    alertError('Failed to load chat data.')
-                                    break
-                                }
-                                const newChat = $state.snapshot(chara.chats[i])
-                                newChat.name = createChatCopyName(newChat.name, 'Copy')
-                                newChat.id = v4()
-                                chara.chats.unshift(newChat)
-                                changeChatTo(0)
-                                chara.chats = chara.chats
-                                void requestImmediateSave()
-                                break
-                            }
-                            case 1:{
-                                const chat = chara.chats[i]
-                                if(chat.bindedPersona){
-                                    const confirm = await alertConfirm(language.doYouWantToUnbindCurrentPersona)
-                                    if(confirm){
-                                        chat.bindedPersona = ''
-                                        notifySuccess(language.personaUnbindedSuccess)
-                                    }
-                                }
-                                else{
-                                    const confirm = await alertConfirm(language.doYouWantToBindCurrentPersona)
-                                    if(confirm){
-                                        if(!DBState.db.personas[DBState.db.selectedPersona].id){
-                                            DBState.db.personas[DBState.db.selectedPersona].id = v4()
-                                        }
-                                        chat.bindedPersona = DBState.db.personas[DBState.db.selectedPersona].id
-                                        console.log(DBState.db.personas[DBState.db.selectedPersona])
-                                        notifySuccess(language.personaBindedSuccess)
-                                    }
-                                }
-                                break
-                            }
+                    }} class="text-textcolor2 hover:text-primary mr-1 cursor-pointer" onclick={async (e) => {
+                        e.stopPropagation()
+                        const confirmed = await alertConfirm(`${language.copyChatConfirm}${chat.name}`)
+                        if(!confirmed) return
+                        if(chara.chats[i]?._placeholder){
+                            await ensureChatHydrated(chara.chats, i, (chara as character).chaId)
                         }
+                        if(chara.chats[i]?._placeholder){
+                            alertError('Failed to load chat data.')
+                            return
+                        }
+                        const newChat = $state.snapshot(chara.chats[i])
+                        newChat.name = createChatCopyName(newChat.name, 'Copy')
+                        newChat.id = v4()
+                        chara.chats.unshift(newChat)
+                        changeChatTo(0)
+                        chara.chats = chara.chats
+                        void requestImmediateSave()
+                        notifySuccess(language.copyChatSuccess)
                     }}>
-                        <MenuIcon size={18}/>
+                        <CopyIcon size={18}/>
                     </div>
                     <div role="button" tabindex="0" onkeydown={(e) => {
                         if(e.key === 'Enter'){

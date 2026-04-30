@@ -1,6 +1,6 @@
 <script lang="ts">
     import { getModuleToggles } from "src/ts/process/modules";
-    import { DBState, MobileGUI, selectedCharID } from "src/ts/stores.svelte";
+    import { DBState, selectedCharID } from "src/ts/stores.svelte";
     import { parseToggleSyntax, type sidebarToggle, type sidebarToggleGroup } from "src/ts/util";
     import { language } from "src/lang";
     import type { PromptItem } from "src/ts/process/prompt";
@@ -9,9 +9,10 @@
     import { alertConfirm, alertTogglePresets, notifySuccess } from "src/ts/alert";
     import { tooltip } from "src/ts/gui/tooltip";
     import { PinIcon, SaveIcon, FolderHeartIcon } from "@lucide/svelte";
-    import Accordion from '../UI/Accordion.svelte'
-    import CheckInput from "../UI/GUI/CheckInput.svelte";
+    import ShAccordion from '../UI/GUI/ShAccordion.svelte'
     import ShButton from "../UI/GUI/ShButton.svelte";
+    import ShSwitch from "../UI/GUI/ShSwitch.svelte";
+    import Help from "../Others/Help.svelte";
     import SelectInput from "../UI/GUI/SelectInput.svelte";
     import OptionInput from "../UI/GUI/OptionInput.svelte";
     import TextAreaInput from '../UI/GUI/TextAreaInput.svelte'
@@ -138,32 +139,40 @@
 
 </script>
 
+{#snippet sep()}
+    <div class="w-full mt-0.5 -mb-1.5 border-t border-darkborderc/20"></div>
+{/snippet}
+
 {#snippet toggles(items: sidebarToggle[], reverse: boolean = false)}
     {#each items as toggle, index}
+        {#if index > 0
+            && toggle.type !== 'divider' && items[index - 1]?.type !== 'divider'
+            && toggle.type !== 'caption' && items[index - 1]?.type !== 'caption'
+            && !(toggle.type === 'group' && items[index - 1]?.type === 'group')}
+            {@render sep()}
+        {/if}
         {#if toggle.type === 'group' && toggle.children.length > 0}
-            <div class="w-full">
-                <Accordion styled name={toggle.value}>
-                    {@render toggles((toggle as sidebarToggleGroup).children, reverse)}
-                </Accordion>
-            </div>
+            <ShAccordion class="w-full mt-1" name={toggle.value}>
+                {@render toggles((toggle as sidebarToggleGroup).children, reverse)}
+            </ShAccordion>
         {:else if toggle.type === 'select'}
-            <div class="w-full flex gap-2 mt-2 items-center rounded-md px-1 -mx-1 transition-colors" class:justify-end={$MobileGUI} class:bg-red-900={isToggleDirty(toggle.key)} class:bg-opacity-15={isToggleDirty(toggle.key)}>
-                <span>{toggle.value}</span>
-                <SelectInput className="w-32" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]}>
+            <div class="w-full flex gap-2 mt-2 items-center justify-between min-h-10 rounded-md px-1 transition-colors" class:bg-red-900={isToggleDirty(toggle.key)} class:bg-opacity-15={isToggleDirty(toggle.key)}>
+                <span class="min-w-0 break-words">{toggle.value}</span>
+                <SelectInput className="w-32 shrink-0" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]}>
                     {#each toggle.options as option, i}
                         <OptionInput value={i.toString()}>{option}</OptionInput>
                     {/each}
                 </SelectInput>
             </div>
         {:else if toggle.type === 'text'}
-            <div class="w-full flex gap-2 mt-2 items-center rounded-md px-1 -mx-1 transition-colors" class:justify-end={$MobileGUI} class:bg-red-900={isToggleDirty(toggle.key)} class:bg-opacity-15={isToggleDirty(toggle.key)}>
-                <span>{toggle.value}</span>
-                <TextInput className="w-32" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} />
+            <div class="w-full flex gap-2 mt-2 items-center justify-between min-h-10 rounded-md px-1 transition-colors" class:bg-red-900={isToggleDirty(toggle.key)} class:bg-opacity-15={isToggleDirty(toggle.key)}>
+                <span class="min-w-0 break-words">{toggle.value}</span>
+                <TextInput className="w-32 shrink-0" bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} />
             </div>
         {:else if toggle.type === 'textarea'}
-            <div class="w-full flex gap-2 mt-2 items-start rounded-md px-1 -mx-1 transition-colors" class:justify-end={$MobileGUI} class:bg-red-900={isToggleDirty(toggle.key)} class:bg-opacity-15={isToggleDirty(toggle.key)}>
-                <span class="mt-1.5">{toggle.value}</span>
-                <TextAreaInput className="w-32" height='20' bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} />
+            <div class="w-full flex gap-2 mt-2 items-start justify-between min-h-10 rounded-md px-1 transition-colors" class:bg-red-900={isToggleDirty(toggle.key)} class:bg-opacity-15={isToggleDirty(toggle.key)}>
+                <span class="min-w-0 break-words mt-1.5">{toggle.value}</span>
+                <TextAreaInput className="w-32 shrink-0" height='20' bind:value={DBState.db.globalChatVariables[`toggle_${toggle.key}`]} />
             </div>
         {:else if toggle.type === 'caption'}
             <div class="w-full mt-1 text-xs text-textcolor2">
@@ -180,10 +189,15 @@
                 </div>
             {/if}
         {:else}
-            <div class="w-full flex mt-2 items-center rounded-md px-1 -mx-1 transition-colors" class:justify-end={$MobileGUI} class:bg-red-900={isToggleDirty(toggle.key)} class:bg-opacity-15={isToggleDirty(toggle.key)}>
-                <CheckInput check={DBState.db.globalChatVariables[`toggle_${toggle.key}`] === '1'} reverse={reverse} name={toggle.value} onChange={() => {
-                    DBState.db.globalChatVariables[`toggle_${toggle.key}`] = DBState.db.globalChatVariables[`toggle_${toggle.key}`] === '1' ? '0' : '1'
-                }} />
+            <div class="w-full flex gap-2 mt-2 items-center justify-between min-h-10 rounded-md px-1 transition-colors" class:bg-red-900={isToggleDirty(toggle.key)} class:bg-opacity-15={isToggleDirty(toggle.key)}>
+                <span class="min-w-0 break-words">{toggle.value}</span>
+                <ShSwitch
+                    className="shrink-0"
+                    checked={DBState.db.globalChatVariables[`toggle_${toggle.key}`] === '1'}
+                    onCheckedChange={(checked) => {
+                        DBState.db.globalChatVariables[`toggle_${toggle.key}`] = checked ? '1' : '0'
+                    }}
+                />
             </div>
         {/if}
     {/each}
@@ -193,11 +207,11 @@
 <div class="text-[11px] text-textcolor2 mt-4 px-1">{language.toggleBindingLabel}</div>
 <div class="flex gap-1 mt-1 items-stretch">
     {#if isPinned}
-        <button class="flex items-center justify-center px-3 rounded-md border border-green-600 bg-green-700 text-white hover:bg-green-600 cursor-pointer transition-colors shadow-xs"
-            use:tooltip={language.togglePinRemove}
-            onclick={pinToChat}>
-            <PinIcon size={16} />
-        </button>
+        <span use:tooltip={language.togglePinRemove}>
+            <ShButton variant="primary" size="icon" onclick={pinToChat}>
+                <PinIcon size={16} />
+            </ShButton>
+        </span>
         <span class="flex-1 min-w-0 flex" use:tooltip={language.togglePinUpdate}>
             <ShButton
                 variant={isDirty ? 'destructive' : 'default'}
@@ -228,43 +242,57 @@
 {#if !noContainer && groupedToggles.length > 4}
     <div class="h-48 border-darkborderc p-2 border rounded-sm flex flex-col items-start mt-2 overflow-y-auto">
         {#if hasJailbreakPrompt}
-            <div class="flex mt-2 items-center w-full" class:justify-end={$MobileGUI}>
-                <CheckInput bind:check={DBState.db.jailbreakToggle} name={language.jailbreakToggle} reverse />
+            <div class="w-full flex gap-2 mt-2 items-center justify-between min-h-10 rounded-md px-1">
+                <span class="min-w-0 break-words">{language.jailbreakToggle}</span>
+                <ShSwitch className="shrink-0" bind:checked={DBState.db.jailbreakToggle} />
             </div>
+            {@render sep()}
         {/if}
         {@render toggles(groupedToggles, true)}
         {#if chara && DBState.db.hypaV3}
-            <div class="flex mt-2 items-center w-full" class:justify-end={$MobileGUI}>
-                <CheckInput
-                    check={DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage]?.supaMemory ?? chara.supaMemory ?? false}
-                    onChange={() => {
+            <div class="w-full flex mt-2 items-center justify-between gap-2 min-h-10 rounded-md px-1">
+                <span class="flex items-center gap-1">
+                    <span>{language.ToggleHypaMemory}</span>
+                    <Help key="toggleHypaMemory" />
+                </span>
+                <ShSwitch
+                    checked={DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage]?.supaMemory ?? chara.supaMemory ?? false}
+                    onCheckedChange={() => {
                         const char = DBState.db.characters[$selectedCharID]
                         const chat = char?.chats?.[char.chatPage]
                         if (!chat) return
                         chat.supaMemory = !(chat.supaMemory ?? char.supaMemory ?? false)
                     }}
-                    reverse name={language.ToggleHypaMemory}/>
+                />
             </div>
         {/if}
     </div>
 {:else}
     {#if hasJailbreakPrompt}
-        <div class="flex mt-2 items-center">
-            <CheckInput bind:check={DBState.db.jailbreakToggle} name={language.jailbreakToggle}/>
+        <div class="w-full flex gap-2 mt-2 items-center justify-between min-h-10 rounded-md px-1">
+            <span class="min-w-0 break-words">{language.jailbreakToggle}</span>
+            <ShSwitch className="shrink-0" bind:checked={DBState.db.jailbreakToggle} />
         </div>
+        {#if groupedToggles.length > 0}
+            {@render sep()}
+        {/if}
     {/if}
     {@render toggles(groupedToggles)}
     {#if DBState.db.hypaV3}
-        <div class="flex mt-2 items-center">
-            <CheckInput
-                check={DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage]?.supaMemory ?? chara.supaMemory ?? false}
-                onChange={() => {
+        <div class="w-full flex mt-2 items-center justify-between gap-2 min-h-10 rounded-md px-1">
+            <span class="flex items-center gap-1">
+                <span>{language.ToggleHypaMemory}</span>
+                <Help key="toggleHypaMemory" />
+            </span>
+            <ShSwitch
+                checked={DBState.db.characters[$selectedCharID]?.chats?.[DBState.db.characters[$selectedCharID]?.chatPage]?.supaMemory ?? chara.supaMemory ?? false}
+                onCheckedChange={() => {
                     const char = DBState.db.characters[$selectedCharID]
                     const chat = char?.chats?.[char.chatPage]
                     if (!chat) return
                     chat.supaMemory = !(chat.supaMemory ?? char.supaMemory ?? false)
                 }}
-                name={language.ToggleHypaMemory}/>
+            />
         </div>
     {/if}
 {/if}

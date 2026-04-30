@@ -15,6 +15,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'askRemoval',
         bindKey: 'askRemoval',
+        helpKey: 'askRemoval',
         keywords: ['ask', 'removal', 'confirm', 'delete']
     },
     {
@@ -22,6 +23,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'instantRemove',
         bindKey: 'instantRemove',
+        helpKey: 'instantRemove',
         keywords: ['instant', 'remove', 'delete']
     },
     {
@@ -29,6 +31,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'confirmReroll',
         bindKey: 'confirmReroll',
+        helpKey: 'confirmReroll',
         keywords: ['reroll', 'regenerate', 'confirm', 'message']
     },
     {
@@ -36,6 +39,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'sendWithEnter',
         bindKey: 'sendWithEnter',
+        helpKey: 'sendWithEnter',
         keywords: ['send', 'enter', 'keyboard', 'submit']
     },
     {
@@ -43,6 +47,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'fixedChatTextarea',
         bindKey: 'fixedChatTextarea',
+        helpKey: 'fixedChatTextarea',
         keywords: ['fixed', 'chat', 'textarea', 'input']
     },
     {
@@ -50,6 +55,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'clickToEdit',
         bindKey: 'clickToEdit',
+        helpKey: 'clickToEdit',
         keywords: ['click', 'edit', 'message']
     },
     {
@@ -57,6 +63,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'enableBlockPartialEdit',
         bindKey: 'enableBlockPartialEdit',
+        helpKey: 'enableBlockPartialEdit',
         keywords: ['partial', 'edit', 'block', 'hover']
     },
     {
@@ -64,6 +71,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'longPressToPopupEditor',
         bindKey: 'longPressToPopupEditor',
+        helpKey: 'longPressToPopupEditor',
         keywords: ['long', 'press', 'popup', 'editor']
     },
     {
@@ -71,6 +79,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'enableDragPartialEdit',
         bindKey: 'enableDragPartialEdit',
+        helpKey: 'enableDragPartialEdit',
         keywords: ['partial', 'edit', 'drag', 'selection']
     },
     {
@@ -78,6 +87,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'botSettingAtStart',
         bindKey: 'botSettingAtStart',
+        helpKey: 'botSettingAtStart',
         keywords: ['bot', 'setting', 'start', 'open']
     },
     {
@@ -85,6 +95,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'showMenuChatList',
         bindKey: 'showMenuChatList',
+        helpKey: 'showMenuChatList',
         keywords: ['menu', 'chat', 'list', 'show']
     },
     {
@@ -92,6 +103,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'showMenuHypaMemoryModal',
         bindKey: 'showMenuHypaMemoryModal',
+        helpKey: 'showMenuHypaMemoryModal',
         keywords: ['menu', 'hypa', 'memory', 'modal']
     },
     {
@@ -99,6 +111,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'goCharacterOnImport',
         bindKey: 'goCharacterOnImport',
+        helpKey: 'goCharacterOnImport',
         keywords: ['character', 'import', 'navigate']
     },
     {
@@ -106,6 +119,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'sideMenuRerollButton',
         bindKey: 'sideMenuRerollButton',
+        helpKey: 'sideMenuRerollButton',
         keywords: ['side', 'menu', 'reroll', 'button']
     },
     {
@@ -113,6 +127,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'localActivationInGlobalLorebook',
         bindKey: 'localActivationInGlobalLorebook',
+        helpKey: 'localActivationInGlobalLorebook',
         keywords: ['local', 'activation', 'global', 'lorebook']
     },
     {
@@ -120,6 +135,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'requestInfoInsideChat',
         bindKey: 'requestInfoInsideChat',
+        helpKey: 'requestInfoInsideChat',
         keywords: ['request', 'info', 'chat']
     },
     {
@@ -127,6 +143,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'inlayErrorResponse',
         bindKey: 'inlayErrorResponse',
+        helpKey: 'inlayErrorResponse',
         keywords: ['inlay', 'error', 'response']
     },
     {
@@ -134,6 +151,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'bulkEnabling',
         bindKey: 'bulkEnabling',
+        helpKey: 'bulkEnabling',
         keywords: ['bulk', 'enable', 'multiple']
     },
     {
@@ -141,6 +159,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'showTranslationLoading',
         bindKey: 'showTranslationLoading',
+        helpKey: 'showTranslationLoading',
         keywords: ['translation', 'loading', 'indicator']
     },
     {
@@ -148,6 +167,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'autoScrollToNewMessage',
         bindKey: 'autoScrollToNewMessage',
+        helpKey: 'autoScrollToNewMessage',
         keywords: ['auto', 'scroll', 'new', 'message']
     },
     {
@@ -155,6 +175,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'alwaysScrollToNewMessage',
         bindKey: 'alwaysScrollToNewMessage',
+        helpKey: 'alwaysScrollToNewMessage',
         condition: (ctx) => ctx.db.autoScrollToNewMessage,
         keywords: ['always', 'scroll', 'new', 'message']
     },
@@ -163,6 +184,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'select',
         labelKey: 'newMessageButtonStyle',
         bindKey: 'newMessageButtonStyle',
+        helpKey: 'newMessageButtonStyle',
         condition: (ctx) => ctx.db.autoScrollToNewMessage && !ctx.db.alwaysScrollToNewMessage,
         options: {
             selectOptions: [
@@ -180,6 +202,7 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'createFolderOnBranch',
         bindKey: 'createFolderOnBranch',
+        helpKey: 'createFolderOnBranch',
         keywords: ['create', 'folder', 'branch'],
     },
     {
@@ -187,13 +210,23 @@ export const accessibilitySettingsItems: SettingItem[] = [
         type: 'check',
         labelKey: 'hamburgerButtonBottom',
         bindKey: 'hamburgerButtonBottom',
+        helpKey: 'hamburgerButtonBottom',
         keywords: ['hamburger', 'button', 'bottom', 'menu', 'sidebar', 'accessibility'],
+    },
+    {
+        id: 'acc.hideLeftBarCollapseButton',
+        type: 'check',
+        labelKey: 'hideLeftBarCollapseButton',
+        bindKey: 'hideLeftBarCollapseButton',
+        helpKey: 'hideLeftBarCollapseButton',
+        keywords: ['left', 'bar', 'collapse', 'toggle', 'mobile', 'sidebar', 'hide'],
     },
     {
         id: 'acc.enableRisuaiProTools',
         type: 'check',
         labelKey: 'enableRisuaiProTools',
         bindKey: 'enableRisuaiProTools',
+        helpKey: 'enableRisuaiProTools',
         keywords: ['pro', 'tools', 'accessibility'],
     },
     {

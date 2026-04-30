@@ -9,6 +9,7 @@
     import { PlusIcon, TrashIcon } from "@lucide/svelte";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import Accordion from "src/lib/UI/Accordion.svelte";
+    import Help from "src/lib/Others/Help.svelte";
     import ChatFormatSettings from "./ChatFormatSettings.svelte";
     interface Props {
         instructionMode?: boolean;
@@ -132,6 +133,7 @@
                     DBState.db.localStopStrings = null
                 }
             }} />
+            <Help key="customStopWords" />
         </div>
         {#if DBState.db.localStopStrings}
             <div class="flex flex-col p-2 rounded-sm border border-selected mt-2 gap-1">

@@ -25,6 +25,7 @@ export const isTouchDevice = writable(typeof window !== 'undefined' && window.ma
 export const DynamicGUI = writable(false)
 export const sideBarClosing = writable(false)
 export const sideBarStore = writable(window.innerWidth > 1024)
+export const leftBarCollapsed = writable(false)
 export const selectedCharID = writable(-1)
 export const chatDeselected = writable(false)
 export const CurrentTriggerIdStore = writable<string | null>(null)

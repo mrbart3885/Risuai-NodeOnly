@@ -4,8 +4,8 @@
     import { saveImage as saveAsset, type character } from "../../ts/storage/database.svelte";
     import { DBState } from 'src/ts/stores.svelte';
     import { untrack } from 'svelte';
-    import { CharConfigSubMenu, MobileGUI, selectedCharID, hypaV3ModalOpen, openModuleListStore } from "../../ts/stores.svelte";
-    import { PlusIcon, SmileIcon, TrashIcon, UserIcon, ActivityIcon, BookIcon, Braces, Volume2Icon, DownloadIcon, HardDriveUploadIcon, Share2Icon, ImageIcon, ImageOffIcon, ArrowUp, ArrowDown, TriangleAlertIcon, PackageIcon } from '@lucide/svelte'
+    import { CharConfigSubMenu, MobileGUI, selectedCharID, hypaV3ModalOpen } from "../../ts/stores.svelte";
+    import { PlusIcon, SmileIcon, TrashIcon, UserIcon, ActivityIcon, BookIcon, Braces, Volume2Icon, DownloadIcon, HardDriveUploadIcon, Share2Icon, ImageIcon, ImageOffIcon, ArrowUp, ArrowDown, TriangleAlertIcon } from '@lucide/svelte'
     import Check from "../UI/GUI/CheckInput.svelte";
     import { addCharEmotion, addingEmotion, getCharImage, rmCharEmotion, selectCharImg, removeChar, changeCharImage } from "../../ts/characters";
     import LoreBook from "./LoreBook/LoreBookSetting.svelte";
@@ -15,6 +15,7 @@
     import { getElevenTTSVoices, getWebSpeechTTSVoices, getVOICEVOXVoices, oaiVoices, getNovelAIVoices } from "src/ts/process/tts";
     import { getFileSrc } from "src/ts/globalApi.svelte";
     import TextInput from "../UI/GUI/TextInput.svelte";
+    import ShInput from "../UI/GUI/ShInput.svelte";
     import NumberInput from "../UI/GUI/NumberInput.svelte";
     import TextAreaInput from "../UI/GUI/TextAreaInput.svelte";
     import Button from "../UI/GUI/Button.svelte";
@@ -30,8 +31,6 @@
     import { exportCharacterPackage, importPackageToCharacter } from "src/ts/characterPackage";
     import { exportRegex, importRegex } from "src/ts/process/scripts";
     import SliderInput from "../UI/GUI/SliderInput.svelte";
-    import Toggles from "./Toggles.svelte";
-    import PersonaBind from "./PersonaBind.svelte";
 
     let iconRemoveMode = $state(false)
     let pkgIncludeCharacter = $state(true)
@@ -253,7 +252,9 @@
 
 {#if $CharConfigSubMenu === 0}
     {#if licensed !== 'private'}
-        <TextInput size="xl" marginBottom placeholder="Character Name" bind:value={DBState.db.characters[$selectedCharID].name} />
+        <h2 class="mb-2 text-2xl font-bold mt-2">{language.characterInfo}</h2>
+        <span class="text-textcolor">{language.characterName}</span>
+        <ShInput className="mt-2 mb-4" autocomplete="off" placeholder={language.characterName} bind:value={DBState.db.characters[$selectedCharID].name} />
         <span class="text-textcolor">{language.description} <Help key="charDesc"/></span>
         <TextAreaInput highlight margin="both" autocomplete="off" bind:value={(DBState.db.characters[$selectedCharID] as character).desc}></TextAreaInput>
         <span class="text-textcolor2 mb-6 text-sm">{tokens.desc} {language.tokens}</span>
@@ -271,22 +272,6 @@
     />
     <span class="text-textcolor2 mb-6 text-sm">{tokens.localNote} {language.tokens}</span>
 
-    {#if !$MobileGUI}
-        {#if DBState.db.showPersonaInSidebar}
-            <PersonaBind />
-        {/if}
-        <Toggles bind:chara={DBState.db.characters[$selectedCharID]} noContainer />
-        <button class="flex w-full items-center justify-center gap-1.5 py-2 px-4 mt-2 rounded-md border border-darkborderc bg-darkbutton hover:bg-selected text-textcolor text-md cursor-pointer transition-colors shadow-xs"
-            onclick={() => {
-                const char = DBState.db.characters[$selectedCharID]
-                if (!char) return
-                char.chats[char.chatPage].modules ??= []
-                openModuleListStore.set(true)
-            }}>
-            <PackageIcon size={16} class="shrink-0" />
-            <span class="truncate">{language.modules}</span>
-        </button>
-    {/if}
 {:else if licensed === 'private'}
     <span>You are not allowed</span>
     {(() => {
@@ -335,12 +320,12 @@
                         {#await getCharImage(DBState.db.characters[$selectedCharID].image, (DBState.db.characters[$selectedCharID] as character).largePortrait ? 'lgcss' : 'css')}
                             <div
                                 class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3 transition-shadow"
-                                class:ring-red-500={iconRemoveMode}
+                                class:ring-draculared={iconRemoveMode}
     ></div>
                         {:then im}
                             <div
                                 class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer ring-3 transition-shadow"
-                                class:ring-red-500={iconRemoveMode}
+                                class:ring-draculared={iconRemoveMode}
                                 style={im}
     ></div>     
                         {/await}
@@ -360,12 +345,12 @@
                             {#await getCharImage(assets.uri, (DBState.db.characters[$selectedCharID] as character).largePortrait ? 'lgcss' : 'css')}
                                 <div
                                     class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer hover:ring-3 transition-shadow"
-                                    class:ring-red-500={iconRemoveMode} class:ring-3={iconRemoveMode}
+                                    class:ring-draculared={iconRemoveMode} class:ring-3={iconRemoveMode}
     ></div>
                             {:then im}
                                 <div
                                     class="rounded-md h-24 w-24 shadow-lg bg-textcolor2 cursor-pointer hover:ring-3 transition-shadow"
-                                    style={im} class:ring-red-500={iconRemoveMode} class:ring-3={iconRemoveMode}
+                                    style={im} class:ring-draculared={iconRemoveMode} class:ring-3={iconRemoveMode}
     ></div>     
                             {/await}
                         </button>
@@ -381,7 +366,7 @@
                 </button>
             </div>
             <div class="flex w-full items-end justify-end mt-2">
-                <button class={iconRemoveMode ? "text-red-500" : "text-textcolor2 hover:text-textcolor"} onclick={() => {
+                <button class={iconRemoveMode ? "text-draculared" : "text-textcolor2 hover:text-textcolor"} onclick={() => {
                     iconRemoveMode = !iconRemoveMode
                 }}>
                     <TrashIcon size="18" />
@@ -435,7 +420,7 @@
                                     <TextInput marginBottom size='lg' bind:value={DBState.db.characters[$selectedCharID].emotionImages[i][0]} />
                                 </td>
                                 <td>
-                                    <button class="font-medium cursor-pointer hover:text-red-400" onclick={() => {
+                                    <button class="font-medium cursor-pointer hover:text-draculared" onclick={() => {
                                         rmCharEmotion($selectedCharID,i)
                                     }}><TrashIcon /></button>
                                 </td>
@@ -551,11 +536,11 @@
                                             <img src={assetFilePath[i]} class="w-16 h-16 m-1 rounded-md" alt={assets[0]}/>
                                         {/if}
                                     {/if}
-                                    <TextInput marginBottom bind:value={DBState.db.characters[$selectedCharID].additionalAssets[i][0]} placeholder="..." />
+                                    <ShInput className="mb-4" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].additionalAssets[i][0]} placeholder="..." />
                                 </td>
                                 
                                 <th class="font-medium cursor-pointer w-10">
-                                    <button class="hover:text-red-400" onclick={() => {
+                                    <button class="hover:text-draculared" onclick={() => {
                                         if(DBState.db.characters[$selectedCharID].type === 'character'){
                                             DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex = -1
                                             let additionalAssets = DBState.db.characters[$selectedCharID].additionalAssets
@@ -645,7 +630,7 @@
     }
 
     {#if licenseRestricted}
-        <div class="flex items-center gap-2 text-red-400 text-sm mt-2 mb-2">
+        <div class="flex items-center gap-2 text-draculared text-sm mt-2 mb-2">
             <TriangleAlertIcon size={16} class="shrink-0" />
             <span>{language.characterPackageLicenseWarning} ({DBState.db.characters[$selectedCharID].license})</span>
         </div>
@@ -733,7 +718,7 @@
                     {/each}
                 </SelectInput>
                 {#if (DBState.db.characters[$selectedCharID] as character).ttsSpeech !== ''}
-                    <span class="text-red-400 text-sm">If you do not set it to Auto, it may not work properly when importing from another OS or browser.</span>
+                    <span class="text-draculared text-sm">If you do not set it to Auto, it may not work properly when importing from another OS or browser.</span>
                 {/if}
             {/if}
         {:else if DBState.db.characters[$selectedCharID].ttsMode === 'elevenlab'}
@@ -794,7 +779,7 @@
                 </SelectInput>
             {:else}
                 <span class="text-textcolor">Voice</span>
-                <TextInput bind:value={DBState.db.characters[$selectedCharID].naittsConfig.voice}/>
+                <ShInput autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].naittsConfig.voice}/>
             {/if}
             <span class="text-textcolor">Version</span>
             <SelectInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].naittsConfig.version}>
@@ -810,10 +795,10 @@
             </SelectInput>
         {:else if DBState.db.characters[$selectedCharID].ttsMode === 'huggingface'}
             <span class="text-textcolor">Model</span>
-            <TextInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].hfTTS.model} />
+            <ShInput className="mb-4 mt-2" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].hfTTS.model} />
 
             <span class="text-textcolor">Language</span>
-            <TextInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].hfTTS.language} placeholder="en" />
+            <ShInput className="mb-4 mt-2" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].hfTTS.language} placeholder="en" />
         {:else if DBState.db.characters[$selectedCharID].ttsMode === 'vits'}
             {#if DBState.db.characters[$selectedCharID].vits}
                 <span class="text-textcolor">{DBState.db.characters[$selectedCharID].vits.name ?? 'Unnamed VitsModel'}</span>
@@ -830,14 +815,14 @@
             <span class="text-textcolor">Volume</span>
             <SliderInput min={0.0} max={1.0} step={0.01} fixed={2} bind:value={DBState.db.characters[$selectedCharID].gptSoVitsConfig.volume}/>
             <span class="text-textcolor">URL</span>
-            <TextInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].gptSoVitsConfig.url}/>
+            <ShInput className="mb-4 mt-2" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].gptSoVitsConfig.url}/>
 
             <span class="text-textcolor">Use Auto Path</span>
             <Check bind:check={DBState.db.characters[$selectedCharID].gptSoVitsConfig.use_auto_path}/>
 
             {#if !DBState.db.characters[$selectedCharID].gptSoVitsConfig.use_auto_path}
                 <span class="text-textcolor">Reference Audio Path (e.g. C:/Users/user/Downloads/GPT-SoVITS-v2-240821)</span>
-                <TextInput className="mb-4 mt-2" bind:value={DBState.db.characters[$selectedCharID].gptSoVitsConfig.ref_audio_path}/>
+                <ShInput className="mb-4 mt-2" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].gptSoVitsConfig.ref_audio_path}/>
             {/if}
 
             <span class="text-textcolor">Use Long Audio</span>
@@ -996,7 +981,7 @@
                         <NumberInput fullh fullwidth bind:value={(DBState.db.characters[$selectedCharID] as character).bias[i][1]} max={100} min={-100} />
                     </td>
                     <td>
-                        <button class="font-medium flex justify-center items-center w-full h-full cursor-pointer hover:text-red-400" onclick={() => {
+                        <button class="font-medium flex justify-center items-center w-full h-full cursor-pointer hover:text-draculared" onclick={() => {
                             if(DBState.db.characters[$selectedCharID].type === 'character'){
                                 (DBState.db.characters[$selectedCharID] as character).bias.splice(i, 1)
                             }
@@ -1042,18 +1027,18 @@
         <TextAreaInput margin="both" autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].translatorNote}></TextAreaInput>
 
         <span class="text-textcolor">{language.creator}</span>
-        <TextInput autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].additionalData.creator} />
+        <ShInput autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].additionalData.creator} />
 
         <span class="text-textcolor">{language.CharVersion}</span>
-        <TextInput bind:value={DBState.db.characters[$selectedCharID].additionalData.character_version}/>
+        <ShInput autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].additionalData.character_version}/>
 
         <span class="text-textcolor">{language.nickname} <Help key="nickname" /></span>
-        <TextInput bind:value={DBState.db.characters[$selectedCharID].nickname}/>
+        <ShInput autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].nickname}/>
 
         <span class="text-textcolor">{language.depthPrompt}</span>
         <div class="flex justify-center items-center">
             <NumberInput bind:value={DBState.db.characters[$selectedCharID].depth_prompt.depth} className="w-12"/>
-            <TextInput bind:value={DBState.db.characters[$selectedCharID].depth_prompt.prompt} className="flex-1"/>
+            <ShInput autocomplete="off" bind:value={DBState.db.characters[$selectedCharID].depth_prompt.prompt} className="flex-1"/>
         </div>
 
         <span class="text-textcolor mt-2">{language.altGreet}</span>
@@ -1092,7 +1077,7 @@
                                 <button class="hover:text-primary p-1" onclick={() => moveAlternateGreetingDown(i)} disabled={i === DBState.db.characters[$selectedCharID].alternateGreetings.length - 1}>
                                     <ArrowDown size={16} />
                                 </button>
-                                <button class="hover:text-red-500 p-1" onclick={() => {
+                                <button class="hover:text-draculared p-1" onclick={() => {
                                     if(DBState.db.characters[$selectedCharID].type === 'character'){
                                         DBState.db.characters[$selectedCharID].chats[DBState.db.characters[$selectedCharID].chatPage].fmIndex = -1
                                         let alternateGreetings = DBState.db.characters[$selectedCharID].alternateGreetings

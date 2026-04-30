@@ -3,6 +3,7 @@
     import { notifyError } from 'src/ts/alert';
     import { DBState } from 'src/ts/stores.svelte';
     import Check from 'src/lib/UI/GUI/CheckInput.svelte';
+    import Help from 'src/lib/Others/Help.svelte';
 </script>
 
 <div class="flex items-center mt-2">
@@ -27,5 +28,7 @@
                 }
             }
         }}
-    />
+    >
+        <Help key="notification" />
+    </Check>
 </div>

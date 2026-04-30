@@ -1,7 +1,7 @@
 {
   "name": "risuai-nodeonly",
   "private": true,
-  "version": "1.3.0",
+  "version": "1.4.0",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -11,6 +11,7 @@
     "build": "vite build --sourcemap",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check:help": "node scripts/check-help-keys.mjs",
     "test": "vitest run",
     "test:compat": "vitest run --config vitest.config.compat.ts",
     "runserver": "node server/node/server.cjs",

@@ -250,7 +250,7 @@
     <span class="text-textcolor2 text-sm mt-2">{tokens} {language.fixedTokens}</span>
     <span class="text-textcolor2 mb-6 text-sm mt-2">{extokens} {language.exactTokens}</span>
 {:else}
-    <span class="text-textcolor mt-4">{language.postEndInnerFormat}</span>
+    <span class="text-textcolor mt-4">{language.postEndInnerFormat} <Help key="postEndInnerFormat"/></span>
     <TextInput className="mt-2" bind:value={DBState.db.promptSettings.postEndInnerFormat}/>
 
     <Check bind:check={DBState.db.promptSettings.sendChatAsSystem} name={language.sendChatAsSystem} className="mt-4"/>
@@ -267,13 +267,13 @@
             <Help unrecommended key='customChainOfThought' />
         </Check>
     {/if}
-    <span class="text-textcolor mt-4">{language.maxThoughtTagDepth}</span>
+    <span class="text-textcolor mt-4">{language.maxThoughtTagDepth} <Help key="maxThoughtTagDepth"/></span>
     <NumberInput className="mt-2" bind:value={DBState.db.promptSettings.maxThoughtTagDepth}/>
     <span class="text-textcolor mt-4">{language.customPromptTemplateToggle} <Help key='customPromptTemplateToggle' /></span>
     <TextAreaInput className="mt-2 mb-4" bind:value={DBState.db.customPromptTemplateToggle}/>
     <span class="text-textcolor mt-4">{language.defaultVariables} <Help key='defaultVariables' /></span>
     <TextAreaInput className="mt-2 mb-4" bind:value={DBState.db.templateDefaultVariables}/>
-    <span class="text-textcolor mt-4">{language.predictedOutput}</span>
+    <span class="text-textcolor mt-4">{language.predictedOutput} <Help key="predictedOutput"/></span>
     <TextAreaInput className="mt-2 mb-4" bind:value={DBState.db.OAIPrediction}/>
     <span class="text-textcolor mt-4">{language.autoSuggest} <Help key='autoSuggest' /></span>
     <TextAreaInput className="mt-2 mb-4" bind:value={DBState.db.autoSuggestPrompt} placeholder={defaultAutoSuggestPrompt}/>

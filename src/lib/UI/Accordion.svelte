@@ -1,8 +1,8 @@
 <script lang="ts">
     import type { language } from "src/lang";
     import Help from "../Others/Help.svelte";
+    import ShAccordion from "./GUI/ShAccordion.svelte";
 
-    let open = $state(false)
     interface Props {
         name?: string;
         styled?: boolean;
@@ -20,37 +20,33 @@
         children,
         className = ""
     }: Props = $props();
+
+    // Legacy wrapper renders every call site as the card variant — this is
+    // the chosen default for the codebase's bordered "Settings section" feel.
+    // Direct ShAccordion callers (e.g. Toggles.svelte) pick their own variant
+    // when card is too heavy for narrow contexts.
+    const variant = 'card';
 </script>
+
+{#snippet helpExtras()}
+    <Help key={help as keyof (typeof language.help)} />
+{/snippet}
+
 {#if disabled}
     {@render children?.()}
-{:else if styled}
-    <div class="flex flex-col mt-2">
-        <button class="hover:bg-selected px-6 py-2 text-lg rounded-t-md border-selected border"
-            class:bg-selected={open}
-            class:rounded-b-md={!open}
-            onclick={() => {
-                open = !open
-            }}
-        >
-            <span class="mr-2">{name}</span>
-        {#if help}
-            <Help key={help} />
-        {/if}</button>
-        {#if open}
-            <div class={"flex flex-col border border-selected p-2 rounded-b-md " + className}>
-                {@render children?.()}
-            </div>
-        {/if}
-    </div>
 {:else}
-    <div class="flex flex-col">
-        <button class="hover:bg-selected px-6 py-2 text-lg" class:bg-selected={open} onclick={() => {
-            open = !open
-        }}>{name}</button>
-        {#if open}
-            <div class="flex flex-col bg-darkbg">
-                {@render children?.()}
-            </div>
-        {/if}
+    <!-- mt-2 is a legacy quirk of the original <Accordion styled> wrapper: -->
+    <!-- it baked the inter-section gap into the component itself. Kept here -->
+    <!-- so call sites stay untouched. Drop when call sites migrate to -->
+    <!-- ShAccordion direct + parent-controlled gap. -->
+    <div class="mt-2">
+        <ShAccordion
+            {name}
+            {variant}
+            bodyClass={className}
+            extras={help ? helpExtras : undefined}
+        >
+            {@render children?.()}
+        </ShAccordion>
     </div>
 {/if}

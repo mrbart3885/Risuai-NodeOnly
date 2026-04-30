@@ -7,15 +7,18 @@ export const advancedSettingsItems: SettingItem[] = [
     // LoreBook Settings
     {
         id: 'adv.lbDepth', type: 'number', labelKey: 'loreBookDepth', bindKey: 'loreBookDepth',
+        helpKey: 'loreBookDepth',
         options: { min: 0, max: 20 },
         classes: 'mt-4'
     },
     {
         id: 'adv.lbToken', type: 'number', labelKey: 'loreBookToken', bindKey: 'loreBookToken',
+        helpKey: 'loreBookToken',
         options: { min: 0, max: 4096 }
     },
     {
         id: 'adv.autoContinueMin', type: 'number', labelKey: 'autoContinueMinTokens', bindKey: 'autoContinueMinTokens',
+        helpKey: 'autoContinueMinTokens',
         options: { min: 0 }
     },
 
@@ -25,7 +28,8 @@ export const advancedSettingsItems: SettingItem[] = [
         helpKey: 'additionalPrompt'
     },
     {
-        id: 'adv.descPrefix', type: 'text', labelKey: 'descriptionPrefix', bindKey: 'descriptionPrefix'
+        id: 'adv.descPrefix', type: 'text', labelKey: 'descriptionPrefix', bindKey: 'descriptionPrefix',
+        helpKey: 'descriptionPrefix'
     },
     {
         id: 'adv.emoPrompt', type: 'text', labelKey: 'emotionPrompt', bindKey: 'emotionPrompt2',
@@ -46,7 +50,8 @@ export const advancedSettingsItems: SettingItem[] = [
         helpKey: 'genTimes', options: { min: 0, max: 4096 }
     },
     {
-        id: 'adv.assetAlloc', type: 'number', labelKey: 'assetMaxDifference', bindKey: 'assetMaxDifference'
+        id: 'adv.assetAlloc', type: 'number', labelKey: 'assetMaxDifference', bindKey: 'assetMaxDifference',
+        helpKey: 'assetMaxDifference'
     },
 
     // Vision Quality
@@ -76,6 +81,7 @@ export const advancedSettingsItems: SettingItem[] = [
     // Height Mode
     {
         id: 'adv.heightMode', type: 'select', labelKey: 'heightMode', bindKey: 'heightMode',
+        helpKey: 'heightMode',
         options: {
             selectOptions: [
                 { value: 'normal', label: 'Normal' },
@@ -110,13 +116,13 @@ export const advancedSettingsItems: SettingItem[] = [
     { id: 'adv.legacyMedia', type: 'check', labelKey: 'legacyMediaFindings', bindKey: 'legacyMediaFindings', helpKey: 'legacyMediaFindings', classes: 'mt-4' },
     { id: 'adv.autoFill', type: 'check', labelKey: 'autoFillRequestURL', bindKey: 'autofillRequestUrl', helpKey: 'autoFillRequestURL', classes: 'mt-4' },
     { id: 'adv.autoCont', type: 'check', labelKey: 'autoContinueChat', bindKey: 'autoContinueChat', helpKey: 'autoContinueChat', classes: 'mt-4' },
-    { id: 'adv.remIncomp', type: 'check', labelKey: 'removeIncompleteResponse', bindKey: 'removeIncompleteResponse', classes: 'mt-4' },
-    { id: 'adv.newOai', type: 'check', labelKey: 'newOAIHandle', bindKey: 'newOAIHandle', classes: 'mt-4' },
-    { id: 'adv.noWaitTrans', type: 'check', labelKey: 'noWaitForTranslate', bindKey: 'noWaitForTranslate', classes: 'mt-4' },
-    { id: 'adv.newImgBeta', type: 'check', labelKey: 'newImageHandlingBeta', bindKey: 'newImageHandlingBeta', classes: 'mt-4' },
-    { id: 'adv.allowExt', type: 'check', fallbackLabel: 'Allow all in file select', bindKey: 'allowAllExtentionFiles', classes: 'mt-4' },
-    { id: 'adv.dynamicModelRegistry', type: 'check', labelKey: 'dynamicModelRegistry', bindKey: 'dynamicModelRegistry', classes: 'mt-4' },
-    { id: 'adv.disableSeperateParameterChangeOnPresetChange', type: 'check', labelKey: 'disableSeperateParameterChangeOnPresetChange', bindKey: 'disableSeperateParameterChangeOnPresetChange', classes: 'mt-4' },
+    { id: 'adv.remIncomp', type: 'check', labelKey: 'removeIncompleteResponse', bindKey: 'removeIncompleteResponse', helpKey: 'removeIncompleteResponse', classes: 'mt-4' },
+    { id: 'adv.newOai', type: 'check', labelKey: 'newOAIHandle', bindKey: 'newOAIHandle', helpKey: 'newOAIHandle', classes: 'mt-4' },
+    { id: 'adv.noWaitTrans', type: 'check', labelKey: 'noWaitForTranslate', bindKey: 'noWaitForTranslate', helpKey: 'noWaitForTranslate', classes: 'mt-4' },
+    { id: 'adv.newImgBeta', type: 'check', labelKey: 'newImageHandlingBeta', bindKey: 'newImageHandlingBeta', helpKey: 'newImageHandlingBeta', classes: 'mt-4' },
+    { id: 'adv.allowExt', type: 'check', fallbackLabel: 'Allow all in file select', bindKey: 'allowAllExtentionFiles', helpKey: 'allowAllExtentionFiles', classes: 'mt-4' },
+    { id: 'adv.dynamicModelRegistry', type: 'check', labelKey: 'dynamicModelRegistry', bindKey: 'dynamicModelRegistry', helpKey: 'dynamicModelRegistry', classes: 'mt-4' },
+    { id: 'adv.disableSeperateParameterChangeOnPresetChange', type: 'check', labelKey: 'disableSeperateParameterChangeOnPresetChange', bindKey: 'disableSeperateParameterChangeOnPresetChange', helpKey: 'disableSeperateParameterChangeOnPresetChange', classes: 'mt-4' },
     { id: 'adv.hideLoadout', type: 'check', labelKey: 'hideLoadout', bindKey: 'hideLoadout', helpKey: 'hideLoadout', classes: 'mt-4' },
     { id: 'adv.hideEasyPanel', type: 'check', labelKey: 'hideEasyPanel', bindKey: 'hideEasyPanel', helpKey: 'hideEasyPanel', classes: 'mt-4' },
     {
@@ -129,7 +135,7 @@ export const advancedSettingsItems: SettingItem[] = [
     // Experimental Section (visible when useExperimental is true)
     {
         id: 'adv.exp.googleToken', type: 'check', labelKey: 'googleCloudTokenization', bindKey: 'googleClaudeTokenizing',
-        condition: (ctx) => ctx.db.useExperimental, showExperimental: true, classes: 'mt-4'
+        condition: (ctx) => ctx.db.useExperimental, helpKey: 'googleCloudTokenization', showExperimental: true, classes: 'mt-4'
     },
     {
         id: 'adv.exp.cachePoint', type: 'check', labelKey: 'automaticCachePoint', bindKey: 'automaticCachePoint',
@@ -144,6 +150,7 @@ export const advancedSettingsItems: SettingItem[] = [
         id: 'adv.localNetworkTimeout', type: 'number', fallbackLabel: 'Local Network Timeout (sec)',
         bindKey: 'localNetworkTimeoutSec',
         condition: (ctx) => ctx.db.useExperimental && ctx.db.localNetworkMode,
+        helpKey: 'localNetworkTimeoutSec',
         classes: 'block mb-1', containerClasses: 'pl-7',
         options: { min: 30, max: 3600, inputClassName: 'w-full', marginBottom: false }
     },
@@ -155,7 +162,7 @@ export const advancedSettingsItems: SettingItem[] = [
     },
 
     // More Toggles
-    { id: 'adv.devTools', type: 'check', labelKey: 'enableDevTools', bindKey: 'enableDevTools', classes: 'mt-4' },
+    { id: 'adv.devTools', type: 'check', labelKey: 'enableDevTools', bindKey: 'enableDevTools', helpKey: 'enableDevTools', classes: 'mt-4' },
     { id: 'adv.scrollToActive', type: 'check', labelKey: 'enableScrollToActiveChar', bindKey: 'enableScrollToActiveChar', helpKey: 'enableScrollToActiveChar', classes: 'mt-4' },
 
     // Node/Tauri Specific
@@ -165,39 +172,39 @@ export const advancedSettingsItems: SettingItem[] = [
     },
     {
         id: 'adv.promptTextInfo', type: 'check', labelKey: 'promptTextInfoInsideChat', bindKey: 'promptTextInfoInsideChat',
-        condition: (ctx) => ctx.db.promptInfoInsideChat, classes: 'mt-4'
+        condition: (ctx) => ctx.db.promptInfoInsideChat, helpKey: 'promptTextInfoInsideChat', classes: 'mt-4'
     },
     // Remote saving removed — incompatible with NodeOnly server
 
     // Dynamic Assets & Others
     { id: 'adv.dynAssets', type: 'check', labelKey: 'dynamicAssets', bindKey: 'dynamicAssets', helpKey: 'dynamicAssets', classes: 'mt-4' },
     { id: 'adv.realmOpen', type: 'check', labelKey: 'realmDirectOpen', bindKey: 'realmDirectOpen', helpKey: 'realmDirectOpen', classes: 'mt-4' },
-    { id: 'adv.cssErr', type: 'check', labelKey: 'returnCSSError', bindKey: 'returnCSSError', classes: 'mt-4' },
-    { id: 'adv.antiOverload', type: 'check', labelKey: 'antiServerOverload', bindKey: 'antiServerOverloads', classes: 'mt-4' },
-    { id: 'adv.claudeCache', type: 'check', labelKey: 'claude1HourCaching', bindKey: 'claude1HourCaching', classes: 'mt-4' },
-    { id: 'adv.claudeBatch', type: 'check', labelKey: 'claudeBatching', bindKey: 'claudeBatching', showExperimental: true, classes: 'mt-4' },
-    { id: 'adv.personaNote', type: 'check', labelKey: 'personaNote', bindKey: 'personaNote', showExperimental: true, classes: 'mt-4' },
-    { id: 'adv.toolUsage', type: 'check', labelKey: 'rememberToolUsage', bindKey: 'rememberToolUsage', classes: 'mt-4' },
-    { id: 'adv.bookmark', type: 'check', labelKey: 'bookmark', bindKey: 'enableBookmark', classes: 'mt-4' },
-    { id: 'adv.simpleTool', type: 'check', labelKey: 'simplifiedToolUse', bindKey: 'simplifiedToolUse', classes: 'mt-4' },
-    { id: 'adv.tokCache', type: 'check', labelKey: 'useTokenizerCaching', bindKey: 'useTokenizerCaching', classes: 'mt-4' },
-    { id: 'adv.auxModelUnderModelSettings', type: 'check', labelKey: 'auxModelUnderModelSettings', bindKey: 'auxModelUnderModelSettings', classes: 'mt-4' },
-    { id: 'adv.devMode', type: 'check', labelKey: 'pluginDevelopMode', bindKey: 'pluginDevelopMode', classes: 'mt-4' },
+    { id: 'adv.cssErr', type: 'check', labelKey: 'returnCSSError', bindKey: 'returnCSSError', helpKey: 'returnCSSError', classes: 'mt-4' },
+    { id: 'adv.antiOverload', type: 'check', labelKey: 'antiServerOverload', bindKey: 'antiServerOverloads', helpKey: 'antiServerOverload', classes: 'mt-4' },
+    { id: 'adv.claudeCache', type: 'check', labelKey: 'claude1HourCaching', bindKey: 'claude1HourCaching', helpKey: 'claude1HourCaching', classes: 'mt-4' },
+    { id: 'adv.claudeBatch', type: 'check', labelKey: 'claudeBatching', bindKey: 'claudeBatching', helpKey: 'claudeBatching', showExperimental: true, classes: 'mt-4' },
+    { id: 'adv.personaNote', type: 'check', labelKey: 'personaNote', bindKey: 'personaNote', helpKey: 'personaNote', showExperimental: true, classes: 'mt-4' },
+    { id: 'adv.toolUsage', type: 'check', labelKey: 'rememberToolUsage', bindKey: 'rememberToolUsage', helpKey: 'rememberToolUsage', classes: 'mt-4' },
+    { id: 'adv.bookmark', type: 'check', labelKey: 'bookmark', bindKey: 'enableBookmark', helpKey: 'bookmark', classes: 'mt-4' },
+    { id: 'adv.simpleTool', type: 'check', labelKey: 'simplifiedToolUse', bindKey: 'simplifiedToolUse', helpKey: 'simplifiedToolUse', classes: 'mt-4' },
+    { id: 'adv.tokCache', type: 'check', labelKey: 'useTokenizerCaching', bindKey: 'useTokenizerCaching', helpKey: 'useTokenizerCaching', classes: 'mt-4' },
+    { id: 'adv.auxModelUnderModelSettings', type: 'check', labelKey: 'auxModelUnderModelSettings', bindKey: 'auxModelUnderModelSettings', helpKey: 'auxModelUnderModelSettings', classes: 'mt-4' },
+    { id: 'adv.devMode', type: 'check', labelKey: 'pluginDevelopMode', bindKey: 'pluginDevelopMode', helpKey: 'pluginDevelopMode', classes: 'mt-4' },
 
     // More Experimental (Condition: useExperimental)
     {
         id: 'adv.exp.googleTrans', type: 'check', fallbackLabel: 'New Google Translate Experimental', bindKey: 'useExperimentalGoogleTranslator',
-        condition: (ctx) => ctx.db.useExperimental, helpKey: 'unrecommended', helpUnrecommended: true, classes: 'mt-4'
+        condition: (ctx) => ctx.db.useExperimental, helpKey: 'unrecommendedNewGoogleTrans', helpUnrecommended: true, classes: 'mt-4'
     },
     {
         id: 'adv.exp.claudeRet', type: 'check', labelKey: 'claudeCachingRetrival', bindKey: 'claudeRetrivalCaching',
-        condition: (ctx) => ctx.db.useExperimental, helpKey: 'unrecommended', helpUnrecommended: true, classes: 'mt-4'
+        condition: (ctx) => ctx.db.useExperimental, helpKey: 'unrecommendedClaudeCachingRetrival', helpUnrecommended: true, classes: 'mt-4'
     },
 
     // Sync (Condition: db.account.useSync)
     {
         id: 'adv.sync.realm', type: 'check', fallbackLabel: 'Lightning Realm Import', bindKey: 'lightningRealmImport',
-        condition: (ctx) => !!ctx.db.account?.useSync, showExperimental: true, classes: 'mt-4'
+        condition: (ctx) => !!ctx.db.account?.useSync, helpKey: 'lightningRealmImport', showExperimental: true, classes: 'mt-4'
     },
 
     // Dynamic Assets Edit (Condition: dynamicAssets)
@@ -213,7 +220,7 @@ export const advancedSettingsItems: SettingItem[] = [
     },
     {
         id: 'adv.depTrig', type: 'check', labelKey: 'showDeprecatedTriggerV1', bindKey: 'showDeprecatedTriggerV1',
-        condition: (ctx) => ctx.db.showUnrecommended, helpKey: 'unrecommended', helpUnrecommended: true, classes: 'mt-4'
+        condition: (ctx) => ctx.db.showUnrecommended, helpKey: 'unrecommendedTriggerV1', helpUnrecommended: true, classes: 'mt-4'
     },
 
     // Custom Components

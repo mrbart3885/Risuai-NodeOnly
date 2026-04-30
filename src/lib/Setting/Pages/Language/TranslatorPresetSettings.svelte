@@ -30,7 +30,7 @@
     }
 </script>
 
-<span class="text-textcolor mt-4">Preset</span>
+<span class="text-textcolor mt-4">{language.presets} <Help key="translatorPreset" /></span>
 <ShSelect
     className="mt-2 mb-1"
     value={DBState.db.translatorPresetId}
@@ -163,7 +163,7 @@
 
 {#if DBState.db.translatorPresets?.[DBState.db.translatorPresetId]}
     {@const preset = DBState.db.translatorPresets[DBState.db.translatorPresetId]}
-    <span class="text-textcolor mt-4">{language.translationResponseSize}</span>
+    <span class="text-textcolor mt-4">{language.translationResponseSize} <Help key="translationResponseSize" /></span>
     <NumberInput
         className="mt-2"
         min={0}

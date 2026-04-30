@@ -4,6 +4,7 @@
     import { DBState } from 'src/ts/stores.svelte';
     import { selectSingleFile } from 'src/ts/util';
     import Check from 'src/lib/UI/GUI/CheckInput.svelte';
+    import Help from 'src/lib/Others/Help.svelte';
 </script>
 
 <div class="flex items-center mt-2">
@@ -24,5 +25,7 @@
             }
         }}
         name={language.useCustomBackground}
-    />
+    >
+        <Help key="customBackground" />
+    </Check>
 </div>

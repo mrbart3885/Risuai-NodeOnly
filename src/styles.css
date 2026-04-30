@@ -3,6 +3,8 @@
 @plugin '@tailwindcss/typography';
 
 @theme {
+  --breakpoint-xs: 25rem;
+
   --color-bgcolor: var(--risu-theme-bgcolor);
   --color-darkbg: var(--risu-theme-darkbg);
   --color-borderc: var(--risu-theme-borderc);

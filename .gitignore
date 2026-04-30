@@ -48,6 +48,7 @@ dist.zip
 /scripts/*
 !/scripts/updater.cjs
 !/scripts/portable/
+!/scripts/check-help-keys.mjs
 .env
 /server/node/ssl/certificate
 /bin/

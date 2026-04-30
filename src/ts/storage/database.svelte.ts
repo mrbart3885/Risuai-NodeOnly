@@ -677,6 +677,7 @@ export function setDatabase(data:Database){
     data.echoDelay ??= 0
     data.createFolderOnBranch ??= true
     data.hamburgerButtonBottom ??= false
+    data.hideLeftBarCollapseButton ??= false
     data.dynamicModelRegistry ??= true
     data.saveSignatures ??= false
     data.enableRisuaiProTools ??= false
@@ -1335,6 +1336,7 @@ export interface Database{
     echoDelay?:number
     createFolderOnBranch?:boolean
     hamburgerButtonBottom?:boolean
+    hideLeftBarCollapseButton?:boolean
     enableRemoteSaving?:boolean
     blockquoteStyling?:boolean
     dynamicModelRegistry?:boolean

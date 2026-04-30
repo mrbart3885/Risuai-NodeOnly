@@ -39,7 +39,7 @@
 
 </script>
 <div class="h-full w-full flex justify-center rs-setting-cont" class:bg-bgcolor={$MobileGUI} class:setting-bg={!$MobileGUI}>
-    <div class="h-full max-w-(--breakpoint-lg) w-full flex relative rs-setting-cont-2">
+    <div class="h-full max-w-4xl w-full flex relative rs-setting-cont-2">
         {#if (window.innerWidth >= 700 && !$MobileGUI) || $SettingsMenuIndex === -1}
             <div class="flex h-full flex-col p-4 pt-8 gap-2 overflow-y-auto relative rs-setting-cont-3 shrink-0"
                 class:w-full={window.innerWidth < 700 || $MobileGUI}
@@ -235,49 +235,51 @@
         {#if (window.innerWidth >= 700 && !$MobileGUI) || $SettingsMenuIndex !== -1}
             {#key $SettingsMenuIndex}
                 <div class="grow py-6 px-4 bg-bgcolor flex flex-col text-textcolor overflow-y-auto relative rs-setting-cont-4 min-w-0">
-                    {#if $SettingsMenuIndex === 0}
-                        <UserSettings />
-                    {:else if $SettingsMenuIndex === 1}
-                        <BotSettings goPromptTemplate={() => {
-                            $SettingsMenuIndex = 13
-                        }} />
-                    {:else if $SettingsMenuIndex === 2}
-                        <OtherBotSettings />
-                    {:else if $SettingsMenuIndex === 3}
-                        <DisplaySettings />
-                    {:else if $SettingsMenuIndex === 4}
-                        <PluginSettings />
-                    {:else if $SettingsMenuIndex === 5}
-                        <FilesSettings />
-                    {:else if $SettingsMenuIndex === 6}
-                        <AdvancedSettings />
-                    {:else if $SettingsMenuIndex === 8}
-                        <GlobalLoreBookSettings bind:openLoreList />
-                    {:else if $SettingsMenuIndex === 9}
-                        <GlobalRegex/>
-                    {:else if $SettingsMenuIndex === 10}
-                        <LanguageSettings/>
-                    {:else if $SettingsMenuIndex === 11}
-                        <AccessibilitySettings/>
-                    {:else if $SettingsMenuIndex === 12}
-                        <PersonaSettings/>
-                    {:else if $SettingsMenuIndex === 14}
-                        <ModuleSettings/>
-                    {:else if $SettingsMenuIndex === 13}
-                        <PromptSettings onGoBack={() => {
-                            $SettingsMenuIndex = 1
-                        }}/>
-                    {:else if $SettingsMenuIndex === 15 && window.innerWidth >= 768}
-                        <HotkeySettings/>
-                    {:else if $SettingsMenuIndex === 23}
-                        <InlayImageGallery/>
-                    {:else if $SettingsMenuIndex === 21}
-                        <RemoteAccessSettings/>
-                    {:else if $SettingsMenuIndex === 22}
-                        <SystemSettings/>
-                    {:else if $SettingsMenuIndex === 99 && devPanelEnabled}
-                        <DevPanel/>
-                    {/if}
+                    <div class="w-full max-w-2xl mx-auto flex flex-col">
+                        {#if $SettingsMenuIndex === 0}
+                            <UserSettings />
+                        {:else if $SettingsMenuIndex === 1}
+                            <BotSettings goPromptTemplate={() => {
+                                $SettingsMenuIndex = 13
+                            }} />
+                        {:else if $SettingsMenuIndex === 2}
+                            <OtherBotSettings />
+                        {:else if $SettingsMenuIndex === 3}
+                            <DisplaySettings />
+                        {:else if $SettingsMenuIndex === 4}
+                            <PluginSettings />
+                        {:else if $SettingsMenuIndex === 5}
+                            <FilesSettings />
+                        {:else if $SettingsMenuIndex === 6}
+                            <AdvancedSettings />
+                        {:else if $SettingsMenuIndex === 8}
+                            <GlobalLoreBookSettings bind:openLoreList />
+                        {:else if $SettingsMenuIndex === 9}
+                            <GlobalRegex/>
+                        {:else if $SettingsMenuIndex === 10}
+                            <LanguageSettings/>
+                        {:else if $SettingsMenuIndex === 11}
+                            <AccessibilitySettings/>
+                        {:else if $SettingsMenuIndex === 12}
+                            <PersonaSettings/>
+                        {:else if $SettingsMenuIndex === 14}
+                            <ModuleSettings/>
+                        {:else if $SettingsMenuIndex === 13}
+                            <PromptSettings onGoBack={() => {
+                                $SettingsMenuIndex = 1
+                            }}/>
+                        {:else if $SettingsMenuIndex === 15 && window.innerWidth >= 768}
+                            <HotkeySettings/>
+                        {:else if $SettingsMenuIndex === 23}
+                            <InlayImageGallery/>
+                        {:else if $SettingsMenuIndex === 21}
+                            <RemoteAccessSettings/>
+                        {:else if $SettingsMenuIndex === 22}
+                            <SystemSettings/>
+                        {:else if $SettingsMenuIndex === 99 && devPanelEnabled}
+                            <DevPanel/>
+                        {/if}
+                    </div>
             </div>
             {/key}
             {#if !$MobileGUI}

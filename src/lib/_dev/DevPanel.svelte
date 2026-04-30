@@ -43,6 +43,8 @@
     import { TriangleAlertIcon, InfoIcon, CheckCircleIcon, XCircleIcon } from "@lucide/svelte";
     import ShSelect from "src/lib/UI/GUI/ShSelect.svelte";
     import OptionInput from "src/lib/UI/GUI/OptionInput.svelte";
+    import ShAccordion from "src/lib/UI/GUI/ShAccordion.svelte";
+    import TextInput from "src/lib/UI/GUI/TextInput.svelte";
 
     let lastResult = $state('');
 
@@ -657,6 +659,72 @@ function hello(): string {
                 <li>↑↑↑ 위로 올라갈 때도 동일</li>
                 <li>현재 선택값: <code>{galleryLongSelectValue}</code></li>
             </ul>
+        </div>
+    </div>
+
+    <!-- Section 8 -->
+    <div class="mt-4 flex flex-col gap-3">
+        <h3 class="text-sm font-semibold text-textcolor">8. ShAccordion 변형 비교</h3>
+        <p class="text-xs text-textcolor2">
+            <code>card</code> / <code>plain</code> / <code>indent</code> 세 변형. 좌측은 사이드바 폭(280px) 제약, 우측은 풀폭. 펼친 상태에서 좌우 패딩·보더 손실을 비교하세요.
+        </p>
+
+        {#snippet sampleBody()}
+            <div class="text-textcolor2 text-sm">샘플 본문 — 폭 비교용</div>
+            <TextInput value="Field A" />
+            <TextInput value="Field B" />
+        {/snippet}
+
+        <div class="grid grid-cols-2 gap-4">
+            <!-- 사이드바 폭 (280px) -->
+            <div class="flex flex-col gap-3">
+                <span class="text-xs text-textcolor2">사이드바 폭 (max-w-[280px])</span>
+                <div class="max-w-[280px] flex flex-col gap-3">
+                    <div class="flex flex-col gap-1">
+                        <div class="text-xs text-textcolor2/70">card</div>
+                        <ShAccordion name="Sample" variant="card">
+                            {@render sampleBody()}
+                        </ShAccordion>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <div class="text-xs text-textcolor2/70">plain</div>
+                        <ShAccordion name="Sample" variant="plain">
+                            {@render sampleBody()}
+                        </ShAccordion>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <div class="text-xs text-textcolor2/70">indent</div>
+                        <ShAccordion name="Sample" variant="indent">
+                            {@render sampleBody()}
+                        </ShAccordion>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 풀폭 -->
+            <div class="flex flex-col gap-3">
+                <span class="text-xs text-textcolor2">풀폭</span>
+                <div class="flex flex-col gap-3">
+                    <div class="flex flex-col gap-1">
+                        <div class="text-xs text-textcolor2/70">card</div>
+                        <ShAccordion name="Sample" variant="card">
+                            {@render sampleBody()}
+                        </ShAccordion>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <div class="text-xs text-textcolor2/70">plain</div>
+                        <ShAccordion name="Sample" variant="plain">
+                            {@render sampleBody()}
+                        </ShAccordion>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <div class="text-xs text-textcolor2/70">indent</div>
+                        <ShAccordion name="Sample" variant="indent">
+                            {@render sampleBody()}
+                        </ShAccordion>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

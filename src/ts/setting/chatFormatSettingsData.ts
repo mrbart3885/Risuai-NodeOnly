@@ -12,6 +12,7 @@ export const chatFormatSettingsItems: SettingItem[] = [
         type: 'select',
         labelKey: 'chatFormating',
         bindKey: 'instructChatTemplate',
+        helpKey: 'chatFormating',
         options: {
             selectOptions: [
                 { value: 'chatml', label: 'ChatML' },
@@ -32,6 +33,7 @@ export const chatFormatSettingsItems: SettingItem[] = [
         type: 'textarea',
         fallbackLabel: 'Jinja Template',
         bindKey: 'JinjaTemplate',
+        helpKey: 'jinjaTemplate',
         condition: (ctx) => ctx.db.instructChatTemplate === 'jinja',
         keywords: ['jinja', 'template', 'custom'],
     },
