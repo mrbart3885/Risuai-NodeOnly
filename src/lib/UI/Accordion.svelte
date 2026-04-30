@@ -21,9 +21,10 @@
         className = ""
     }: Props = $props();
 
-    // Evaluation override: force plain across all call sites so the variant
-    // can be judged in real layouts. Restore styled→{card|plain} mapping
-    // once the variant is decided.
+    // Legacy wrapper renders every call site as the card variant — this is
+    // the chosen default for the codebase's bordered "Settings section" feel.
+    // Direct ShAccordion callers (e.g. Toggles.svelte) pick their own variant
+    // when card is too heavy for narrow contexts.
     const variant = 'card';
 </script>
 
