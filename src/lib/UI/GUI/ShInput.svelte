@@ -10,8 +10,12 @@
         className?: string;
     }
 
+    // value: $bindable() with no fallback — Svelte 5 throws props_invalid_value
+    // when a $bindable has a fallback but the bound source is undefined. Many
+    // DB schema fields are optional (e.g. character.nickname?: string), so the
+    // bind target may legitimately be undefined; the fallback would reject it.
     let {
-        value = $bindable(''),
+        value = $bindable(),
         className = '',
         type = 'text',
         ...rest
