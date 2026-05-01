@@ -4423,7 +4423,7 @@ app.post('/api/self-update', async (req, res) => {
                 if (skipMove.has(e)) continue;
                 const dest = path.join(appDir, e);
                 await fs.rm(dest, { recursive: true, force: true }).catch(() => {});
-                await fs.rename(path.join(sourceDir, e), dest);
+                await moveAcrossVolumes(path.join(sourceDir, e), dest);
                 moved.push(e);
             }
             // Post-move validation
@@ -4565,6 +4565,21 @@ app.post('/api/self-update', async (req, res) => {
     }
 });
 
+// Helper: rename, falling back to copy+remove when src and dest are on
+// different volumes (Windows EXDEV — e.g. app on D:, os.tmpdir() on C:)
+async function moveAcrossVolumes(src, dest) {
+    try {
+        await fs.rename(src, dest);
+    } catch (err) {
+        if (err && err.code === 'EXDEV') {
+            await fs.cp(src, dest, { recursive: true, force: true });
+            await fs.rm(src, { recursive: true, force: true });
+            return;
+        }
+        throw err;
+    }
+}
+
 // Helper: restore files from backup directory into app root (mirrors updater.cjs restoreBackupIntoRoot)
 async function restoreBackup(backupDir, rootDir) {
     try { await fs.access(backupDir); } catch { return; }
@@ -4573,7 +4588,7 @@ async function restoreBackup(backupDir, rootDir) {
         const dest = path.join(rootDir, entry);
         try {
             await fs.rm(dest, { recursive: true, force: true }).catch(() => {});
-            await fs.rename(src, dest);
+            await moveAcrossVolumes(src, dest);
         } catch { /* best effort */ }
     }
 }
