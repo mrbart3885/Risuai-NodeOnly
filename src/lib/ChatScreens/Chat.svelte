@@ -1089,7 +1089,11 @@
      onclickcapture={handleButtonTriggerWithin}>
     <div class="text-textcolor grow max-w-full sm:px-4 py-4">
         {#if !blankMessage}
-            <div class="flex flex-col w-full min-w-0 max-w-3xl mx-auto py-6 px-4 sm:px-8 bg-bgcolor sm:rounded-lg">
+            {@const nodeOnlyWidthClass =
+                DBState.db.nodeOnlyStandardChatWidth === 'full' ? 'max-w-full' :
+                DBState.db.nodeOnlyStandardChatWidth === 'wide' ? 'max-w-6xl' :
+                'max-w-3xl'}
+            <div class="flex flex-col w-full min-w-0 {nodeOnlyWidthClass} mx-auto py-6 px-4 sm:px-8 bg-bgcolor sm:rounded-lg">
                 <!-- Header: icon + name -->
                 <div class="flex items-center gap-3 mb-4">
                     {@render senderIcon({rounded: DBState.db.roundIcons})}

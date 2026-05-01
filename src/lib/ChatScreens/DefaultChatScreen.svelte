@@ -651,7 +651,11 @@
             <span>{language.selectChatToView}</span>
         </div>
     {:else}
-        <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen" class:nodeonly-standard={DBState.db.theme === ''} onscroll={(e) => {
+        <div class="h-full w-full flex flex-col-reverse overflow-y-auto relative default-chat-screen"
+            class:nodeonly-standard={DBState.db.theme === ''}
+            class:no-chat-width-wide={DBState.db.theme === '' && DBState.db.nodeOnlyStandardChatWidth === 'wide'}
+            class:no-chat-width-full={DBState.db.theme === '' && DBState.db.nodeOnlyStandardChatWidth === 'full'}
+            onscroll={(e) => {
             if (DBState.db.useNodeOnlyScrollButton) {
                 showScrollNav = true
                 if (scrollNavTimer) clearTimeout(scrollNavTimer)

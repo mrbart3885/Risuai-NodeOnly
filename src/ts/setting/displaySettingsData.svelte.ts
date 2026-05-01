@@ -53,6 +53,23 @@ export const displayThemeSettingsItems: SettingItem[] = [
         keywords: ['custom', 'html', 'chat'],
     },
     {
+        id: 'display.nodeOnlyStandardChatWidth',
+        type: 'select',
+        labelKey: 'nodeOnlyStandardChatWidth',
+        helpKey: 'nodeOnlyStandardChatWidth',
+        bindKey: 'nodeOnlyStandardChatWidth',
+        classes: 'mt-4',
+        condition: (ctx) => ctx.db.theme === '',
+        options: {
+            selectOptions: [
+                { value: 'standard', labelKey: 'chatWidthStandard' },
+                { value: 'wide', labelKey: 'chatWidthWide' },
+                { value: 'full', labelKey: 'chatWidthFull' },
+            ],
+        },
+        keywords: ['chat', 'width', 'nodeonly', 'standard'],
+    },
+    {
         id: 'display.customCSS',
         type: 'textarea',
         labelKey: 'customCSS',

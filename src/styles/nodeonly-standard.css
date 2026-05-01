@@ -15,7 +15,11 @@
     var(--risu-theme-bgcolor) 25%,
     var(--risu-theme-darkbg)
   );
+  /* 메시지 카드와 제작자 코멘트가 함께 따라갈 가로폭 변수 (display.nodeOnlyStandardChatWidth와 동기화) */
+  --no-chat-max-width: 48rem;
 }
+.nodeonly-standard.no-chat-width-wide { --no-chat-max-width: 72rem; }
+.nodeonly-standard.no-chat-width-full { --no-chat-max-width: 100%; }
 
 /* 메시지 바깥 배경 */
 .nodeonly-standard .risu-chat {
@@ -38,7 +42,7 @@
 /* 제작자 코멘트 박스 (메시지 카드와 동일한 bgcolor) */
 .nodeonly-standard .bg-darkbg.rounded-md {
   background-color: var(--risu-theme-bgcolor) !important;
-  max-width: 48rem;
+  max-width: var(--no-chat-max-width);
   margin-inline: auto;
 }
 
