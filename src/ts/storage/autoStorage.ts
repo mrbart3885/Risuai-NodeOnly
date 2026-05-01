@@ -38,9 +38,9 @@ export class AutoStorage{
         return this.realStorage.createAuth()
     }
 
-    async exportBackup() {
+    async exportBackup(opts?: { target?: 'upstream' }) {
         await this.Init()
-        return this.realStorage.exportBackup()
+        return this.realStorage.exportBackup(opts)
     }
 
     async importBackup(file: Blob, onProgress?: (loaded: number, total: number) => void) {

@@ -406,8 +406,11 @@ export class NodeStorage{
         }
     }
 
-    async exportBackup(): Promise<Response> {
-        const da = await this.authFetch('/api/backup/export')
+    async exportBackup(opts?: { target?: 'upstream' }): Promise<Response> {
+        const url = opts?.target === 'upstream'
+            ? '/api/backup/export?target=upstream'
+            : '/api/backup/export'
+        const da = await this.authFetch(url)
         if (da.status < 200 || da.status >= 300) throw `backup export error: ${da.status}`
         return da
     }

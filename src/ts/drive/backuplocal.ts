@@ -12,40 +12,55 @@ function formatBytes(bytes: number): string {
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
 }
 
+async function streamBackupToDisk(response: Response, fallbackName: string){
+    const disposition = response.headers.get('content-disposition') ?? ''
+    const fileName = disposition.match(/filename=\"?([^"]+)\"?/)?.[1] ?? fallbackName
+    const totalBytes = Number(response.headers.get('content-length') ?? '0')
+
+    if (response.body) {
+        const streamSaver = await import('streamsaver')
+        const writableStream = streamSaver.createWriteStream(fileName)
+        const writer = writableStream.getWriter()
+        const reader = response.body.getReader()
+        let downloadedBytes = 0
+
+        while (true) {
+            const { done, value } = await reader.read()
+            if (done) {
+                break
+            }
+            downloadedBytes += value.length
+            if (totalBytes > 0) {
+                const progress = ((downloadedBytes / totalBytes) * 100).toFixed(2)
+                alertWait(`Saving local backup... (${progress}%)`)
+            } else {
+                alertWait(`Saving local backup... (${(downloadedBytes / (1024 * 1024)).toFixed(1)} MB)`)
+            }
+            await writer.write(value)
+        }
+        await writer.close()
+    } else {
+        await downloadFile(fileName, new Uint8Array(await response.arrayBuffer()))
+    }
+}
+
 export async function SaveLocalBackup(){
     try {
         alertWait("Saving local backup...")
         const response = await forageStorage.exportBackup()
-        const disposition = response.headers.get('content-disposition') ?? ''
-        const fileName = disposition.match(/filename=\"?([^"]+)\"?/)?.[1] ?? `risu-backup-${Date.now()}.bin`
-        const totalBytes = Number(response.headers.get('content-length') ?? '0')
+        await streamBackupToDisk(response, `risu-backup-${Date.now()}.bin`)
+        notifySuccess('Success')
+    } catch (error) {
+        console.error(error)
+        alertError('Failed')
+    }
+}
 
-        if (response.body) {
-            const streamSaver = await import('streamsaver')
-            const writableStream = streamSaver.createWriteStream(fileName)
-            const writer = writableStream.getWriter()
-            const reader = response.body.getReader()
-            let downloadedBytes = 0
-
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) {
-                    break
-                }
-                downloadedBytes += value.length
-                if (totalBytes > 0) {
-                    const progress = ((downloadedBytes / totalBytes) * 100).toFixed(2)
-                    alertWait(`Saving local backup... (${progress}%)`)
-                } else {
-                    alertWait(`Saving local backup... (${(downloadedBytes / (1024 * 1024)).toFixed(1)} MB)`)
-                }
-                await writer.write(value)
-            }
-            await writer.close()
-        } else {
-            await downloadFile(fileName, new Uint8Array(await response.arrayBuffer()))
-        }
-
+export async function SaveLocalBackupForUpstream(){
+    try {
+        alertWait("Saving local backup...")
+        const response = await forageStorage.exportBackup({ target: 'upstream' })
+        await streamBackupToDisk(response, `risu-backup-${Date.now()}-upstream.bin`)
         notifySuccess('Success')
     } catch (error) {
         console.error(error)

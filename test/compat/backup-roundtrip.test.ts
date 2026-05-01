@@ -13,6 +13,7 @@ import { createClient } from './helpers/client.js'
 import { createSeedBackup } from './helpers/seed.js'
 import { normalizeBackup, fingerprintAssets } from './helpers/normalize.js'
 import { encodeBackup } from './helpers/encode.js'
+import { decodeBackup } from './helpers/decode.js'
 
 // Track servers so we can clean them all up even if a test fails.
 const servers: ServerHandle[] = []
@@ -113,6 +114,67 @@ describe('asset round-trip', () => {
 
     // Both count and content (sha256) must match
     expect(afterFingerprints).toEqual(beforeFingerprints)
+  })
+})
+
+// ─── Upstream-compatible export ────────────────────────────────────────────
+
+describe('upstream-compatible backup export', () => {
+  test('excludes NodeOnly-only inlay namespaces while regular export preserves them', async () => {
+    const srv = await spawnServer()
+    servers.push(srv)
+    const client = await createClient(srv.port, srv.password)
+
+    const seed = Buffer.concat([
+      createSeedBackup({ characterCount: 1 }),
+      encodeBackup([
+        { name: 'inlay/test-inlay.png', data: Buffer.from('fake-inlay-image') },
+        {
+          name: 'inlay_sidecar/test-inlay',
+          data: Buffer.from(JSON.stringify({
+            ext: 'png',
+            name: 'test-inlay.png',
+            type: 'image',
+          })),
+        },
+        {
+          name: 'inlay_meta/test-inlay',
+          data: Buffer.from(JSON.stringify({
+            createdAt: 1,
+            updatedAt: 2,
+            charId: 'test-char-0',
+            chatId: 'chat-0-0',
+          })),
+        },
+      ]),
+    ])
+
+    const importResult = await client.importBackup(seed)
+    expect(importResult.ok).toBe(true)
+
+    const regularNames = decodeBackup(await client.exportBackup()).map(e => e.name)
+    expect(regularNames).toEqual(expect.arrayContaining([
+      'database.risudat',
+      'inlay/test-inlay.png',
+      'inlay_sidecar/test-inlay',
+      'inlay_meta/test-inlay',
+    ]))
+
+    const upstreamRes = await client.fetch('/api/backup/export?target=upstream')
+    expect(upstreamRes.ok).toBe(true)
+    expect(upstreamRes.headers.get('content-disposition')).toContain('-upstream.bin')
+
+    const upstreamBackup = Buffer.from(await upstreamRes.arrayBuffer())
+    const upstreamNames = decodeBackup(upstreamBackup).map(e => e.name)
+
+    expect(upstreamNames).toContain('database.risudat')
+    expect(upstreamNames.some(name => name.startsWith('inlay/'))).toBe(false)
+    expect(upstreamNames.some(name => name.startsWith('inlay_sidecar/'))).toBe(false)
+    expect(upstreamNames.some(name => name.startsWith('inlay_meta/'))).toBe(false)
+
+    const regularDb = normalizeBackup(await client.exportBackup()).normalized
+    const upstreamDb = normalizeBackup(upstreamBackup).normalized
+    expect(upstreamDb).toEqual(regularDb)
   })
 })
 

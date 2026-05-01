@@ -139,6 +139,9 @@ export function setDatabase(data:Database){
         data.iconsize = 100
     }
     data.theme = normalizeTheme(data.theme)
+    if(data.nodeOnlyStandardChatWidth !== 'standard' && data.nodeOnlyStandardChatWidth !== 'wide' && data.nodeOnlyStandardChatWidth !== 'full'){
+        data.nodeOnlyStandardChatWidth = 'standard'
+    }
     if(checkNullish(data.subModel)){
         data.subModel = 'gemini-3-flash-preview'
     }
@@ -927,6 +930,7 @@ export interface Database{
     playMessage:boolean
     iconsize:number
     theme: string
+    nodeOnlyStandardChatWidth: 'standard' | 'wide' | 'full'
     subModel:string
     emotionPrompt: string,
     formatversion:number
@@ -1682,6 +1686,7 @@ export interface themePreset{
     name: string
     // Theme tab (submenu 0)
     theme: string
+    nodeOnlyStandardChatWidth?: 'standard' | 'wide' | 'full'
     guiHTML: string
     customCSS: string
     waifuWidth: number
@@ -2112,6 +2117,7 @@ export const presetTemplate:botPreset = {
 export const themePresetTemplate: themePreset = {
     name: "New Theme",
     theme: '',
+    nodeOnlyStandardChatWidth: 'standard',
     guiHTML: '',
     customCSS: '',
     waifuWidth: 100,
@@ -2432,6 +2438,7 @@ export function saveCurrentThemePreset(){
     const saved: themePreset = {
         name: pres[db.themePresetsId]?.name ?? "Default",
         theme: normalizeTheme(db.theme),
+        nodeOnlyStandardChatWidth: db.nodeOnlyStandardChatWidth,
         guiHTML: db.guiHTML,
         customCSS: db.customCSS,
         waifuWidth: db.waifuWidth,
@@ -2502,6 +2509,7 @@ export function changeToThemePreset(id = 0, savecurrent = true){
     if(!p) return
     db.themePresetsId = id
     db.theme = normalizeTheme(p.theme ?? db.theme)
+    db.nodeOnlyStandardChatWidth = p.nodeOnlyStandardChatWidth ?? db.nodeOnlyStandardChatWidth
     db.guiHTML = p.guiHTML ?? db.guiHTML
     db.customCSS = p.customCSS ?? db.customCSS
     db.waifuWidth = p.waifuWidth ?? db.waifuWidth

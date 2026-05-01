@@ -53,6 +53,31 @@ export const displayThemeSettingsItems: SettingItem[] = [
         keywords: ['custom', 'html', 'chat'],
     },
     {
+        id: 'display.guiHTML.warning',
+        type: 'custom',
+        componentId: 'CustomizationWarning',
+        componentProps: { messageKey: 'customHTMLWarning' },
+        condition: (ctx) => ctx.db.theme === 'customHTML',
+        keywords: ['custom', 'html', 'warning'],
+    },
+    {
+        id: 'display.nodeOnlyStandardChatWidth',
+        type: 'select',
+        labelKey: 'nodeOnlyStandardChatWidth',
+        helpKey: 'nodeOnlyStandardChatWidth',
+        bindKey: 'nodeOnlyStandardChatWidth',
+        classes: 'mt-4',
+        condition: (ctx) => ctx.db.theme === '',
+        options: {
+            selectOptions: [
+                { value: 'standard', labelKey: 'chatWidthStandard' },
+                { value: 'wide', labelKey: 'chatWidthWide' },
+                { value: 'full', labelKey: 'chatWidthFull' },
+            ],
+        },
+        keywords: ['chat', 'width', 'nodeonly', 'standard'],
+    },
+    {
         id: 'display.customCSS',
         type: 'textarea',
         labelKey: 'customCSS',
@@ -61,6 +86,13 @@ export const displayThemeSettingsItems: SettingItem[] = [
         classes: 'mt-4',
         onChange: () => updateTextThemeAndCSS(),
         keywords: ['custom', 'css'],
+    },
+    {
+        id: 'display.customCSS.warning',
+        type: 'custom',
+        componentId: 'CustomizationWarning',
+        componentProps: { messageKey: 'customCSSWarning' },
+        keywords: ['custom', 'css', 'warning'],
     },
     {
         id: 'display.waifuWidth',

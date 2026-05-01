@@ -220,6 +220,7 @@ export const helpKo = {
         "theme": "전체 채팅 화면 레이아웃 테마입니다.\n\n- **NodeOnly Standard**: 기본 (NodeOnly 디자인)\n- **Standard Risu**: 기존 RisuAI 레이아웃\n- **Waifulike**: 캐릭터 일러스트 중심, 양쪽에 배경 캐릭터\n- **Mobile Chat**: 모바일 채팅 스타일\n- **CardBoard**: 카드 형태\n- **Custom HTML**: 아래 \"채팅 HTML\"로 직접 작성",
         "waifuWidth": "Waifulike 테마에서 캐릭터 일러스트의 너비입니다 (50-200%). 100%가 기본 크기입니다. Waifulike 테마에서만 노출됩니다.",
         "waifuWidth2": "Waifulike 테마의 두 번째 캐릭터(또는 보조 요소)의 너비입니다 (20-150%). 1인 캐릭터일 때는 0에 가깝게 두면 숨길 수 있습니다.",
+        "nodeOnlyStandardChatWidth": "NodeOnly Standard 테마에서 메시지 카드의 최대 가로폭입니다.\n\n- **표준**: 768px (기본)\n- **넓게**: 1152px\n- **제한 없음**: 채팅 영역 전체를 사용\n\nNodeOnly Standard 테마에서만 노출됩니다.",
         "colorScheme": "Risu UI 전체에 적용되는 색상 팔레트입니다 (배경/텍스트/포인트 색). 위쪽 \"테마\" 옵션(레이아웃)과는 별개로 동작하며, **Custom**을 선택하면 아래 편집기에서 색을 직접 지정할 수 있습니다.",
         "textColor": "메시지 본문 텍스트 색 테마입니다.\n\n- **Classic Risu**: 기존 톤\n- **High Contrast**: 가독성 우선\n- **Custom**: 직접 색 지정",
         "font": "메시지 폰트입니다.\n\n- **Default**: 시스템 기본\n- **Times New Roman**: 영문 위주에서 가독성 향상\n- **Custom**: 아래 \"커스텀 폰트\" 입력값 사용",

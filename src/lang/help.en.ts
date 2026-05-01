@@ -395,6 +395,8 @@ export const helpEn = {
             "Width of the character illustration in the Waifulike theme (50-200%). `100%` is the default. Only shown for Waifulike.",
         waifuWidth2:
             "Width of the second character or secondary visual in the Waifulike theme (20-150%). Set close to 0 if you want to hide it for a single-character setup.",
+        nodeOnlyStandardChatWidth:
+            "Maximum chat card width in the NodeOnly Standard theme.\n\n- **Standard**: 768px (default)\n- **Wide**: 1152px\n- **No Limit**: fills the available chat area\n\nOnly shown for the NodeOnly Standard theme.",
         colorScheme:
             "Color palette used across the Risu UI (background, text, accents). Independent of the Theme (layout) option above. Pick **Custom** to define your own colors in the editor that appears below.",
         textColor:
