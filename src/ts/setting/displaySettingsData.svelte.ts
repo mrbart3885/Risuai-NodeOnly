@@ -53,6 +53,14 @@ export const displayThemeSettingsItems: SettingItem[] = [
         keywords: ['custom', 'html', 'chat'],
     },
     {
+        id: 'display.guiHTML.warning',
+        type: 'custom',
+        componentId: 'CustomizationWarning',
+        componentProps: { messageKey: 'customHTMLWarning' },
+        condition: (ctx) => ctx.db.theme === 'customHTML',
+        keywords: ['custom', 'html', 'warning'],
+    },
+    {
         id: 'display.nodeOnlyStandardChatWidth',
         type: 'select',
         labelKey: 'nodeOnlyStandardChatWidth',
@@ -78,6 +86,13 @@ export const displayThemeSettingsItems: SettingItem[] = [
         classes: 'mt-4',
         onChange: () => updateTextThemeAndCSS(),
         keywords: ['custom', 'css'],
+    },
+    {
+        id: 'display.customCSS.warning',
+        type: 'custom',
+        componentId: 'CustomizationWarning',
+        componentProps: { messageKey: 'customCSSWarning' },
+        keywords: ['custom', 'css', 'warning'],
     },
     {
         id: 'display.waifuWidth',

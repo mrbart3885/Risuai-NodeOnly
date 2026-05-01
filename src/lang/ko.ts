@@ -646,6 +646,8 @@ export const languageKorean = {
     "chatWidthStandard": "표준",
     "chatWidthWide": "넓게",
     "chatWidthFull": "제한 없음",
+    "customCSSWarning": "NodeOnly는 원본 RisuAI와 UI 구성(HTML/CSS)이 다르기 때문에, 기존에 쓰던 커스텀 CSS가 레이아웃을 깨거나 의도와 다르게 동작할 수 있습니다. 어떤 부분을 덮어쓰는지 정확히 아는 경우에만 사용하세요.",
+    "customHTMLWarning": "NodeOnly는 원본 RisuAI와 UI 구성(HTML/CSS)이 다르기 때문에, 기존에 쓰던 커스텀 Chat HTML이 정상적으로 렌더되지 않을 수 있습니다. 어떤 부분을 덮어쓰는지 정확히 아는 경우에만 사용하세요.",
     "sayNothing": "어떤 문자열도 입력되지 않을 시 'say nothing' 입력",
     "regexScript": "정규식 스크립트",
     "type": "타입",

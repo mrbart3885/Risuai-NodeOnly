@@ -652,6 +652,8 @@ export const languageEnglish = {
     chatWidthStandard: "Standard",
     chatWidthWide: "Wide",
     chatWidthFull: "No Limit",
+    customCSSWarning: "NodeOnly's UI structure (HTML/CSS) differs from upstream RisuAI, so existing custom CSS may break the layout or behave unexpectedly. Use only when you know what you are overriding.",
+    customHTMLWarning: "NodeOnly's UI structure (HTML/CSS) differs from upstream RisuAI, so existing custom Chat HTML may not render correctly. Use only when you know what you are overriding.",
     sayNothing: "Input 'say nothing' when no string inputed",
     regexScript: "Regex Script",
     type: "Type",
