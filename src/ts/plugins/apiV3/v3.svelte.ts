@@ -556,6 +556,28 @@ export async function resetAllPluginPermissions() {
     await removePersistentKey(pluginPermissionStateKey)
 }
 
+export async function resetPluginPermission(pluginName: string) {
+    await ensurePluginPermissionStateLoaded()
+    permissionGivenPlugins.delete(pluginName)
+    permissionDeniedPlugins.delete(pluginName)
+    const prefix = pluginName + '_'
+    for (const key of [...permissionCache.keys()]) {
+        if (key.startsWith(prefix)) {
+            permissionCache.delete(key)
+        }
+    }
+    const plugin = DBState.db.plugins?.find(p => p.name === pluginName)
+    if (plugin?.script) {
+        const scriptHashBase = await hasher(new TextEncoder().encode(plugin.script))
+        for (const key of [...permissionCache.keys()]) {
+            if (key.startsWith(scriptHashBase + '_')) {
+                permissionCache.delete(key)
+            }
+        }
+    }
+    await persistPluginPermissionState()
+}
+
 async function persistPluginPermissionState() {
     await writePersistentJson(pluginPermissionStateKey, {
         given: [...permissionGivenPlugins],
