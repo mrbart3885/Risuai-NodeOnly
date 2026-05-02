@@ -489,6 +489,18 @@ export async function exportAllChats() {
         const db = getDatabase()
         const char = db.characters[selectedID]
         const date = new Date().toISOString().replace(/[:.]/g, "-")
+
+        for (let i = 0; i < char.chats.length; i++) {
+            if (char.chats[i]?._placeholder) {
+                alertWait(`Loading chat data... (${i + 1}/${char.chats.length})`)
+                await ensureChatHydrated(char.chats, i, char.chaId)
+            }
+            if (char.chats[i]?._placeholder) {
+                alertError(`Failed to load chat data for "${char.chats[i].name}". Export aborted to prevent data loss.`)
+                return
+            }
+        }
+
         const allChats = char.chats
         const allFolders = char.chatFolders
         const stringl = Buffer.from(JSON.stringify({

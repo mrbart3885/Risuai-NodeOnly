@@ -1,13 +1,14 @@
 <script lang="ts">
-    import { PlusIcon, TrashIcon, LinkIcon, CodeXmlIcon, PowerIcon, PowerOffIcon } from "@lucide/svelte";
+    import { PlusIcon, TrashIcon, LinkIcon, CodeXmlIcon, PowerIcon, PowerOffIcon, ShieldIcon } from "@lucide/svelte";
     import { language } from "src/lang";
     import SettingPage from "src/lib/UI/GUI/SettingPage.svelte";
-    import { alertConfirm, alertMd, alertSelect } from "src/ts/alert";
+    import { alertConfirm, alertMd, alertSelect, notifySuccess } from "src/ts/alert";
     import { TriangleAlert } from '@lucide/svelte';
 
     import { DBState, hotReloading } from "src/ts/stores.svelte";
     import { checkPluginUpdate, createBlankPlugin, importPlugin, loadPlugins, updatePlugin } from "src/ts/plugins/plugins.svelte";
     import { requestImmediateSave } from "src/ts/globalApi.svelte";
+    import { resetPluginPermission } from "src/ts/plugins/apiV3/v3.svelte";
     import TextInput from "src/lib/UI/GUI/TextInput.svelte";
     import NumberInput from "src/lib/UI/GUI/NumberInput.svelte";
     import SelectInput from "src/lib/UI/GUI/SelectInput.svelte";
@@ -110,6 +111,23 @@
                 {:else}
                     <PowerOffIcon />
                 {/if}
+            </button>
+
+            <button
+                class="textcolor2 hover:text-primary cursor-pointer"
+                title={language.resetPluginPermission}
+                onclick={async (e) => {
+                    e.stopPropagation()
+                    const v = await alertConfirm(
+                        language.resetPluginPermissionConfirm.replace("{}", plugin.displayName ?? plugin.name)
+                    )
+                    if (v) {
+                        await resetPluginPermission(plugin.name)
+                        notifySuccess(language.resetPluginPermissionDone.replace("{}", plugin.displayName ?? plugin.name))
+                    }
+                }}
+            >
+                <ShieldIcon />
             </button>
 
             <!--Also, remove button.-->

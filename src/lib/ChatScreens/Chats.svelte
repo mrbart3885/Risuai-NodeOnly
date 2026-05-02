@@ -6,6 +6,7 @@
     import { createSimpleCharacter, DBState, selectedCharID, ReloadChatPointer } from 'src/ts/stores.svelte';
     import { chatFoldedStateMessageIndex } from 'src/ts/globalApi.svelte';
     import { get } from 'svelte/store';
+    import { scrollWithinContainer } from './scrollWithin';
     
     const getCurrentChatRoomId = () => {
         const charId = get(selectedCharID);
@@ -184,13 +185,18 @@
         return rect.top <= scRect.bottom + 100;
     }
 
+    function scrollLatestIntoChatScreen() {
+        if(!chatBody) return;
+        const element = chatBody.firstElementChild as HTMLElement | null;
+        const chatScreen = chatBody.parentElement;
+        if(!element || !chatScreen) return;
+        scrollWithinContainer(element, chatScreen, { block: 'start', behavior: 'instant' });
+    }
+
     export const scrollToLatestMessage = () => {
         if(!chatBody) return;
         hasNewUnreadMessage = false;
-        const element = chatBody.firstElementChild;
-        if(element){
-             element.scrollIntoView({ behavior: 'instant', block: 'start' });
-        }
+        scrollLatestIntoChatScreen();
     }
 
     let previousLength = 0;
@@ -209,12 +215,9 @@
             const lastMsg = messages[messages.length - 1];
             if(lastMsg && lastMsg.role === 'char' && DBState.db.autoScrollToNewMessage){
                 if(wasAtBottom || DBState.db.alwaysScrollToNewMessage){
-                    const element = chatBody.firstElementChild;
-                    if(element){
-                        setTimeout(() => {
-                            element.scrollIntoView({ behavior: 'instant', block: 'start' });
-                        }, 700);
-                    }
+                    setTimeout(() => {
+                        scrollLatestIntoChatScreen();
+                    }, 700);
                 } else {
                     hasNewUnreadMessage = true;
                 }
