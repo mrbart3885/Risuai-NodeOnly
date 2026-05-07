@@ -3495,6 +3495,27 @@ app.post('/api/backup/server/save', async (req, res, next) => {
     try {
         await flushPendingDb();
 
+        // Pre-flight disk check — bail before streaming if the target dir
+        // can't fit the backup. Avoids wasted minutes + half-written tmp files.
+        try {
+            const estimate = await estimateServerBackupSize();
+            const required = Math.ceil(estimate * 1.05); // 5% safety margin
+            const sf = await fs.statfs(backupsDir);
+            const free = sf.bsize * sf.bavail;
+            if (estimate > 0 && free < required) {
+                return res.status(400).json({
+                    error: `Insufficient disk space (need ~${(required / 1024 / 1024).toFixed(0)} MB, free ${(free / 1024 / 1024).toFixed(0)} MB)`,
+                    code: 'insufficient_space',
+                    required,
+                    free,
+                });
+            }
+        } catch (e) {
+            // Non-fatal: log and proceed. statfs may be unavailable, in which
+            // case the streaming fallback path below still fails gracefully.
+            console.warn('[Backup] pre-flight disk check failed:', e?.message || e);
+        }
+
         const inlayFiles = await listInlayFiles();
         const inlayEntries = await Promise.all(inlayFiles.map(async (entry) => {
             const stat = await fs.stat(entry.filePath);
@@ -4302,6 +4323,32 @@ async function diskFreeStat(dirPath) {
     } catch { return { free: null, total: null }; }
 }
 
+// Estimated server-backup size — mirrors the enumeration in
+// /api/backup/server/save without writing anything. Inlay files live on the
+// filesystem (post-migration), so we have to fs.stat them rather than read
+// kvSize. Cost: ~5-50 ms typical, ~200 ms for users with thousands of inlays.
+async function estimateServerBackupSize() {
+    let total = 0;
+    total += kvSize(DB_BLOB_KEY) || 0;
+    for (const it of kvListWithSizes('assets/')) total += it.size;
+    for (const it of kvListWithSizes('inlay_meta/')) total += it.size;
+    for (const e of listColdStorageBackupEntries()) total += e.size;
+    try {
+        const inlayFiles = await listInlayFiles();
+        await Promise.all(inlayFiles.map(async (entry) => {
+            try {
+                const st = await fs.stat(entry.filePath);
+                total += st.size;
+            } catch { /* missing file — skip */ }
+            try {
+                const sst = await fs.stat(getInlaySidecarPath(entry.id));
+                total += sst.size;
+            } catch { /* sidecar may not exist — fine */ }
+        }));
+    } catch { /* inlay dir missing — skip */ }
+    return total;
+}
+
 app.get('/api/db/stats', async (req, res, next) => {
     if (!await checkAuth(req, res)) return;
     try {
@@ -4394,6 +4441,8 @@ app.get('/api/db/stats', async (req, res, next) => {
             orphan.available = true;
         }
 
+        const estimatedBackupSize = await estimateServerBackupSize();
+
         res.json({
             files,
             disk,
@@ -4402,6 +4451,7 @@ app.get('/api/db/stats', async (req, res, next) => {
             prefixes,
             kvRows,
             kvTotalBytes,
+            estimatedBackupSize,
             backups: {
                 kv: { count: backupKeys.length, totalSize: backupTotal, oldest: backupOldest, newest: backupNewest },
                 file: fileBackups,
@@ -4679,6 +4729,35 @@ app.delete('/api/db/snapshots', async (req, res, next) => {
         }
         kvDel(key);
         res.json({ ok: true });
+    } catch (err) { next(err); }
+});
+
+// ── Boot-time backup reminder ───────────────────────────────────────────────
+
+const BOOT_REMINDER_KEY = 'config/boot-backup-reminder';
+
+function readBootReminder() {
+    try {
+        const raw = kvGet(BOOT_REMINDER_KEY);
+        if (!raw) return false;
+        return Buffer.from(raw).toString('utf-8').trim() === '1';
+    } catch { return false; }
+}
+
+app.get('/api/backup/boot-reminder', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    try {
+        res.json({ enabled: readBootReminder() });
+    } catch (err) { next(err); }
+});
+
+app.put('/api/backup/boot-reminder', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    if (!checkActiveSession(req, res)) return;
+    try {
+        const enabled = !!req.body?.enabled;
+        kvSet(BOOT_REMINDER_KEY, Buffer.from(enabled ? '1' : '0', 'utf-8'));
+        res.json({ enabled });
     } catch (err) { next(err); }
 });
 

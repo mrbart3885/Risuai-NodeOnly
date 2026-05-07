@@ -1767,6 +1767,21 @@ export const languageEnglish = {
     backupServerDesc: "A full backup including character assets and inlay images. Stored directly on the server; you can change the location below.",
     backupServerCreate: "Create backup",
     backupServerEmpty: "No backups saved.",
+    backupBootReminder: "Boot-time backup reminder",
+    backupBootReminderHint: "From the next boot, ask whether to back up before showing the app.",
+    backupBootReminderToggledOn: "Boot-time backup reminder enabled.",
+    backupBootReminderToggledOff: "Boot-time backup reminder disabled.",
+    backupBootPromptTitle: "Create a server backup now?",
+    backupBootPromptEstimate: (size: number) =>
+        `Estimated backup size: ${(size / 1024 / 1024).toFixed(0)} MB`,
+    backupBootPromptDisk: (free: number, total: number) =>
+        `Disk free: ${(free / 1024 / 1024 / 1024).toFixed(1)} GB / total ${(total / 1024 / 1024 / 1024).toFixed(1)} GB`,
+    backupBootPromptProceed: "Back up now",
+    backupBootPromptSkip: "Skip",
+    storageDiskUsageHighWarning: (pct: number) =>
+        `Disk ${pct.toFixed(0)}% full — cleanup needed.`,
+    backupServerInsufficient: "Insufficient disk space — cannot create a new backup.",
+    updatePopupBackup: "Backup",
 
     backupServerPath: "Stored at",
     backupServerPathDefault: "Default location",

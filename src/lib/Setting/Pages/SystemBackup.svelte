@@ -6,6 +6,8 @@
     import ShAlert from 'src/lib/UI/GUI/ShAlert.svelte'
     import ShDialog from 'src/lib/UI/GUI/ShDialog.svelte'
     import ShInput from 'src/lib/UI/GUI/ShInput.svelte'
+    import ShSwitch from 'src/lib/UI/GUI/ShSwitch.svelte'
+    import Help from 'src/lib/Others/Help.svelte'
     import ServerBackupList from 'src/lib/Setting/ServerBackupList.svelte'
     import {
         CameraIcon,
@@ -18,7 +20,7 @@
         RefreshCwIcon,
         TrashIcon,
     } from '@lucide/svelte'
-    import { alertConfirm, alertError, alertWait, notifySuccess } from 'src/ts/alert'
+    import { alertConfirm, alertError, alertWait, notifyError, notifySuccess } from 'src/ts/alert'
     import { forageStorage } from 'src/ts/globalApi.svelte'
     import { setDatabase } from 'src/ts/storage/database.svelte'
     import { decodeRisuSave } from 'src/ts/storage/risuSave'
@@ -58,6 +60,30 @@
     let limitsDraftMB = $state('500')
     let limitsDialogError = $state<string | null>(null)
     let limitsDialogBusy = $state(false)
+
+    let bootReminder = $state(false)
+    let bootReminderLoaded = $state(false)
+
+    // Stats subset for warnings — fetched alongside snapshots/limits.
+    let diskFree = $state<number | null>(null)
+    let diskTotal = $state<number | null>(null)
+    let estimatedBackupSize = $state<number | null>(null)
+
+    const diskUsedPct = $derived(
+        diskFree != null && diskTotal != null && diskTotal > 0
+            ? ((diskTotal - diskFree) / diskTotal) * 100
+            : null
+    )
+    // 90-94% → yellow warn, 95%+ → red crit.
+    const diskUsageLevel = $derived<'none' | 'warn' | 'crit'>(
+        diskUsedPct == null ? 'none'
+            : diskUsedPct >= 95 ? 'crit'
+            : diskUsedPct >= 90 ? 'warn'
+            : 'none'
+    )
+    const insufficientForBackup = $derived(
+        estimatedBackupSize != null && diskFree != null && estimatedBackupSize > diskFree
+    )
 
     // ── Format helpers ───────────────────────────────────────────────────────
     function fmtBytes(n: number): string {
@@ -231,6 +257,50 @@
         }
     }
 
+    // ── Stats (for disk warnings + insufficient guard) ──────────────────────
+    async function loadStats() {
+        try {
+            const auth = await forageStorage.createAuth()
+            const res = await fetch('/api/db/stats', { headers: { 'risu-auth': auth } })
+            if (!res.ok) return
+            const json = await res.json()
+            if (typeof json?.disk?.free === 'number') diskFree = json.disk.free
+            if (typeof json?.disk?.total === 'number') diskTotal = json.disk.total
+            if (typeof json?.estimatedBackupSize === 'number') estimatedBackupSize = json.estimatedBackupSize
+        } catch { /* non-fatal */ }
+    }
+
+    // ── Boot reminder ────────────────────────────────────────────────────────
+    async function loadBootReminder() {
+        try {
+            const auth = await forageStorage.createAuth()
+            const res = await fetch('/api/backup/boot-reminder', { headers: { 'risu-auth': auth } })
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            const json = await res.json()
+            bootReminder = !!json.enabled
+            bootReminderLoaded = true
+        } catch (err) {
+            console.error('[Boot reminder]', err)
+        }
+    }
+
+    async function saveBootReminder(next: boolean) {
+        try {
+            const auth = await forageStorage.createAuth()
+            const res = await fetch('/api/backup/boot-reminder', {
+                method: 'PUT',
+                headers: { 'risu-auth': auth, 'content-type': 'application/json' },
+                body: JSON.stringify({ enabled: next }),
+            })
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            notifySuccess(next ? language.backupBootReminderToggledOn : language.backupBootReminderToggledOff)
+        } catch (err) {
+            // Optimistic update revert on PUT failure.
+            bootReminder = !next
+            notifyError('Failed to save: ' + (err instanceof Error ? err.message : String(err)))
+        }
+    }
+
     // ── Server backup actions ───────────────────────────────────────────────
     async function createServerBackup() {
         if (!(await alertConfirm(language.backupConfirm))) return
@@ -258,6 +328,8 @@
         loadSnapshots()
         loadPath()
         loadLimits()
+        loadBootReminder()
+        loadStats()
     })
 </script>
 
@@ -273,8 +345,36 @@
     </div>
     <p class="text-textcolor2 text-sm leading-relaxed mb-3">{language.backupServerDesc}</p>
 
-    <div class="flex justify-end mb-3">
-        <ShButton variant="primary" onclick={createServerBackup} disabled={backupSaving}>
+    {#if insufficientForBackup}
+        <div class="bg-draculared/20 border border-draculared/40 rounded-md px-4 py-3 mb-3 flex items-center gap-2.5 text-red-300">
+            <TriangleAlertIcon class="size-4 shrink-0 text-red-400" />
+            <span class="leading-relaxed text-sm">{language.backupServerInsufficient}</span>
+        </div>
+    {:else if diskUsageLevel === 'crit' && diskUsedPct != null}
+        <div class="bg-draculared/20 border border-draculared/40 rounded-md px-4 py-3 mb-3 flex items-center gap-2.5 text-red-300">
+            <TriangleAlertIcon class="size-4 shrink-0 text-red-400" />
+            <span class="leading-relaxed text-sm">{language.storageDiskUsageHighWarning(diskUsedPct)}</span>
+        </div>
+    {:else if diskUsageLevel === 'warn' && diskUsedPct != null}
+        <div class="bg-yellow-900/30 border border-yellow-700/40 rounded-md px-4 py-3 mb-3 flex items-center gap-2.5 text-yellow-300">
+            <TriangleAlertIcon class="size-4 shrink-0 text-yellow-400" />
+            <span class="leading-relaxed text-sm">{language.storageDiskUsageHighWarning(diskUsedPct)}</span>
+        </div>
+    {/if}
+
+    <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        {#if bootReminderLoaded}
+            <div class="flex items-center gap-2">
+                <label class="flex items-center gap-2 cursor-pointer select-none" title={language.backupBootReminderHint}>
+                    <ShSwitch bind:checked={bootReminder} onCheckedChange={(v) => { bootReminder = v; saveBootReminder(v); }} />
+                    <span class="text-textcolor text-sm">{language.backupBootReminder}</span>
+                </label>
+                <Help key="bootBackupReminder" />
+            </div>
+        {:else}
+            <span></span>
+        {/if}
+        <ShButton variant="primary" onclick={createServerBackup} disabled={backupSaving || insufficientForBackup}>
             <SaveIcon size={16} />
             {language.backupServerCreate}
         </ShButton>

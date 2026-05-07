@@ -1728,6 +1728,21 @@ export const languageKorean = {
     backupServerDesc: "캐릭터 에셋과 inlay 이미지를 모두 포함하는 풀 백업입니다. 서버 스토리지에 직접 저장되며, 보관 위치는 아래에서 변경할 수 있습니다.",
     backupServerCreate: "백업 만들기",
     backupServerEmpty: "저장된 백업이 없습니다.",
+    backupBootReminder: "부팅 시 백업 알림",
+    backupBootReminderHint: "다음 부팅부터 백업할지 묻는 팝업이 뜹니다.",
+    backupBootReminderToggledOn: "부팅 시 백업 알림이 켜졌습니다.",
+    backupBootReminderToggledOff: "부팅 시 백업 알림이 꺼졌습니다.",
+    backupBootPromptTitle: "지금 서버 백업을 만들까요?",
+    backupBootPromptEstimate: (size: number) =>
+        `예상 백업 크기: ${(size / 1024 / 1024).toFixed(0)} MB`,
+    backupBootPromptDisk: (free: number, total: number) =>
+        `디스크 여유: ${(free / 1024 / 1024 / 1024).toFixed(1)} GB / 전체 ${(total / 1024 / 1024 / 1024).toFixed(1)} GB`,
+    backupBootPromptProceed: "지금 백업",
+    backupBootPromptSkip: "건너뛰기",
+    storageDiskUsageHighWarning: (pct: number) =>
+        `디스크 사용량 ${pct.toFixed(0)}% — 정리가 필요합니다.`,
+    backupServerInsufficient: "디스크 여유 부족 — 새 백업을 만들 수 없습니다.",
+    updatePopupBackup: "백업",
 
     backupServerPath: "보관 위치",
     backupServerPathDefault: "기본 위치",

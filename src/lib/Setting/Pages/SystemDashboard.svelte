@@ -245,6 +245,16 @@
     const diskFree = $derived(stats?.disk.free ?? null)
     const diskUsed = $derived(diskTotal != null && diskFree != null ? diskTotal - diskFree : null)
     const otherUsed = $derived(diskUsed != null ? Math.max(0, diskUsed - risuFootprint) : null)
+    const diskUsedPct = $derived(
+        diskTotal != null && diskUsed != null && diskTotal > 0 ? (diskUsed / diskTotal) * 100 : null
+    )
+    // 90-94% → yellow warn, 95%+ → red destructive.
+    const diskUsageLevel = $derived<'none' | 'warn' | 'crit'>(
+        diskUsedPct == null ? 'none'
+            : diskUsedPct >= 95 ? 'crit'
+            : diskUsedPct >= 90 ? 'warn'
+            : 'none'
+    )
 
     // Bar denominator depends on view mode.
     //   Disk mode: full disk total — RisuAI slices may be near-invisible slivers.
@@ -319,6 +329,18 @@
                 {/if}
             </span>
         </div>
+
+        {#if diskUsageLevel === 'crit' && diskUsedPct != null}
+            <div class="bg-draculared/20 border border-draculared/40 rounded-md px-4 py-3 mb-3 flex items-center gap-2.5 text-red-300">
+                <TriangleAlertIcon class="size-4 shrink-0 text-red-400" />
+                <span class="leading-relaxed text-sm">{language.storageDiskUsageHighWarning(diskUsedPct)}</span>
+            </div>
+        {:else if diskUsageLevel === 'warn' && diskUsedPct != null}
+            <div class="bg-yellow-900/30 border border-yellow-700/40 rounded-md px-4 py-3 mb-3 flex items-center gap-2.5 text-yellow-300">
+                <TriangleAlertIcon class="size-4 shrink-0 text-yellow-400" />
+                <span class="leading-relaxed text-sm">{language.storageDiskUsageHighWarning(diskUsedPct)}</span>
+            </div>
+        {/if}
 
         <!-- Stacked bar — each slice is a Tooltip trigger so hover shows label + size. -->
         <div class="flex h-7 bg-bgcolor border border-darkborderc rounded-md overflow-hidden mb-3">
