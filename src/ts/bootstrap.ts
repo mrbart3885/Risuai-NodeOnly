@@ -4,7 +4,7 @@ import { get } from "svelte/store";
 import { setDatabase, defaultSdDataFunc, getDatabase } from "./storage/database.svelte";
 import { checkRisuUpdate } from "./update";
 import { fetchPublicStats } from "./publicStats";
-import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState } from "./stores.svelte";
+import { MobileGUI, botMakerMode, selectedCharID, loadedStore, DBState, LoadingStatusState, bootBackupPromptStore } from "./stores.svelte";
 import { loadPlugins } from "./plugins/plugins.svelte";
 import { alertError, alertMd, alertTOS, waitAlert, alertConfirm, alertInput } from "./alert";
 import { characterURLImport } from "./characterCards";
@@ -143,6 +143,15 @@ export async function loadData() {
                 initMobileGesture()
                 MobileGUI.set(true)
             }
+            // Boot-time backup reminder. If the user has enabled it, we block
+            // the load briefly to ask whether to back up now. Errors here are
+            // non-fatal — boot must always proceed even if the reminder fetch
+            // or backup itself fails.
+            try {
+                await maybeRunBootBackupReminder()
+            } catch (err) {
+                console.warn('[bootstrap] boot backup reminder failed:', err)
+            }
             loadedStore.set(true)
             selectedCharID.set(-1)
             startObserveDom()
@@ -170,6 +179,69 @@ export async function loadData() {
 }
 
 
+
+/**
+ * Hard-bounded fetch — the boot path can't tolerate an indefinite hang on a
+ * stuck endpoint, since the loading screen blocks the user until we set
+ * loadedStore. AbortError is rethrown like any fetch failure; the call site
+ * swallows it.
+ */
+async function fetchWithTimeout(input: RequestInfo, init: RequestInit = {}, ms = 5000): Promise<Response> {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), ms)
+    try {
+        return await fetch(input, { ...init, signal: controller.signal })
+    } finally {
+        clearTimeout(timer)
+    }
+}
+
+/**
+ * If the user has enabled the boot-time server-backup reminder, prompt with a
+ * confirm dialog before the main UI loads. Confirming runs SaveServerBackup
+ * synchronously (its alertWait progress overlays the loading screen).
+ */
+async function maybeRunBootBackupReminder() {
+    let enabled = false
+    try {
+        const auth = await forageStorage.createAuth()
+        const res = await fetchWithTimeout('/api/backup/boot-reminder', { headers: { 'risu-auth': auth } })
+        if (!res.ok) return
+        const json = await res.json()
+        enabled = !!json.enabled
+    } catch {
+        return  // Non-fatal — skip the prompt if the endpoint is unreachable / slow.
+    }
+    if (!enabled) return
+
+    // Best-effort stats fetch. The prompt component renders whatever we can
+    // supply; missing values just hide their respective lines. Uses
+    // backupDisk (actual backup destination) so warnings target the right
+    // mount when backupsDir is on a different drive than save/.
+    let estimate: number | null = null
+    let free: number | null = null
+    let total: number | null = null
+    try {
+        const auth = await forageStorage.createAuth()
+        const res = await fetchWithTimeout('/api/db/stats', { headers: { 'risu-auth': auth } })
+        if (res.ok) {
+            const stats = await res.json()
+            if (typeof stats?.estimatedBackupSize === 'number') estimate = stats.estimatedBackupSize
+            const d = stats?.backupDisk ?? stats?.disk
+            if (typeof d?.free === 'number') free = d.free
+            if (typeof d?.total === 'number') total = d.total
+        }
+    } catch { /* keep nulls */ }
+
+    const insufficient = (estimate != null && free != null && estimate > free)
+
+    const proceed = await new Promise<boolean>((resolve) => {
+        bootBackupPromptStore.set({ estimate, free, total, insufficient, resolve })
+    })
+    if (!proceed) return
+    const { SaveServerBackup } = await import('./drive/backuplocal')
+    await SaveServerBackup()
+}
 
 /**
  * Updates the error handling by adding custom handlers for errors and unhandled promise rejections.

@@ -1573,4 +1573,190 @@ export const languageKorean = {
     systemLogsExplicitOnly: "명시적 로그만",
     systemLogsExplicitOnlyHint: "console, 미처리 예외, 프레임워크 캡처 제외",
 
+    // 스토리지 대시보드
+    systemDashboard: "대시보드",
+    storageDashboardDesc: "스토리지 사용량을 확인하고, 큰 항목을 찾고, 공간을 회수합니다.",
+    storageRefresh: "새로고침",
+    storageLoading: "불러오는 중...",
+    storageFailedLoad: "스토리지 통계를 불러오지 못했습니다",
+
+    // 디스크 사용량 (맥OS 스타일 막대)
+    storageDiskUsage: "저장공간",
+    storageDiskHeader: (used: number, total: number) =>
+        `${(total / 1024 / 1024 / 1024).toFixed(2)} GB 중 ${(used / 1024 / 1024 / 1024).toFixed(2)} GB 사용됨`,
+    storageDiskHeaderUnknown: "디스크 크기를 가져오지 못했습니다",
+    storageDiskOther: "기타 (시스템 및 다른 앱)",
+    storageDiskFree: "여유 공간",
+    storageDiskRisuTotal: (size: number) => `RisuAI 합계: ${(size / 1024 / 1024).toFixed(1)} MB`,
+
+    // 항목별 라벨 (분포 리스트의 ⓘ 설명)
+    storageRowDbFile: "risuai.db",
+    storageRowDbFileDesc: "RisuAI의 메인 SQLite 데이터베이스 파일. 모든 채팅·캐릭터·에셋·설정이 여기 들어갑니다.",
+    storageRowWal: "WAL (Write-Ahead Log)",
+    storageRowWalDesc: "임시 트랜잭션 로그. 저장이 먼저 여기 기록된 뒤 본 파일에 통합됩니다. 사용 중엔 정상적으로 존재.",
+    storageRowShm: "SHM (공유 메모리)",
+    storageRowShmDesc: "WAL용 SQLite 공유 메모리 인덱스. 작고 휘발성이며 필요 시 재생성됩니다.",
+    storageRowFileBackups: "디스크 백업 (.bin)",
+    storageRowFileBackupsDesc: "수동으로 export한 백업 파일. backups/ 폴더에 보관됩니다.",
+    storageRowKvDatabase: "database.bin (활성)",
+    storageRowKvDatabaseDesc: "risuai.db 내부에 있는 단일 BLOB 행. 캐릭터 메타·채팅·설정이 통째로 들어갑니다. 2 GB 단일 BLOB 한계의 적용 대상.",
+    storageRowKvDbBackups: "DB 백업 (인프로세스)",
+    storageRowKvDbBackupsDesc: "risuai.db 내부에 자동으로 보관되는 database.bin 스냅샷. 약 500 MB 한도로 자동 로테이션.",
+    storageRowKvAssets: "캐릭터 에셋",
+    storageRowKvAssetsDesc: "캐릭터 카드, 이모션 이미지, 추가 에셋, 페르소나 아이콘 등.",
+    storageRowKvInlay: "Inlay 이미지",
+    storageRowKvInlayDesc: "메시지에 첨부된 이미지 (본체 + 썸네일 + 메타).",
+    storageRowKvRemotes: "원격 채팅 데이터",
+    storageRowKvRemotesDesc: "캐릭터별 원격 동기화 캐시 (remotes/{chaId}.local.bin).",
+    storageRowKvColdStorage: "콜드 스토리지",
+    storageRowKvColdStorageDesc: "레거시·휴면 저장 영역. 보통 비어 있습니다.",
+    storageRowKvUncategorized: "기타 데이터",
+    storageRowKvUncategorizedDesc: "위 분류에 들어가지 않는 키. 마이그레이션 잔여물이나 임시 항목 등이 여기 잡힙니다.",
+    storageRowSqliteOverhead: "SQLite 오버헤드 (구조)",
+    storageRowSqliteOverheadDesc: "인덱스, 페이지 헤더, 정렬 패딩 등 SQLite가 항상 들고 있는 구조적 영역입니다. 사용자 데이터가 아니며 정리로 제거되지 않습니다 (데이터 양에 비례해 자연 증가).",
+    storageRowReclaimablePages: "SQLite 오버헤드 (회수 가능)",
+    storageRowReclaimablePagesDesc: "삭제된 데이터가 남긴 빈 페이지로, SQLite 오버헤드 중 정리로 회수 가능한 부분입니다. 아래 \"SQLite 오버헤드 정리\"의 막대 노란색 부분과 같은 값이며, 정리 실행 시 모두 회수됩니다.",
+    storageRowReclaimable: (size: number) =>
+        `${(size / 1024 / 1024).toFixed(1)} MB 회수 가능 — Optimize로 압축.`,
+    storageInternalOnly: "저장공간과 함께보기",
+    storageInternalOnlyHint: "끄면 RisuAI 내부 항목만, 켜면 기타 시스템·여유 공간까지 디스크 전체 기준으로 표시합니다.",
+
+    // 2 GB BLOB 한계 (별도 섹션)
+    storageBlobLimit: "2 GB BLOB 한계",
+    storageBlobLimitDesc: "SQLite는 단일 행 값을 약 2 GB까지만 허용합니다. database.bin이 하나의 행이라 채팅·설정 합계가 이 값을 넘을 수 없으며, 한계에 가까워지면 저장이 실패하기 시작합니다.",
+    storageBlobThreshold: (used: number, max: number, pct: number) =>
+        `2 GB 중 ${pct.toFixed(1)}% (${(used / 1024 / 1024 / 1024).toFixed(2)} / ${(max / 1024 / 1024 / 1024).toFixed(2)} GB)`,
+    storageBlobThresholdWarn: "2 GB BLOB 한계에 가까워지고 있습니다. 채팅이나 에셋을 정리하세요.",
+    storageBlobThresholdCrit: "위험: 2 GB BLOB 한계가 임박했습니다. 저장이 실패할 수 있습니다.",
+
+    storageOptimize: "지금 정리",
+    storageOptimizing: "정리 중...",
+    storageOptimizeHeader: (dbSize: number, reclaim: number) =>
+        `${(dbSize / 1024 / 1024 / 1024).toFixed(2)} GB 중 ${(reclaim / 1024 / 1024).toFixed(1)} MB 회수 가능`,
+    storageOptimizeBarUsed: "사용 중",
+    storageOptimizeBarReclaimable: "회수 가능",
+    storageOptimizeWhat: "캐릭터·채팅·에셋을 삭제해도 데이터베이스는 그 자리를 빈 공간으로 표시할 뿐 파일 크기는 줄어들지 않습니다. 정리는 이 빈 공간을 제거해 파일을 다시 써서 실제 크기를 줄입니다. 데이터는 변경되지 않습니다.",
+    storageOptimizeWhen: "큰 삭제 작업 후나 위 막대의 빈 공간이 많이 쌓였을 때 실행하면 효과가 큽니다. 정리 중에는 서버 저장이 잠시 멈춥니다 (보통 수 초, 매우 큰 DB는 수십 초까지).",
+    storageOptimizeConfirm: "지금 정리할까요? 서버 저장이 수 초간 멈춥니다.",
+    storageOptimizeNeedsSpace: (need: number, free: number) =>
+        `디스크 여유가 부족합니다. 약 ${(need / 1024 / 1024).toFixed(0)} MB 필요, 여유 ${(free / 1024 / 1024).toFixed(0)} MB.`,
+    storageOptimizeDone: (reclaimed: number, ms: number) =>
+        `${(reclaimed / 1024 / 1024).toFixed(1)} MB 회수 (${(ms / 1000).toFixed(1)}초).`,
+    storageOptimizeFailed: "정리 실패",
+
+    storageCleanup: "SQLite 오버헤드 정리",
+
+    storageBackups: "백업",
+    storageBackupsManage: "백업 관리",
+    storageBackupsAuto: "스냅샷 (DB만)",
+    storageBackupsAutoDesc: "주기적으로 자동 생성되는 빠른 복구용 스냅샷입니다. risuai.db 안에 저장되며, 설정된 한도에 따라 오래된 것부터 자동으로 정리됩니다. 캐릭터 에셋과 inlay는 포함되지 않습니다.",
+    storageBackupsManual: "서버 백업",
+    storageBackupsManualDesc: "캐릭터 에셋과 inlay 이미지를 모두 포함하는 풀 백업입니다. 서버 스토리지에 직접 저장되며, 보관 위치는 변경 가능합니다.",
+    storageBackupsCount: (count: number, size: number) =>
+        `${count}개 · ${(size / 1024 / 1024).toFixed(1)} MB`,
+    storageBackupsRange: (oldest: string, newest: string) => `최신 ${newest} · 가장 오래된 것 ${oldest}`,
+    storageBackupsEmpty: "없음",
+
+    storageCharacters: "캐릭터별 점유",
+    storageCharactersDesc: "각 캐릭터의 카드, 미디어, 채팅 용량 근사값을 측정합니다.",
+    storageCharactersMeasure: "측정",
+    storageCharactersMeasuring: "측정 중...",
+    storageCharactersDone: (ms: number, count: number) =>
+        `캐릭터 ${count.toLocaleString()}개 측정 (${(ms / 1000).toFixed(1)}초). 채팅 용량은 근사값입니다.`,
+    storageCharactersCard: "카드",
+    storageCharactersImage: "미디어",
+    storageCharactersChat: "채팅",
+    storageCharactersTrashed: "휴지통",
+    storageCharactersOrphan: (count: number, size: number) =>
+        `고아 미디어 (어떤 캐릭터도 참조하지 않음): ${count}개, ${(size / 1024 / 1024).toFixed(1)} MB`,
+    storageCharactersEmpty: "캐릭터 없음",
+    storageLoadMore: (remaining: number) => `더 보기 (${remaining.toLocaleString()}개 남음)`,
+    storageShowingOf: (shown: number, total: number) => `${total.toLocaleString()}개 중 ${shown.toLocaleString()}개 표시`,
+
+    storageModules: "모듈별 점유",
+    storageModulesDesc: "각 모듈의 본문과 에셋 용량을 측정합니다.",
+    storageModulesMeasure: "측정",
+    storageModulesMeasuring: "측정 중...",
+    storageModulesDone: (ms: number, count: number) =>
+        `모듈 ${count.toLocaleString()}개 측정 (${(ms / 1000).toFixed(1)}초).`,
+    storageModulesBody: "본문",
+    storageModulesAssets: "에셋",
+    storageModulesEmpty: "모듈 없음",
+
+    storageDebug: "디버그 정보",
+
+    // 데이터 이전 (구 "계정 & 파일")
+    migration: "데이터 이전",
+    migrationDesc: "원본 RisuAI(또는 호환 시스템)에서 데이터를 가져오거나 NodeOnly 데이터를 원본 호환 형식으로 내보냅니다.",
+    migrationInfoBackupMoved: "서버 백업, 로컬 백업, 자동 스냅샷 관리는 [시스템 → 백업] 탭으로 이동했습니다.",
+    migrationGotoBackupTab: "백업 탭 열기",
+    migrationLegacyAccordion: "기존 리스 방식으로 백업 (레거시)",
+    migrationLegacyDesc: "원본 RisuAI 호환 포맷으로 백업·내보내기를 수행하는 보조 기능들입니다. 일반적인 백업 작업은 백업 탭을 사용하세요.",
+    migrationSaveFolderAccordion: "노드리스에서 save 폴더 가져오기",
+    migrationSaveFolderDesc: "이전에 사용하던 노드리스/RisuAI 인스턴스의 save 폴더를 NodeOnly로 가져올 때 사용합니다.",
+    migrationLoadUpstreamBackup: "원본 리스 로컬 백업 불러오기",
+
+    // 시스템 → 백업 탭
+    systemBackups: "백업",
+    backupTabDesc: "스냅샷, 백업, 로컬 백업을 한곳에서 관리합니다.",
+
+    backupSnapshot: "스냅샷 (DB만)",
+    backupSnapshotEmpty: "스냅샷이 없습니다.",
+    backupSnapshotRestore: "이 스냅샷으로 복원",
+    backupSnapshotDelete: "스냅샷 삭제",
+    backupSnapshotDeleteConfirm: (when: string) => `${when} 스냅샷을 삭제할까요? 되돌릴 수 없습니다.`,
+    backupSnapshotDeleted: "스냅샷이 삭제되었습니다.",
+    backupSnapshotDeleteFailed: "스냅샷 삭제 실패",
+    backupSnapshotLimits: (count: number, bytes: number) =>
+        `최대 ${count}개 · ${(bytes / 1024 / 1024).toFixed(0)} MB`,
+    backupSnapshotLimitsCurrent: (count: number, bytes: number) =>
+        `현재 ${count}개 · ${(bytes / 1024 / 1024).toFixed(1)} MB 사용`,
+    backupSnapshotLimitsChange: "한도 설정",
+    backupSnapshotLimitsDialog: "스냅샷 보관 한도",
+    backupSnapshotLimitsDialogDesc: "두 한도 중 먼저 도달하는 쪽이 적용됩니다. 새 스냅샷이 생성될 때 자동으로 회전되며, 한도를 줄이면 즉시 정리됩니다 (가장 최신 1개는 한도 무관 보존).",
+    backupSnapshotLimitsCount: "최대 개수",
+    backupSnapshotLimitsBytes: "최대 용량 (MB)",
+    backupSnapshotLimitsSuccess: (removed: number) =>
+        removed > 0 ? `한도 적용 완료 (${removed}개 정리됨)` : "한도가 변경되었습니다.",
+    backupSnapshotLimitsFailed: "한도 변경 실패",
+    backupSnapshotLimitsCountRange: (min: number, max: number) =>
+        `${min}-${max} 사이 정수`,
+    backupSnapshotLimitsBytesRange: (minMB: number, maxMB: number) =>
+        `${minMB}-${maxMB.toLocaleString()} MB 사이`,
+
+    backupServer: "서버 백업",
+    backupServerDesc: "캐릭터 에셋과 inlay 이미지를 모두 포함하는 풀 백업입니다. 서버 스토리지에 직접 저장되며, 보관 위치는 아래에서 변경할 수 있습니다.",
+    backupServerCreate: "백업 만들기",
+    backupServerEmpty: "저장된 백업이 없습니다.",
+    backupBootReminder: "부팅 시 백업 알림",
+    backupBootReminderHint: "다음 부팅부터 백업할지 묻는 팝업이 뜹니다.",
+    backupBootReminderToggledOn: "부팅 시 백업 알림이 켜졌습니다.",
+    backupBootReminderToggledOff: "부팅 시 백업 알림이 꺼졌습니다.",
+    backupBootPromptTitle: "지금 서버 백업을 만들까요?",
+    backupBootPromptEstimate: (size: number) =>
+        `예상 백업 크기: ${(size / 1024 / 1024).toFixed(0)} MB`,
+    backupBootPromptDisk: (free: number, total: number) =>
+        `디스크 여유: ${(free / 1024 / 1024 / 1024).toFixed(1)} GB / 전체 ${(total / 1024 / 1024 / 1024).toFixed(1)} GB`,
+    backupBootPromptProceed: "지금 백업",
+    backupBootPromptSkip: "건너뛰기",
+    storageDiskUsageHighWarning: (pct: number) =>
+        `디스크 사용량 ${pct.toFixed(0)}% — 정리가 필요합니다.`,
+    backupServerInsufficient: "디스크 여유 부족 — 새 백업을 만들 수 없습니다.",
+    updatePopupBackup: "백업",
+
+    backupServerPath: "보관 위치",
+    backupServerPathDefault: "기본 위치",
+    backupServerPathChange: "변경",
+    backupServerPathDialog: "백업 보관 위치 변경",
+    backupServerPathDialogDesc: "새 백업이 저장될 폴더의 절대 경로를 입력하세요. 기존 백업 파일은 이전 위치에 그대로 남으며 자동으로 옮겨지지 않으므로, 필요하면 직접 옮겨주세요.",
+    backupServerPathInputLabel: "절대 경로",
+    backupServerPathSuccess: "보관 위치가 변경되었습니다.",
+    backupServerPathFailed: "보관 위치 변경 실패",
+
+    backupLocal: "로컬 백업",
+    backupLocalDesc: "사용자 기기로 백업을 다운로드하거나 기기 파일에서 복원합니다.",
+    backupLocalDownload: "로컬 백업 다운로드",
+    backupLocalDownloadDesc: "현재 데이터로 새 백업을 만들어 사용자 기기로 즉시 다운로드합니다.",
+    backupLocalRestoreDesc: "사용자 기기의 백업 파일에서 복원합니다.",
+
 } satisfies DeepPartial<typeof import('./en').languageEnglish>

@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { AccessibilityIcon, ActivityIcon, PackageIcon, BotIcon, CodeIcon, CogIcon, ContactIcon, FlaskConicalIcon, ImageIcon, LanguagesIcon, MonitorIcon, MonitorSmartphoneIcon, Sailboat, UserIcon, CircleXIcon, KeyboardIcon, SparkleIcon } from "@lucide/svelte";
+    import { AccessibilityIcon, ActivityIcon, PackageIcon, BotIcon, CodeIcon, CogIcon, ContactIcon, FlaskConicalIcon, ImageIcon, LanguagesIcon, MonitorIcon, MonitorSmartphoneIcon, Sailboat, UserIcon, CircleXIcon, KeyboardIcon, SparkleIcon, TruckIcon } from "@lucide/svelte";
     import { language } from "src/lang";
     import DisplaySettings from "./Pages/DisplaySettings.svelte";
-    import UserSettings from "./Pages/UserSettings.svelte";
+    import MigrationSettings from "./Pages/MigrationSettings.svelte";
     import BotSettings from "./Pages/BotSettings.svelte";
     import OtherBotSettings from "./Pages/OtherBotSettings.svelte";
     import PluginSettings from "./Pages/PluginSettings.svelte";
@@ -129,8 +129,8 @@
                     onclick={() => {
                         $SettingsMenuIndex = 0
                 }}>
-                    <UserIcon />
-                    <span>{language.account} & {language.files}</span>
+                    <TruckIcon />
+                    <span>{language.migration}</span>
                 </button>
                 <button class="flex gap-2 items-center hover:text-textcolor"
                         class:text-textcolor={$SettingsMenuIndex === 15}
@@ -237,7 +237,7 @@
                 <div class="grow py-6 px-4 bg-bgcolor flex flex-col text-textcolor overflow-y-auto relative rs-setting-cont-4 min-w-0">
                     <div class="w-full max-w-2xl mx-auto flex flex-col">
                         {#if $SettingsMenuIndex === 0}
-                            <UserSettings />
+                            <MigrationSettings />
                         {:else if $SettingsMenuIndex === 1}
                             <BotSettings goPromptTemplate={() => {
                                 $SettingsMenuIndex = 13

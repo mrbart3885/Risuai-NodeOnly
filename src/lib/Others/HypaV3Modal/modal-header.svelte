@@ -14,9 +14,8 @@
   import { language } from "src/lang";
   import {
     hypaV3ModalOpen,
-    settingsOpen,
-    SettingsMenuIndex,
   } from "src/ts/stores.svelte";
+  import { openSettings, SettingsRoute } from "src/ts/routing";
   import type { SearchState, BulkEditState, CategoryManagerState, FilterState, UIState } from "./types";
 
   interface Props {
@@ -78,8 +77,7 @@
 
   function openGlobalSettings() {
     $hypaV3ModalOpen = false;
-    $settingsOpen = true;
-    $SettingsMenuIndex = 2; // Other bot settings
+    openSettings(SettingsRoute.OtherBots);
   }
 
   function openDropdown(e: MouseEvent) {

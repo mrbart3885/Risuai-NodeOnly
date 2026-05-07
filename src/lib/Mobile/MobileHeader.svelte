@@ -4,6 +4,7 @@
     
     import { DBState } from 'src/ts/stores.svelte';
     import { MobileGUIStack, MobileSearch, selectedCharID, SettingsMenuIndex, MobileSideBar } from "src/ts/stores.svelte";
+    import { SettingsRoute } from "src/ts/routing";
 
 </script>
 <div class="w-full px-4 h-16 border-b border-b-darkborderc bg-darkbg flex justify-start items-center gap-2">
@@ -30,7 +31,7 @@
         </div>
     {:else if $MobileGUIStack === 2 && $SettingsMenuIndex > -1}
         <button onclick={() => {
-            SettingsMenuIndex.set(-1)
+            SettingsMenuIndex.set(SettingsRoute.None)
         }}>
             <ArrowLeft />
         </button>

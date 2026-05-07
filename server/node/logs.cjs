@@ -145,8 +145,30 @@ function maybeRotate() {
 }
 
 // ─── Server-side logger ──────────────────────────────────────────────────────
-const hostname = os.hostname();
-const serverPlatform = `Node · ${hostname}`;
+// Use OS-level label only (no hostname). Hostname can include the user's
+// real device name and is leaked when users share log captures for support.
+function nodePlatformLabel() {
+    switch (process.platform) {
+        case 'darwin':  return 'macOS';
+        case 'linux':   return 'Linux';
+        case 'win32':   return 'Windows';
+        case 'android': return 'Android';
+        case 'freebsd': return 'FreeBSD';
+        case 'openbsd': return 'OpenBSD';
+        default:        return process.platform;
+    }
+}
+const serverPlatform = `Node · ${nodePlatformLabel()}`;
+
+// Backfill historic rows that were stored with `Node · <hostname>` (the old
+// format leaked the user's machine name when sharing logs). Idempotent —
+// after the first boot every matching row is normalized, subsequent boots
+// scan and find no work. Cost on a 10k-row logs table is sub-ms.
+try {
+    db.prepare(
+        `UPDATE logs SET platform = ? WHERE platform LIKE 'Node · %' AND platform != ?`
+    ).run(serverPlatform, serverPlatform);
+} catch { /* logs table may not exist yet on a fresh install — ignore */ }
 
 function formatErrorWithCause(err) {
     // Walk the cause chain so we don't lose context when a caller switches

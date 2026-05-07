@@ -5,6 +5,9 @@
     import ShInput from 'src/lib/UI/GUI/ShInput.svelte'
     import ShBadge from 'src/lib/UI/GUI/ShBadge.svelte'
     import ShToggle from 'src/lib/UI/GUI/ShToggle.svelte'
+    import SystemDashboard from './SystemDashboard.svelte'
+    import SystemBackup from './SystemBackup.svelte'
+    import { SystemSubmenuIndex } from 'src/ts/stores.svelte'
     import { Collapsible, Tooltip } from 'bits-ui'
     import {
         RefreshCwIcon,
@@ -44,7 +47,8 @@
 
     const PAGE_SIZE = 200
 
-    let submenu = $state(0)
+    // submenu lives in a store so other pages can deep-link via
+    // openSettings(SettingsRoute.System, SystemTab.X) — see src/ts/routing.
     let entries = $state<LogEntry[]>([])
     let totalCount = $state(0)
     let loading = $state(false)
@@ -348,17 +352,26 @@
     // `loadInitial()` synchronously reads `serverFilter` before its first
     // await, so Svelte picks up the dependency and reruns this effect on
     // any change to excludedLevels / excludedOrigins / explicitOnly.
+    // Gated on the System Logs tab (index 2) so Dashboard/Backups don't
+    // spend a fetch on entry.
     $effect(() => {
+        if ($SystemSubmenuIndex !== 2) return
         loadInitial()
     })
 </script>
 
 <SettingPage title={language.system}>
     <SettingTabs tabs={[
-        { label: language.systemLogs, value: 0 },
-    ]} bind:selected={submenu} />
+        { label: language.systemDashboard, value: 0 },
+        { label: language.systemBackups, value: 1 },
+        { label: language.systemLogs, value: 2 },
+    ]} bind:selected={$SystemSubmenuIndex} />
 
-    {#if submenu === 0}
+    {#if $SystemSubmenuIndex === 0}
+    <SystemDashboard />
+    {:else if $SystemSubmenuIndex === 1}
+    <SystemBackup />
+    {:else if $SystemSubmenuIndex === 2}
     <p class="text-textcolor2 text-sm mb-4">{language.systemLogsDesc}</p>
 
     <!-- Toolbar -->

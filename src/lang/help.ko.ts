@@ -431,5 +431,7 @@ export const helpKo = {
         "waveKey": "WaveSpeed.ai API 키 (`https://wavespeed.ai/`). 빠르고 저렴한 이미지 생성 라우터.",
         "waveModel": "사용할 WaveSpeed 모델. 위 \"Refresh Models\"로 사용 가능 모델 목록을 갱신하고, 검색창으로 좁힐 수 있습니다.",
         "waveLoras": "LoRA URL과 가중치를 최대 3개 등록. 모델이 LoRA를 지원할 때만 적용됩니다.",
-        "waveImageReference": "참조 이미지 모드 (None / Upload / Use Character Image). 모델이 이미지 입력을 지원할 때만 동작."
+        "waveImageReference": "참조 이미지 모드 (None / Upload / Use Character Image). 모델이 이미지 입력을 지원할 때만 동작.",
+
+        "bootBackupReminder": "켜두면 부팅할 때마다 즉시 서버 백업을 만들지 묻는 팝업이 뜹니다. 앱을 열기 전에 가벼운 안전망으로 활용할 수 있어요. 확인 시 풀 백업이 진행되며 그동안 로딩 화면에서 대기, 건너뛰면 곧장 앱으로 진입합니다."
 }

@@ -7,7 +7,8 @@ import { v4 as uuidv4, v4 } from 'uuid';
 import { characterFormatUpdate } from "./characters"
 import { AppendableBuffer, BlankWriter, checkCharOrder, downloadFile, forageStorage, loadAsset, LocalWriter, readImage, saveAsset, VirtualWriter } from "./globalApi.svelte"
 import { compressImage, getImageType } from "./media"
-import { SettingsMenuIndex, selectedCharID, settingsOpen } from "./stores.svelte"
+import { selectedCharID } from "./stores.svelte"
+import { openSettings, SettingsRoute } from "./routing"
 import { hasher } from "./parser/parser.svelte"
 import { type CharacterCardV3, type LorebookEntry } from '@risuai/ccardlib'
 import { reencodeImage } from "./process/files/inlays"
@@ -418,8 +419,7 @@ export async function characterURLImport() {
         }
         db.modules.push(importData)
         notifySuccess(language.successImport)
-        SettingsMenuIndex.set(14)
-        settingsOpen.set(true)
+        openSettings(SettingsRoute.Module)
         return
     }
     if(hash.startsWith('#import_preset=')){
@@ -429,8 +429,7 @@ export async function characterURLImport() {
             name: 'imported.risupreset',
             data: importData
         })
-        SettingsMenuIndex.set(1)
-        settingsOpen.set(true)
+        openSettings(SettingsRoute.ChatBot)
         return
     }
     if(hash.startsWith('#share_character')){
@@ -455,8 +454,7 @@ export async function characterURLImport() {
         const db = getDatabase()
         db.modules.push(md)
         notifySuccess(language.successImport)
-        SettingsMenuIndex.set(14)
-        settingsOpen.set(true)
+        openSettings(SettingsRoute.Module)
     }
     if(hash.startsWith('#share_preset')){
         const data = await fetch("/sw/share/preset")
@@ -468,8 +466,7 @@ export async function characterURLImport() {
             name: 'shared.risup',
             data: preset
         })
-        SettingsMenuIndex.set(1)
-        settingsOpen.set(true)
+        openSettings(SettingsRoute.ChatBot)
     }
     if ("launchQueue" in window) {
         const handleFiles = async (files:FileSystemFileHandle[]) => {
@@ -501,8 +498,7 @@ export async function characterURLImport() {
                 name: name,
                 data: data
             })
-            SettingsMenuIndex.set(1)
-            settingsOpen.set(true)
+            openSettings(SettingsRoute.ChatBot)
             notifySuccess(language.successImport)
             return
         }
@@ -512,8 +508,7 @@ export async function characterURLImport() {
             const db = getDatabase()
             db.modules.push(md)
             notifySuccess(language.successImport)
-            SettingsMenuIndex.set(14)
-            settingsOpen.set(true)
+            openSettings(SettingsRoute.Module)
             return
         }
     }

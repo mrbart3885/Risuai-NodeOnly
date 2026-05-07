@@ -100,10 +100,74 @@ function currentPersistWarning() {
     return lastPersistFailure;
 }
 
-// ─── Server-side database backup ─────────────────────────────────────────────
-const BACKUP_BUDGET_BYTES = 500 * 1024 * 1024; // 500 MB
+// ─── Server-side database backup (DB-only snapshots) ────────────────────────
+//
+// Snapshots live as `database/dbbackup-{ts}.bin` keys inside the kv table.
+// They're created on every successful persist (with a cooldown) and rotated
+// to fit user-configured count/size limits — see SNAPSHOT_LIMIT_* below.
+const SNAPSHOT_LIMIT_COUNT_KEY = 'config/snapshot-max-count';
+const SNAPSHOT_LIMIT_BYTES_KEY = 'config/snapshot-max-bytes';
+const SNAPSHOT_LIMIT_DEFAULT_COUNT = 20;
+const SNAPSHOT_LIMIT_DEFAULT_BYTES = 500 * 1024 * 1024; // 500 MB
+// Safety bounds to keep a stray PUT from making the system unusable.
+const SNAPSHOT_LIMIT_MIN_COUNT = 1;
+const SNAPSHOT_LIMIT_MAX_COUNT = 100;
+const SNAPSHOT_LIMIT_MIN_BYTES = 10 * 1024 * 1024;        // 10 MB
+const SNAPSHOT_LIMIT_MAX_BYTES = 50 * 1024 * 1024 * 1024; // 50 GB
 const BACKUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 let lastBackupTime = null;
+
+function readSnapshotConfigInt(key, fallback, min, max) {
+    try {
+        const raw = kvGet(key);
+        if (!raw) return fallback;
+        const n = parseInt(Buffer.from(raw).toString('utf-8').trim(), 10);
+        if (!Number.isFinite(n)) return fallback;
+        return Math.min(max, Math.max(min, n));
+    } catch { return fallback; }
+}
+
+function getSnapshotLimits() {
+    return {
+        maxCount: readSnapshotConfigInt(
+            SNAPSHOT_LIMIT_COUNT_KEY, SNAPSHOT_LIMIT_DEFAULT_COUNT,
+            SNAPSHOT_LIMIT_MIN_COUNT, SNAPSHOT_LIMIT_MAX_COUNT,
+        ),
+        maxBytes: readSnapshotConfigInt(
+            SNAPSHOT_LIMIT_BYTES_KEY, SNAPSHOT_LIMIT_DEFAULT_BYTES,
+            SNAPSHOT_LIMIT_MIN_BYTES, SNAPSHOT_LIMIT_MAX_BYTES,
+        ),
+    };
+}
+
+// Walk newest → oldest; keep within both limits, delete the rest. The most
+// recent snapshot is always kept (even if it alone exceeds the byte limit) so
+// we never end up with zero backups after a config change.
+function trimSnapshotsToLimits() {
+    const { maxCount, maxBytes } = getSnapshotLimits();
+    const entries = kvListWithSizes(DB_BACKUP_PREFIX)
+        .map((it) => {
+            const tsRaw = parseInt(it.key.slice(DB_BACKUP_PREFIX.length, -4), 10);
+            return { key: it.key, size: it.size, ts: Number.isFinite(tsRaw) ? tsRaw : 0 };
+        })
+        .sort((a, b) => b.ts - a.ts);
+
+    let runningBytes = 0;
+    const toDelete = [];
+    for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+        const isFirst = i === 0;
+        const fitsByCount = i < maxCount;
+        const fitsByBytes = runningBytes + e.size <= maxBytes;
+        if (isFirst || (fitsByCount && fitsByBytes)) {
+            runningBytes += e.size;
+        } else {
+            toDelete.push(e.key);
+        }
+    }
+    for (const key of toDelete) kvDel(key);
+    return { kept: entries.length - toDelete.length, removed: toDelete.length };
+}
 
 function createBackupAndRotate() {
     const now = Date.now();
@@ -112,22 +176,9 @@ function createBackupAndRotate() {
     }
     lastBackupTime = now;
 
-    const backupKey = `database/dbbackup-${(now / 100).toFixed()}.bin`;
+    const backupKey = `${DB_BACKUP_PREFIX}${(now / 100).toFixed()}.bin`;
     kvCopyValue('database/database.bin', backupKey);
-
-    const backupKeys = kvList('database/dbbackup-')
-        .sort((a, b) => {
-            const aTs = parseInt(a.slice(18, -4));
-            const bTs = parseInt(b.slice(18, -4));
-            return bTs - aTs;
-        });
-
-    const dbSize = kvSize('database/database.bin') || 1;
-    const maxBackups = Math.min(20, Math.max(3, Math.floor(BACKUP_BUDGET_BYTES / dbSize)));
-
-    while (backupKeys.length > maxBackups) {
-        kvDel(backupKeys.pop());
-    }
+    trimSnapshotsToLimits();
 }
 
 async function flushPendingDb() {
@@ -392,10 +443,26 @@ if(!existsSync(savePath)){
     mkdirSync(savePath)
 }
 
-// Server-side backup directory (outside save/ to avoid bloating updater copies)
-const backupsDir = path.join(process.cwd(), "backups")
+// Server-side backup directory (outside save/ to avoid bloating updater copies).
+// Configurable at runtime via the kv key `config/server-backup-path`. When the
+// user changes the path the old directory is left in place (existing backups
+// stay where they were); only future backups land at the new path.
+const DEFAULT_BACKUPS_DIR = path.join(process.cwd(), "backups");
+const BACKUP_PATH_CONFIG_KEY = 'config/server-backup-path';
+
+function readBackupsDirConfig() {
+    try {
+        const raw = kvGet(BACKUP_PATH_CONFIG_KEY);
+        if (!raw) return DEFAULT_BACKUPS_DIR;
+        const text = Buffer.from(raw).toString('utf-8').trim();
+        return text || DEFAULT_BACKUPS_DIR;
+    } catch { return DEFAULT_BACKUPS_DIR; }
+}
+
+let backupsDir = readBackupsDirConfig();
 if(!existsSync(backupsDir)){
-    mkdirSync(backupsDir)
+    try { mkdirSync(backupsDir, { recursive: true }); }
+    catch { backupsDir = DEFAULT_BACKUPS_DIR; mkdirSync(backupsDir, { recursive: true }); }
 }
 const BACKUP_FILENAME_REGEX = /^risu-backup-\d+\.bin$/;
 
@@ -3428,6 +3495,27 @@ app.post('/api/backup/server/save', async (req, res, next) => {
     try {
         await flushPendingDb();
 
+        // Pre-flight disk check — bail before streaming if the target dir
+        // can't fit the backup. Avoids wasted minutes + half-written tmp files.
+        try {
+            const estimate = await estimateServerBackupSize();
+            const required = Math.ceil(estimate * 1.05); // 5% safety margin
+            const sf = await fs.statfs(backupsDir);
+            const free = sf.bsize * sf.bavail;
+            if (estimate > 0 && free < required) {
+                return res.status(400).json({
+                    error: `Insufficient disk space (need ~${(required / 1024 / 1024).toFixed(0)} MB, free ${(free / 1024 / 1024).toFixed(0)} MB)`,
+                    code: 'insufficient_space',
+                    required,
+                    free,
+                });
+            }
+        } catch (e) {
+            // Non-fatal: log and proceed. statfs may be unavailable, in which
+            // case the streaming fallback path below still fails gracefully.
+            console.warn('[Backup] pre-flight disk check failed:', e?.message || e);
+        }
+
         const inlayFiles = await listInlayFiles();
         const inlayEntries = await Promise.all(inlayFiles.map(async (entry) => {
             const stat = await fs.stat(entry.filePath);
@@ -4177,6 +4265,621 @@ app.post('/api/migrate/save-folder/cleanup/execute', async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+});
+
+// ── Storage dashboard endpoints ──────────────────────────────────────────────
+
+const DB_BLOB_KEY = 'database/database.bin';
+const DB_BACKUP_PREFIX = 'database/dbbackup-';
+const ASSET_PREFIXES = ['assets/', 'remotes/', 'inlay/', 'inlay_thumb/', 'inlay_meta/', 'inlay_info/', 'coldstorage/'];
+// Slightly above 2GB BLOB ceiling — better-sqlite3 throws RangeError near INT_MAX.
+const BLOB_INT_MAX = 2 * 1024 * 1024 * 1024 - 1;
+
+function statsBasename(s) {
+    if (!s) return '';
+    return String(s).replace(/\\/g, '/').split('/').pop();
+}
+
+// Mirrors src/ts/globalApi.svelte.ts:getUncleanables — every asset reference reachable from the DB.
+function buildUncleanableSet(dbObj) {
+    const set = new Set();
+    const add = (v) => {
+        const bn = statsBasename(v);
+        if (bn) set.add(bn);
+    };
+    if (!dbObj) return set;
+    add(dbObj.customBackground);
+    add(dbObj.userIcon);
+    if (Array.isArray(dbObj.characters)) {
+        for (const cha of dbObj.characters) {
+            if (!cha) continue;
+            add(cha.image);
+            if (Array.isArray(cha.emotionImages)) for (const em of cha.emotionImages) add(em?.[1]);
+            if (Array.isArray(cha.additionalAssets)) for (const em of cha.additionalAssets) add(em?.[1]);
+            if (cha.vits?.files) for (const k of Object.keys(cha.vits.files)) add(cha.vits.files[k]);
+            if (Array.isArray(cha.ccAssets)) for (const a of cha.ccAssets) add(a?.uri);
+        }
+    }
+    if (Array.isArray(dbObj.modules)) {
+        for (const m of dbObj.modules) if (Array.isArray(m?.assets)) for (const a of m.assets) add(a?.[1]);
+    }
+    if (Array.isArray(dbObj.personas)) for (const p of dbObj.personas) add(p?.icon);
+    if (Array.isArray(dbObj.characterOrder)) {
+        for (const item of dbObj.characterOrder) {
+            if (item && typeof item === 'object' && 'imgFile' in item) add(item.imgFile);
+        }
+    }
+    return set;
+}
+
+function statSafe(p) {
+    try { return require('fs').statSync(p); } catch { return null; }
+}
+
+async function diskFreeStat(dirPath) {
+    try {
+        const sf = await fs.statfs(dirPath);
+        return { free: sf.bsize * sf.bavail, total: sf.bsize * sf.blocks };
+    } catch { return { free: null, total: null }; }
+}
+
+// Sum the on-disk inlay payload (image files + sidecar JSONs in save/inlays).
+// Returns 0 if the directory is missing. Used by both the backup-size
+// estimator and the dashboard inlay total — kv inlay/* prefixes don't
+// reflect filesystem bytes after the inlay→fs migration.
+async function sumInlayFsBytes() {
+    let total = 0;
+    try {
+        const inlayFiles = await listInlayFiles();
+        await Promise.all(inlayFiles.map(async (entry) => {
+            try {
+                const st = await fs.stat(entry.filePath);
+                total += st.size;
+            } catch { /* missing — skip */ }
+            try {
+                const sst = await fs.stat(getInlaySidecarPath(entry.id));
+                total += sst.size;
+            } catch { /* sidecar may not exist */ }
+        }));
+    } catch { /* dir missing */ }
+    return total;
+}
+
+// Estimated server-backup size — mirrors the enumeration in
+// /api/backup/server/save without writing anything. Inlay files live on the
+// filesystem (post-migration), so we have to fs.stat them rather than read
+// kvSize. Cost: ~5-50 ms typical, ~200 ms for users with thousands of inlays.
+async function estimateServerBackupSize() {
+    let total = 0;
+    total += kvSize(DB_BLOB_KEY) || 0;
+    for (const it of kvListWithSizes('assets/')) total += it.size;
+    for (const it of kvListWithSizes('inlay_meta/')) total += it.size;
+    for (const e of listColdStorageBackupEntries()) total += e.size;
+    total += await sumInlayFsBytes();
+    return total;
+}
+
+app.get('/api/db/stats', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    try {
+        const saveDir = path.join(process.cwd(), 'save');
+        const dbFilePath = path.join(saveDir, 'risuai.db');
+        const walPath = dbFilePath + '-wal';
+        const shmPath = dbFilePath + '-shm';
+
+        const files = {
+            db: statSafe(dbFilePath)?.size ?? 0,
+            wal: statSafe(walPath)?.size ?? 0,
+            shm: statSafe(shmPath)?.size ?? 0,
+        };
+
+        const disk = await diskFreeStat(saveDir);
+        // Backup destination disk — same as save/ in the default config but
+        // can diverge when the user points backupsDir at a different mount.
+        // Surfaced separately so backup-side warnings target the right disk.
+        // `sameAsSaveDir` is true when both paths land on the same filesystem
+        // (compared by Stat.dev). Dashboard uses this to decide whether to
+        // count file backups against the save/ disk in the storage chart.
+        let backupDisk;
+        if (backupsDir === DEFAULT_BACKUPS_DIR) {
+            backupDisk = { ...disk, path: backupsDir, sameAsSaveDir: true };
+        } else {
+            const bDisk = await diskFreeStat(backupsDir);
+            let sameAsSaveDir = false;
+            try {
+                const saveStat = require('fs').statSync(saveDir);
+                const bStat = require('fs').statSync(backupsDir);
+                sameAsSaveDir = saveStat.dev === bStat.dev;
+            } catch { /* non-fatal */ }
+            backupDisk = { ...bDisk, path: backupsDir, sameAsSaveDir };
+        }
+
+        const pageSize = sqliteDb.pragma('page_size', { simple: true });
+        const pageCount = sqliteDb.pragma('page_count', { simple: true });
+        const freelistCount = sqliteDb.pragma('freelist_count', { simple: true });
+        const journalMode = sqliteDb.pragma('journal_mode', { simple: true });
+        const autoVacuum = sqliteDb.pragma('auto_vacuum', { simple: true });
+        const reclaimable = freelistCount * pageSize;
+
+        const dbBlobSize = kvSize(DB_BLOB_KEY) || 0;
+
+        // Prefix breakdown — split database/ into the live blob vs rotated backups.
+        const prefixes = {};
+        prefixes[DB_BLOB_KEY] = { totalSize: dbBlobSize, count: dbBlobSize > 0 ? 1 : 0 };
+        const backupKeys = kvList(DB_BACKUP_PREFIX);
+        let backupTotal = 0;
+        let backupOldest = null, backupNewest = null;
+        for (const k of backupKeys) {
+            const sz = kvSize(k) || 0;
+            backupTotal += sz;
+            const tsRaw = parseInt(k.slice(DB_BACKUP_PREFIX.length, -4), 10);
+            if (Number.isFinite(tsRaw)) {
+                const ts = tsRaw * 100;
+                if (!backupOldest || ts < backupOldest) backupOldest = ts;
+                if (!backupNewest || ts > backupNewest) backupNewest = ts;
+            }
+        }
+        prefixes[DB_BACKUP_PREFIX] = { totalSize: backupTotal, count: backupKeys.length };
+        for (const p of ASSET_PREFIXES) {
+            const items = kvListWithSizes(p);
+            let total = 0;
+            for (const it of items) total += it.size;
+            prefixes[p] = { totalSize: total, count: items.length };
+        }
+
+        const kvRows = sqliteDb.prepare('SELECT COUNT(*) AS c FROM kv').get().c;
+        const kvTotalBytes = sqliteDb.prepare('SELECT COALESCE(SUM(LENGTH(value)), 0) AS s FROM kv').get().s;
+
+        let fileBackups = { count: 0, totalSize: 0, oldest: null, newest: null };
+        try {
+            const entries = await fs.readdir(backupsDir, { withFileTypes: true });
+            for (const e of entries) {
+                if (!e.isFile() || !BACKUP_FILENAME_REGEX.test(e.name)) continue;
+                const st = await fs.stat(path.join(backupsDir, e.name));
+                fileBackups.count++;
+                fileBackups.totalSize += st.size;
+                const ts = st.mtimeMs;
+                if (!fileBackups.oldest || ts < fileBackups.oldest) fileBackups.oldest = ts;
+                if (!fileBackups.newest || ts > fileBackups.newest) fileBackups.newest = ts;
+            }
+        } catch { /* backups dir may not exist */ }
+
+        // Quick estimates from in-memory cache only — never decode the BLOB just for stats.
+        let trashed = { count: 0, expiredCount: 0, available: false };
+        let orphan = { count: 0, totalSize: 0, available: false };
+        const stripped = dbCache[DB_HEX_KEY];
+        if (stripped?.characters) {
+            const now = Date.now();
+            const GRACE = 1000 * 60 * 60 * 24 * 3;
+            for (const c of stripped.characters) {
+                if (c?.trashTime) {
+                    trashed.count++;
+                    if (c.trashTime + GRACE < now) trashed.expiredCount++;
+                }
+            }
+            trashed.available = true;
+        }
+        if (stripped) {
+            const uncleanable = buildUncleanableSet(stripped);
+            for (const it of kvListWithSizes('assets/')) {
+                if (!uncleanable.has(statsBasename(it.key))) {
+                    orphan.count++;
+                    orphan.totalSize += it.size;
+                }
+            }
+            orphan.available = true;
+        }
+
+        const estimatedBackupSize = await estimateServerBackupSize();
+        // Inlay payload now lives on the filesystem (post-migration) rather
+        // than in kv `inlay/*` prefixes. Surface explicitly so the dashboard
+        // chart can include it in the inlay slice instead of underreporting.
+        const inlayFsBytes = await sumInlayFsBytes();
+
+        res.json({
+            files,
+            disk,
+            backupDisk,
+            sqlite: { pageSize, pageCount, freelistCount, reclaimable, journalMode, autoVacuum },
+            blob: { dbSize: dbBlobSize, intMax: BLOB_INT_MAX },
+            prefixes,
+            kvRows,
+            kvTotalBytes,
+            estimatedBackupSize,
+            inlayFsBytes,
+            backups: {
+                kv: { count: backupKeys.length, totalSize: backupTotal, oldest: backupOldest, newest: backupNewest },
+                file: fileBackups,
+            },
+            trashed,
+            orphan,
+            etag: dbEtag,
+        });
+    } catch (err) { next(err); }
+});
+
+app.get('/api/db/stats/characters', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    try {
+        await ensureChatStore();
+        const raw = kvGet(DB_BLOB_KEY);
+        if (!raw) {
+            res.json({ characters: [], orphan: { count: 0, totalSize: 0 }, chatBytesNote: 'estimate' });
+            return;
+        }
+        const dbObj = await decodeRisuSave(raw);
+
+        const assetSize = new Map();
+        for (const it of kvListWithSizes('assets/')) {
+            assetSize.set(statsBasename(it.key), it.size);
+        }
+        // remotes/<chaId>.local.bin (+ optional .meta sidecar) → bucket by chaId.
+        const remoteSize = new Map();
+        for (const it of kvListWithSizes('remotes/')) {
+            const bn = statsBasename(it.key).replace(/\.meta$/, '');
+            const chaId = bn.replace(/\.local\.bin$/, '');
+            if (chaId) remoteSize.set(chaId, (remoteSize.get(chaId) || 0) + it.size);
+        }
+
+        const claimed = new Set();
+        const characters = [];
+        const list = Array.isArray(dbObj.characters) ? dbObj.characters : [];
+        for (const cha of list) {
+            if (!cha) continue;
+            const refs = [];
+            const collect = (v) => { if (v) refs.push(statsBasename(v)); };
+            collect(cha.image);
+            if (Array.isArray(cha.emotionImages)) for (const em of cha.emotionImages) collect(em?.[1]);
+            if (Array.isArray(cha.additionalAssets)) for (const em of cha.additionalAssets) collect(em?.[1]);
+            if (cha.vits?.files) for (const k of Object.keys(cha.vits.files)) collect(cha.vits.files[k]);
+            if (Array.isArray(cha.ccAssets)) for (const a of cha.ccAssets) collect(a?.uri);
+
+            // Same asset shared across characters is attributed to the first one we see — avoids double-counting.
+            let imgBytes = 0;
+            for (const bn of refs) {
+                if (!bn || claimed.has(bn)) continue;
+                const sz = assetSize.get(bn);
+                if (sz != null) {
+                    imgBytes += sz;
+                    claimed.add(bn);
+                }
+            }
+            const remoteBytes = remoteSize.get(cha.chaId) || 0;
+
+            let chatBytes = 0;
+            const charChats = fullChatStore?.get(cha.chaId);
+            if (charChats) {
+                for (const chat of charChats.values()) {
+                    try { chatBytes += JSON.stringify(chat).length; } catch { /* skip un-serializable */ }
+                }
+            }
+
+            // Card body = the character row minus chats (which we count separately).
+            // Asset URIs themselves are tiny strings — leaving them in card body is fine.
+            let cardBytes = 0;
+            try {
+                const { chats: _drop, ...body } = cha;
+                cardBytes = JSON.stringify(body).length;
+            } catch { /* skip un-serializable */ }
+
+            characters.push({
+                chaId: cha.chaId || '',
+                name: cha.name || '',
+                image: cha.image || '',
+                trashed: !!cha.trashTime,
+                cardBytes,
+                imgBytes: imgBytes + remoteBytes,
+                chatBytes,
+                totalBytes: cardBytes + imgBytes + remoteBytes + chatBytes,
+            });
+        }
+
+        const uncleanable = buildUncleanableSet(dbObj);
+        let orphanCount = 0, orphanTotal = 0;
+        for (const it of kvListWithSizes('assets/')) {
+            if (!uncleanable.has(statsBasename(it.key))) {
+                orphanCount++;
+                orphanTotal += it.size;
+            }
+        }
+
+        characters.sort((a, b) => b.totalBytes - a.totalBytes);
+        res.json({
+            characters,
+            orphan: { count: orphanCount, totalSize: orphanTotal },
+            chatBytesNote: 'JSON.stringify estimate; on-disk msgpack ~0.6×',
+            etag: dbEtag,
+        });
+    } catch (err) { next(err); }
+});
+
+// Per-module breakdown — modules live inside database.bin (no separate kv keys
+// for module bodies), so size = JSON.stringify of the module + sum of its
+// referenced assets. Assets attribution is independent from /characters; an
+// asset shared between a character and a module would be counted in both.
+app.get('/api/db/stats/modules', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    try {
+        const raw = kvGet(DB_BLOB_KEY);
+        if (!raw) {
+            res.json({ modules: [] });
+            return;
+        }
+        const dbObj = await decodeRisuSave(raw);
+        const list = Array.isArray(dbObj.modules) ? dbObj.modules : [];
+
+        const assetSize = new Map();
+        for (const it of kvListWithSizes('assets/')) {
+            assetSize.set(statsBasename(it.key), it.size);
+        }
+
+        const modules = [];
+        for (const m of list) {
+            if (!m) continue;
+
+            let bodyBytes = 0;
+            try {
+                const { assets: _drop, ...body } = m;
+                bodyBytes = JSON.stringify(body).length;
+            } catch { /* skip un-serializable */ }
+
+            let assetBytes = 0;
+            const seen = new Set();
+            if (Array.isArray(m.assets)) {
+                for (const a of m.assets) {
+                    const bn = statsBasename(a?.[1]);
+                    if (!bn || seen.has(bn)) continue;
+                    seen.add(bn);
+                    const sz = assetSize.get(bn);
+                    if (sz != null) assetBytes += sz;
+                }
+            }
+
+            modules.push({
+                id: m.id || m.namespace || m.name || '',
+                name: m.name || m.namespace || '',
+                bodyBytes,
+                assetBytes,
+                totalBytes: bodyBytes + assetBytes,
+            });
+        }
+
+        modules.sort((a, b) => b.totalBytes - a.totalBytes);
+        res.json({ modules, etag: dbEtag });
+    } catch (err) { next(err); }
+});
+
+app.post('/api/db/optimize', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    if (!checkActiveSession(req, res)) return;
+    try {
+        const saveDir = path.join(process.cwd(), 'save');
+        const dbFilePath = path.join(saveDir, 'risuai.db');
+        const preDbSize = statSafe(dbFilePath)?.size ?? 0;
+
+        const { free } = await diskFreeStat(saveDir);
+        if (preDbSize > 0 && free != null && free < preDbSize * 1.2) {
+            return res.status(400).json({
+                error: 'Insufficient disk space for VACUUM',
+                required: Math.ceil(preDbSize * 1.2),
+                free,
+            });
+        }
+
+        const result = await queueStorageOperation(async () => {
+            await flushPendingDb();
+            const t0 = Date.now();
+            try { checkpointWal('TRUNCATE'); } catch (e) { logger.warn('[Optimize] checkpoint failed:', e?.message || e); }
+            sqliteDb.exec('VACUUM');
+            const elapsed = Date.now() - t0;
+            const postDbSize = statSafe(dbFilePath)?.size ?? 0;
+            return {
+                ok: true,
+                elapsedMs: elapsed,
+                preDbSize,
+                postDbSize,
+                reclaimed: Math.max(0, preDbSize - postDbSize),
+            };
+        });
+        res.json(result);
+    } catch (err) { next(err); }
+});
+
+// ── Snapshot list (database/dbbackup-* keys) ─────────────────────────────────
+
+app.get('/api/db/snapshots/limits', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    try {
+        const { maxCount, maxBytes } = getSnapshotLimits();
+        const items = kvListWithSizes(DB_BACKUP_PREFIX);
+        const currentBytes = items.reduce((s, it) => s + it.size, 0);
+        res.json({
+            maxCount,
+            maxBytes,
+            currentCount: items.length,
+            currentBytes,
+            bounds: {
+                minCount: SNAPSHOT_LIMIT_MIN_COUNT,
+                maxCount: SNAPSHOT_LIMIT_MAX_COUNT,
+                minBytes: SNAPSHOT_LIMIT_MIN_BYTES,
+                maxBytes: SNAPSHOT_LIMIT_MAX_BYTES,
+            },
+            defaults: {
+                count: SNAPSHOT_LIMIT_DEFAULT_COUNT,
+                bytes: SNAPSHOT_LIMIT_DEFAULT_BYTES,
+            },
+        });
+    } catch (err) { next(err); }
+});
+
+app.put('/api/db/snapshots/limits', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    if (!checkActiveSession(req, res)) return;
+    try {
+        const rawCount = Number(req.body?.maxCount);
+        const rawBytes = Number(req.body?.maxBytes);
+        if (!Number.isFinite(rawCount) || rawCount < SNAPSHOT_LIMIT_MIN_COUNT || rawCount > SNAPSHOT_LIMIT_MAX_COUNT) {
+            return res.status(400).json({ error: `maxCount out of range (${SNAPSHOT_LIMIT_MIN_COUNT}-${SNAPSHOT_LIMIT_MAX_COUNT})` });
+        }
+        if (!Number.isFinite(rawBytes) || rawBytes < SNAPSHOT_LIMIT_MIN_BYTES || rawBytes > SNAPSHOT_LIMIT_MAX_BYTES) {
+            return res.status(400).json({ error: `maxBytes out of range` });
+        }
+        const maxCount = Math.floor(rawCount);
+        const maxBytes = Math.floor(rawBytes);
+        kvSet(SNAPSHOT_LIMIT_COUNT_KEY, Buffer.from(String(maxCount), 'utf-8'));
+        kvSet(SNAPSHOT_LIMIT_BYTES_KEY, Buffer.from(String(maxBytes), 'utf-8'));
+        const trim = trimSnapshotsToLimits();
+        const items = kvListWithSizes(DB_BACKUP_PREFIX);
+        const currentBytes = items.reduce((s, it) => s + it.size, 0);
+        res.json({
+            maxCount, maxBytes,
+            currentCount: items.length,
+            currentBytes,
+            removed: trim.removed,
+        });
+    } catch (err) { next(err); }
+});
+
+app.get('/api/db/snapshots', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    try {
+        const items = kvListWithSizes(DB_BACKUP_PREFIX);
+        const out = items.map((it) => {
+            const tsRaw = parseInt(it.key.slice(DB_BACKUP_PREFIX.length, -4), 10);
+            const ts = Number.isFinite(tsRaw) ? tsRaw * 100 : null;
+            return { key: it.key, size: it.size, timestamp: ts };
+        }).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+        res.json({ snapshots: out });
+    } catch (err) { next(err); }
+});
+
+app.delete('/api/db/snapshots', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    if (!checkActiveSession(req, res)) return;
+    try {
+        const key = typeof req.query?.key === 'string' ? req.query.key : '';
+        // Restrict to snapshot prefix — never let this endpoint touch other kv keys.
+        if (!key.startsWith(DB_BACKUP_PREFIX)) {
+            return res.status(400).json({ error: 'Invalid snapshot key' });
+        }
+        kvDel(key);
+        res.json({ ok: true });
+    } catch (err) { next(err); }
+});
+
+// Restore a snapshot atomically server-side: copy snapshot blob → live blob,
+// invalidate caches, rebuild chat store. Client-side setDatabase + reload is
+// racy because the patch-sync save loop is debounced and the reload can fire
+// before the snapshot data lands on disk.
+app.post('/api/db/snapshots/restore', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    if (!checkActiveSession(req, res)) return;
+    try {
+        const key = typeof req.body?.key === 'string' ? req.body.key : '';
+        if (!key.startsWith(DB_BACKUP_PREFIX)) {
+            return res.status(400).json({ error: 'Invalid snapshot key' });
+        }
+        const blob = kvGet(key);
+        if (!blob) {
+            return res.status(404).json({ error: 'Snapshot not found' });
+        }
+        await queueStorageOperation(async () => {
+            // Drain any pending debounced persist first — same pattern as
+            // /api/db/optimize. Without this, an in-flight save could land
+            // after kvCopyValue and overwrite the restored snapshot.
+            await flushPendingDb();
+            kvCopyValue(key, DB_BLOB_KEY);
+            invalidateDbCache();
+            // Pre-warm chat store from the just-restored blob so subsequent
+            // /api/read fetches and patch-sync baselines see the new data.
+            try {
+                const raw = kvGet(DB_BLOB_KEY);
+                if (raw) {
+                    const dbObj = await decodeRisuSave(raw);
+                    initChatStore(dbObj);
+                    dbEtag = computeBufferEtag(Buffer.from(raw));
+                }
+            } catch (e) {
+                logger.warn('[Snapshot restore] post-restore decode failed:', e?.message || e);
+            }
+        });
+        res.json({ ok: true });
+    } catch (err) { next(err); }
+});
+
+// ── Boot-time backup reminder ───────────────────────────────────────────────
+
+const BOOT_REMINDER_KEY = 'config/boot-backup-reminder';
+
+function readBootReminder() {
+    try {
+        const raw = kvGet(BOOT_REMINDER_KEY);
+        if (!raw) return false;
+        return Buffer.from(raw).toString('utf-8').trim() === '1';
+    } catch { return false; }
+}
+
+app.get('/api/backup/boot-reminder', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    try {
+        res.json({ enabled: readBootReminder() });
+    } catch (err) { next(err); }
+});
+
+app.put('/api/backup/boot-reminder', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    if (!checkActiveSession(req, res)) return;
+    try {
+        const enabled = !!req.body?.enabled;
+        kvSet(BOOT_REMINDER_KEY, Buffer.from(enabled ? '1' : '0', 'utf-8'));
+        res.json({ enabled });
+    } catch (err) { next(err); }
+});
+
+// ── Backup directory configuration ──────────────────────────────────────────
+
+app.get('/api/backup/server/path', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    try {
+        res.json({
+            path: backupsDir,
+            default: DEFAULT_BACKUPS_DIR,
+            isDefault: backupsDir === DEFAULT_BACKUPS_DIR,
+        });
+    } catch (err) { next(err); }
+});
+
+app.put('/api/backup/server/path', async (req, res, next) => {
+    if (!await checkAuth(req, res)) return;
+    if (!checkActiveSession(req, res)) return;
+    try {
+        const next = typeof req.body?.path === 'string' ? req.body.path.trim() : '';
+        if (!next) {
+            return res.status(400).json({ error: 'Path required' });
+        }
+        const resolved = path.resolve(next);
+        // Ensure parent exists / target is writable. Create the dir if missing.
+        try {
+            if (!existsSync(resolved)) {
+                mkdirSync(resolved, { recursive: true });
+            }
+            // Probe writability with a tmpfile.
+            const probe = path.join(resolved, `.risu-write-probe-${Date.now()}`);
+            require('fs').writeFileSync(probe, '');
+            require('fs').unlinkSync(probe);
+        } catch (e) {
+            return res.status(400).json({ error: 'Path is not writable: ' + (e?.message || String(e)) });
+        }
+        const previous = backupsDir;
+        backupsDir = resolved;
+        kvSet(BACKUP_PATH_CONFIG_KEY, Buffer.from(resolved, 'utf-8'));
+        res.json({
+            path: backupsDir,
+            previous,
+            default: DEFAULT_BACKUPS_DIR,
+            isDefault: backupsDir === DEFAULT_BACKUPS_DIR,
+        });
+    } catch (err) { next(err); }
 });
 
 // ── Inlay bulk compression endpoint ──────────────────────────────────────────

@@ -1612,6 +1612,192 @@ export const languageEnglish = {
     systemLogsExplicitOnly: "Explicit logs only",
     systemLogsExplicitOnlyHint: "Excludes console, uncaught exceptions, framework captures",
 
+    // Storage dashboard
+    systemDashboard: "Dashboard",
+    storageDashboardDesc: "Inspect storage usage, find large items, and reclaim space.",
+    storageRefresh: "Refresh",
+    storageLoading: "Loading...",
+    storageFailedLoad: "Failed to load storage stats",
+
+    // Disk usage section (macOS-style bar)
+    storageDiskUsage: "Storage",
+    storageDiskHeader: (used: number, total: number) =>
+        `${(used / 1024 / 1024 / 1024).toFixed(2)} GB used of ${(total / 1024 / 1024 / 1024).toFixed(2)} GB`,
+    storageDiskHeaderUnknown: "Disk size unavailable",
+    storageDiskOther: "Other (system & apps)",
+    storageDiskFree: "Free",
+    storageDiskRisuTotal: (size: number) => `RisuAI total: ${(size / 1024 / 1024).toFixed(1)} MB`,
+
+    // Per-row labels (shown in the breakdown list with ⓘ explanations)
+    storageRowDbFile: "risuai.db",
+    storageRowDbFileDesc: "The main SQLite database file. Contains every chat, character, asset, and setting.",
+    storageRowWal: "WAL (Write-Ahead Log)",
+    storageRowWalDesc: "Transient transaction log. Saves are written here first, then folded into the main file. Normal during use.",
+    storageRowShm: "SHM (shared memory)",
+    storageRowShmDesc: "SQLite's shared memory index for the WAL. Tiny, transient, regenerated as needed.",
+    storageRowFileBackups: "Disk backups (.bin)",
+    storageRowFileBackupsDesc: "Manual export backups stored on disk under the backups/ folder.",
+    storageRowKvDatabase: "database.bin (live)",
+    storageRowKvDatabaseDesc: "The single BLOB inside risuai.db that holds character metadata, chats, and settings. Subject to the 2 GB single-blob limit.",
+    storageRowKvDbBackups: "In-process DB backups",
+    storageRowKvDbBackupsDesc: "Automatic snapshots of database.bin kept inside risuai.db. Rotated to fit within ~500 MB.",
+    storageRowKvAssets: "Character assets",
+    storageRowKvAssetsDesc: "Character cards, emotion images, additional assets, persona icons, and similar media.",
+    storageRowKvInlay: "Inlay images",
+    storageRowKvInlayDesc: "Images embedded inside chat messages (inlay + thumb + metadata).",
+    storageRowKvRemotes: "Remote chat data",
+    storageRowKvRemotesDesc: "Per-character remote sync cache (remotes/{chaId}.local.bin).",
+    storageRowKvColdStorage: "Cold storage",
+    storageRowKvColdStorageDesc: "Legacy/dormant storage tier. Usually empty.",
+    storageRowKvUncategorized: "Other data",
+    storageRowKvUncategorizedDesc: "Keys not matching any known category. Usually migration leftovers or temporary entries.",
+    storageRowSqliteOverhead: "SQLite overhead (structural)",
+    storageRowSqliteOverheadDesc: "Structural pages SQLite always keeps: indexes, page headers, alignment padding. Not user data and not removable by cleanup (grows naturally with data volume).",
+    storageRowReclaimablePages: "SQLite overhead (reclaimable)",
+    storageRowReclaimablePagesDesc: "Empty pages left behind by deleted data — the reclaimable portion of SQLite overhead. Same value as the yellow segment in the \"Clean up SQLite overhead\" bar below; cleanup reclaims all of them.",
+    storageRowReclaimable: (size: number) =>
+        `${(size / 1024 / 1024).toFixed(1)} MB reclaimable — run Optimize to compact.`,
+    storageInternalOnly: "Show with full disk",
+    storageInternalOnlyHint: "Off shows only RisuAI items; on includes system & free space relative to the disk.",
+
+    // 2 GB BLOB limit (separate section)
+    storageBlobLimit: "2 GB BLOB limit",
+    storageBlobLimitDesc: "SQLite caps a single row's value at ~2 GB. database.bin is one row, so chats and settings combined cannot exceed it. Saves start failing as you approach this limit.",
+    storageBlobThreshold: (used: number, max: number, pct: number) =>
+        `${pct.toFixed(1)}% of 2 GB (${(used / 1024 / 1024 / 1024).toFixed(2)} / ${(max / 1024 / 1024 / 1024).toFixed(2)} GB)`,
+    storageBlobThresholdWarn: "Approaching the 2 GB single-blob limit. Reduce chats or assets.",
+    storageBlobThresholdCrit: "Critical: very close to 2 GB blob limit. Saves may start failing.",
+
+    storageOptimize: "Clean up now",
+    storageOptimizing: "Cleaning up...",
+    storageOptimizeHeader: (dbSize: number, reclaim: number) =>
+        `${(reclaim / 1024 / 1024).toFixed(1)} MB reclaimable of ${(dbSize / 1024 / 1024 / 1024).toFixed(2)} GB`,
+    storageOptimizeBarUsed: "In use",
+    storageOptimizeBarReclaimable: "Reclaimable",
+    storageOptimizeWhat: "When you delete characters, chats, or assets, the database marks the space as empty but does not shrink the file. Cleanup removes that empty space and rewrites the file to make it smaller on disk. Data is not modified.",
+    storageOptimizeWhen: "Run this after a large delete, or when the empty-space portion in the bar above grows. Saves pause briefly during cleanup (usually a few seconds; tens of seconds for very large databases).",
+    storageOptimizeConfirm: "Clean up now? Server saves will pause for a few seconds.",
+    storageOptimizeNeedsSpace: (need: number, free: number) =>
+        `Not enough disk space. Need ~${(need / 1024 / 1024).toFixed(0)} MB, free ${(free / 1024 / 1024).toFixed(0)} MB.`,
+    storageOptimizeDone: (reclaimed: number, ms: number) =>
+        `Reclaimed ${(reclaimed / 1024 / 1024).toFixed(1)} MB in ${(ms / 1000).toFixed(1)}s.`,
+    storageOptimizeFailed: "Cleanup failed",
+
+    storageCleanup: "Clean up SQLite overhead",
+
+    storageBackups: "Backups",
+    storageBackupsManage: "Manage backups",
+    storageBackupsAuto: "Snapshot (DB only)",
+    storageBackupsAutoDesc: "Periodic automatic snapshots for quick recovery. Stored inside risuai.db; oldest are pruned first based on the configured limits. Character assets and inlay images are not included.",
+    storageBackupsManual: "Server backup",
+    storageBackupsManualDesc: "A full backup including character assets and inlay images. Stored directly on the server; the location can be changed.",
+    storageBackupsCount: (count: number, size: number) =>
+        `${count} · ${(size / 1024 / 1024).toFixed(1)} MB`,
+    storageBackupsRange: (oldest: string, newest: string) => `Latest ${newest} · oldest ${oldest}`,
+    storageBackupsEmpty: "None",
+
+    storageCharacters: "Per-character usage",
+    storageCharactersDesc: "Approximate card, media, and chat bytes for each character.",
+    storageCharactersMeasure: "Measure",
+    storageCharactersMeasuring: "Measuring...",
+    storageCharactersDone: (ms: number, count: number) =>
+        `Measured ${count.toLocaleString()} character(s) in ${(ms / 1000).toFixed(1)}s. Chat sizes are approximate.`,
+    storageCharactersCard: "card",
+    storageCharactersImage: "media",
+    storageCharactersChat: "chat",
+    storageCharactersTrashed: "trashed",
+    storageCharactersOrphan: (count: number, size: number) =>
+        `Orphan media (not referenced by any character): ${count} item(s), ${(size / 1024 / 1024).toFixed(1)} MB`,
+    storageCharactersEmpty: "No characters",
+    storageLoadMore: (remaining: number) => `Show more (${remaining.toLocaleString()} left)`,
+    storageShowingOf: (shown: number, total: number) => `Showing ${shown.toLocaleString()} of ${total.toLocaleString()}`,
+
+    storageModules: "Per-module usage",
+    storageModulesDesc: "Body and asset bytes for each module.",
+    storageModulesMeasure: "Measure",
+    storageModulesMeasuring: "Measuring...",
+    storageModulesDone: (ms: number, count: number) =>
+        `Measured ${count.toLocaleString()} module(s) in ${(ms / 1000).toFixed(1)}s.`,
+    storageModulesBody: "body",
+    storageModulesAssets: "assets",
+    storageModulesEmpty: "No modules",
+
+    storageDebug: "Debug info",
+
+    // Data migration (formerly "Account & Files")
+    migration: "Data Migration",
+    migrationDesc: "Move data between RisuAI (or compatible systems) and NodeOnly: import from upstream, or export to upstream-compatible format.",
+    migrationInfoBackupMoved: "Server backups, local backups, and DB snapshots have moved to [System → Backups].",
+    migrationGotoBackupTab: "Open Backups tab",
+    migrationLegacyAccordion: "RisuAI-style backup (legacy)",
+    migrationLegacyDesc: "Helpers for backing up and exporting in upstream RisuAI-compatible formats. Use the Backups tab for everyday backup tasks.",
+    migrationSaveFolderAccordion: "Import save folder from NodeRisu",
+    migrationSaveFolderDesc: "Use this to bring data over from a NodeRisu / RisuAI save folder you used previously.",
+    migrationLoadUpstreamBackup: "Load upstream RisuAI local backup",
+
+    // System → Backups tab
+    systemBackups: "Backups",
+    backupTabDesc: "Manage snapshots, full backups, and local backups in one place.",
+
+    backupSnapshot: "Snapshot (DB only)",
+    backupSnapshotEmpty: "No snapshots.",
+    backupSnapshotRestore: "Restore from this snapshot",
+    backupSnapshotDelete: "Delete snapshot",
+    backupSnapshotDeleteConfirm: (when: string) => `Delete the ${when} snapshot? This cannot be undone.`,
+    backupSnapshotDeleted: "Snapshot deleted.",
+    backupSnapshotDeleteFailed: "Failed to delete snapshot",
+    backupSnapshotLimits: (count: number, bytes: number) =>
+        `Up to ${count} · ${(bytes / 1024 / 1024).toFixed(0)} MB`,
+    backupSnapshotLimitsCurrent: (count: number, bytes: number) =>
+        `Currently ${count} · ${(bytes / 1024 / 1024).toFixed(1)} MB used`,
+    backupSnapshotLimitsChange: "Configure limits",
+    backupSnapshotLimitsDialog: "Snapshot retention limits",
+    backupSnapshotLimitsDialogDesc: "Whichever limit is reached first applies. Snapshots are rotated as new ones are created; reducing a limit trims immediately (the most recent snapshot is always kept regardless).",
+    backupSnapshotLimitsCount: "Max count",
+    backupSnapshotLimitsBytes: "Max size (MB)",
+    backupSnapshotLimitsSuccess: (removed: number) =>
+        removed > 0 ? `Limits applied (${removed} removed)` : "Limits updated.",
+    backupSnapshotLimitsFailed: "Failed to update limits",
+    backupSnapshotLimitsCountRange: (min: number, max: number) =>
+        `Integer between ${min} and ${max}`,
+    backupSnapshotLimitsBytesRange: (minMB: number, maxMB: number) =>
+        `Between ${minMB} and ${maxMB.toLocaleString()} MB`,
+
+    backupServer: "Server backup",
+    backupServerDesc: "A full backup including character assets and inlay images. Stored directly on the server; you can change the location below.",
+    backupServerCreate: "Create backup",
+    backupServerEmpty: "No backups saved.",
+    backupBootReminder: "Boot-time backup reminder",
+    backupBootReminderHint: "From the next boot, ask whether to back up before showing the app.",
+    backupBootReminderToggledOn: "Boot-time backup reminder enabled.",
+    backupBootReminderToggledOff: "Boot-time backup reminder disabled.",
+    backupBootPromptTitle: "Create a server backup now?",
+    backupBootPromptEstimate: (size: number) =>
+        `Estimated backup size: ${(size / 1024 / 1024).toFixed(0)} MB`,
+    backupBootPromptDisk: (free: number, total: number) =>
+        `Disk free: ${(free / 1024 / 1024 / 1024).toFixed(1)} GB / total ${(total / 1024 / 1024 / 1024).toFixed(1)} GB`,
+    backupBootPromptProceed: "Back up now",
+    backupBootPromptSkip: "Skip",
+    storageDiskUsageHighWarning: (pct: number) =>
+        `Disk ${pct.toFixed(0)}% full — cleanup needed.`,
+    backupServerInsufficient: "Insufficient disk space — cannot create a new backup.",
+    updatePopupBackup: "Backup",
+
+    backupServerPath: "Stored at",
+    backupServerPathDefault: "Default location",
+    backupServerPathChange: "Change",
+    backupServerPathDialog: "Change backup location",
+    backupServerPathDialogDesc: "Absolute path to the folder where new backups will be saved. Existing backup files remain at the old location — move them manually if needed.",
+    backupServerPathInputLabel: "Absolute path",
+    backupServerPathSuccess: "Backup location updated.",
+    backupServerPathFailed: "Failed to update backup location",
+
+    backupLocal: "Local backup",
+    backupLocalDesc: "Download a backup to your device or restore from a file on your device.",
+    backupLocalDownload: "Download backup to device",
+    backupLocalDownloadDesc: "Generate a fresh backup from current data and download it directly to your device.",
+    backupLocalRestoreDesc: "Restore from a backup file on your device.",
+
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

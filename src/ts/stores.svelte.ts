@@ -45,6 +45,22 @@ export const MobileGUI = writable(false)
 export const MobileGUIStack = writable(0)
 export const MobileSideBar = writable(0)
 export const SettingsMenuIndex = writable(-1)
+// Boot-time backup reminder prompt — set by bootstrap and rendered by
+// BootBackupPrompt. The component resolves the user's choice (proceed/skip)
+// back via the resolve callback. See src/ts/bootstrap.ts.
+export interface BootBackupPromptData {
+    estimate: number | null
+    free: number | null
+    total: number | null
+    insufficient: boolean
+    resolve: (proceed: boolean) => void
+}
+export const bootBackupPromptStore = writable<BootBackupPromptData | null>(null)
+
+// Sub-tab index inside the System settings page. Exposed as a store so
+// other pages can deep-link via openSettings(SettingsRoute.System,
+// SystemTab.X) — see src/ts/routing.
+export const SystemSubmenuIndex = writable(0)
 export const ReloadGUIPointer = writable(0)
 export const ReloadChatPointer = writable({} as Record<number, number>)
 export const ScrollToMessageStore = $state({ value: -1 })

@@ -30,6 +30,7 @@
     import LoadoutModal from './lib/Others/LoadoutModal.svelte';
     import PopupEditor from './lib/Others/PopupEditor.svelte';
     import UpdatePopup from './lib/Others/UpdatePopup.svelte';
+    import BootBackupPrompt from './lib/Others/BootBackupPrompt.svelte';
     import PopupList from './lib/UI/PopupList.svelte';
     import EasyPanel from './lib/Others/ProTools/EasyPanel.svelte';
     import LoadingOverlay from './lib/Others/LoadingOverlay.svelte';
@@ -233,6 +234,7 @@
     <PluginAlertModal />
     <LoadingOverlay />
     <UpdatePopup />
+    <BootBackupPrompt />
     {#if popupStore.children}
         <PopupList />
     {/if}

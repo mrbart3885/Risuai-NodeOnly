@@ -7,7 +7,7 @@
     
     import { DBState, ReloadGUIPointer } from 'src/ts/stores.svelte';
     import { selectedCharID } from "src/ts/stores.svelte";
-    import { SettingsMenuIndex, settingsOpen } from "src/ts/stores.svelte";
+    import { openSettings, SettingsRoute } from "src/ts/routing";
     interface Props {
         close?: any;
         alertMode?: boolean;
@@ -121,8 +121,7 @@
         </div>
         <div>
             <Button className="mt-4 grow-0" size="sm" onclick={() => {
-                $SettingsMenuIndex = 14
-                $settingsOpen = true
+                openSettings(SettingsRoute.Module)
                 close('')
             }}>{language.edit}</Button>
         </div>

@@ -807,4 +807,7 @@ export const helpEn = {
             "Register up to 3 LoRA URLs and weights. Applied only when the model supports LoRA.",
         waveImageReference:
             "Reference image mode (None / Upload / Use Character Image). Works only when the model supports image input.",
+
+        bootBackupReminder:
+            "When enabled, RisuAI prompts you on every boot whether to create a server backup right away. Useful as a lightweight safety net before opening the app each session. Confirming runs a full server backup (the loading screen waits while it finishes); skipping continues straight to the app.",
 }
