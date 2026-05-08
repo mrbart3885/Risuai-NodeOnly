@@ -50,36 +50,6 @@
     <div class="w-full flex p-4 flex-col text-textcolor max-w-4xl">
       {#if !$OpenRealmStore}
       <div class="mt-4 mb-4 w-full border-t border-t-selected"></div>
-      <h1 class="text-2xl font-bold">Recently Uploaded<button class="text-base font-medium float-right p-1 bg-darkbg rounded-md hover:ring-3" onclick={() => {
-        $OpenRealmStore = true
-      }}>Get More</button></h1>
-          {#if !DBState.db.hideRealm}
-            {#await getRisuHub({
-                  search: '',
-                  page: 0,
-                  nsfw: false,
-                  sort: 'recommended'
-              }) then charas}
-            {#if charas.length > 0}
-              {@html hubAdditionalHTML}
-              <div class="w-full flex gap-4 p-2 flex-wrap justify-center">
-                  {#each charas as chara}
-                      <RisuHubIcon onClick={() => {
-                        $OpenRealmStore = true
-                        if(DBState.db.realmDirectOpen){
-                            $RealmInitialOpenChar = chara
-                        }
-                      }} chara={chara} />
-                  {/each}
-              </div>
-            {:else}
-              <div class="text-textcolor2">Failed to load {language.hub}...</div>
-            {/if}
-          {/await}
-        {:else}
-          <div class="text-textcolor2">{language.hideRealm}</div>
-        {/if}
-      <div class="mt-4 mb-4 w-full border-t border-t-selected"></div>
       <h1 class="text-2xl font-bold mb-4">
         Related Links
       </h1>
@@ -137,6 +107,36 @@
             </div>
           </button>
         </div>
+      <div class="mt-4 mb-4 w-full border-t border-t-selected"></div>
+      <h1 class="text-2xl font-bold">Recently Uploaded<button class="text-base font-medium float-right p-1 bg-darkbg rounded-md hover:ring-3" onclick={() => {
+        $OpenRealmStore = true
+      }}>Get More</button></h1>
+          {#if !DBState.db.hideRealm}
+            {#await getRisuHub({
+                  search: '',
+                  page: 0,
+                  nsfw: false,
+                  sort: 'recommended'
+              }) then charas}
+            {#if charas.length > 0}
+              {@html hubAdditionalHTML}
+              <div class="w-full flex gap-4 p-2 flex-wrap justify-center">
+                  {#each charas as chara}
+                      <RisuHubIcon onClick={() => {
+                        $OpenRealmStore = true
+                        if(DBState.db.realmDirectOpen){
+                            $RealmInitialOpenChar = chara
+                        }
+                      }} chara={chara} />
+                  {/each}
+              </div>
+            {:else}
+              <div class="text-textcolor2">Failed to load {language.hub}...</div>
+            {/if}
+          {/await}
+        {:else}
+          <div class="text-textcolor2">{language.hideRealm}</div>
+        {/if}
 
       {:else}
         <div class="flex items-center mt-4">
