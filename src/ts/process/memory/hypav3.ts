@@ -15,6 +15,7 @@ import {
 } from "src/ts/storage/database.svelte";
 import { type OpenAIChat } from "../index.svelte";
 import { requestChatData } from "../request/request";
+import { isLocalNetworkUrl } from "src/ts/network/localNetwork";
 import { chatCompletion, unloadEngine } from "../webllm";
 import { hypaV3ProgressStore } from "src/ts/stores.svelte";
 import { type ChatTokenizer } from "src/ts/tokenizer";
@@ -1696,13 +1697,20 @@ export async function summarize(oaiMessages: OpenAIChat[], isResummarize: boolea
     if (settings.summarizationModel === "subModel") {
         console.log(logPrefix, `Using ax model ${db.subModel} for summarization.`);
 
+        let subModelUrl = '';
+        if (db.subModel === 'reverse_proxy') {
+            subModelUrl = db.forceReplaceUrl ?? '';
+        } else if (db.subModel?.startsWith('xcustom:::')) {
+            subModelUrl = db.customModels?.find(m => m.id === db.subModel)?.url ?? '';
+        }
+
         const response = await requestChatData(
             {
                 formated,
                 bias: {},
                 useStreaming: false,
                 noMultiGen: true,
-                forceLocalNetwork: true,
+                forceLocalNetwork: isLocalNetworkUrl(subModelUrl),
             },
             "memory"
         );
