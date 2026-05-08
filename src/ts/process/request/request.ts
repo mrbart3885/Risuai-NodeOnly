@@ -51,6 +51,7 @@ interface requestDataArgument{
     rememberToolUsage?: boolean
     forceStreaming?: boolean
     blockPlugins?: boolean
+    forceLocalNetwork?: boolean
 }
 
 export interface RequestDataArgumentExtended extends requestDataArgument{

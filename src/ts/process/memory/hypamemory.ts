@@ -4,6 +4,7 @@ import { appendLastPath } from "src/ts/util";
 import { getDatabase } from "src/ts/storage/database.svelte";
 import { makeHashedStorageKey, readPersistentJson, writePersistentJson } from "src/ts/storage/persistentKv";
 import { isContextModel, getContextProvider } from "./contextualEmbedding";
+import { isLocalNetworkUrl } from "src/ts/network/localNetwork";
 
 export type HypaModel = 'custom'|'ada'|'openai3small'|'openai3large'|'MiniLM'|'MiniLMGPU'|'nomic'|'nomicGPU'|'bgeSmallEn'|'bgeSmallEnGPU'|'bgem3'|'bgem3GPU'|'multiMiniLM'|'multiMiniLMGPU'|'bgeM3Ko'|'bgeM3KoGPU'|'voyageContext3'
 
@@ -135,7 +136,8 @@ export class HypaProcesser{
                 }
             };
  
-            gf = await globalFetch(replaceUrl.toString(), fetchArgs)
+            const localNetworkOpts = isLocalNetworkUrl(replaceUrl.toString()) ? { networkRoute: 'local_network' as const } : {};
+            gf = await globalFetch(replaceUrl.toString(), { ...fetchArgs, ...localNetworkOpts })
         }
         if(this.model === 'ada' || this.model === 'openai3small' || this.model === 'openai3large'){
             const db = getDatabase()
