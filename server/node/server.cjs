@@ -795,12 +795,14 @@ const UPDATE_CHECK_DISABLED = process.env.RISU_UPDATE_CHECK === 'false';
 const UPDATE_CHECK_URL = process.env.RISU_UPDATE_URL || 'https://risu-update-worker.nodridan.workers.dev/check';
 const PUBLIC_STATS_URL = (process.env.RISU_UPDATE_URL || 'https://risu-update-worker.nodridan.workers.dev/check').replace(/\/check$/, '/api/public-stats');
 
-const currentVersion = (() => {
+// Re-read on each call so non-portable updates (docker/git pull) without a
+// process restart don't keep reporting the old version to the update worker.
+function getCurrentVersion() {
     try {
         const pkg = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8'));
         return pkg.version || '0.0.0';
     } catch { return '0.0.0'; }
-})();
+}
 
 // ── Deployment type & self-update helpers ─────────────────────────────────────
 const GITHUB_REPO = 'mrbart3885/Risuai-NodeOnly';
@@ -1166,6 +1168,7 @@ async function migrateInlaysToFilesystem() {
 async function fetchLatestRelease() {
     if (UPDATE_CHECK_DISABLED) return null;
     try {
+        const currentVersion = getCurrentVersion();
         const params = new URLSearchParams({
             v: currentVersion,
             d: deploymentType,
@@ -5210,6 +5213,7 @@ app.get('/api/public-stats', async (req, res) => {
 
 // ── Update check endpoint ────────────────────────────────────────────────────
 app.get('/api/update-check', async (req, res) => {
+    const currentVersion = getCurrentVersion();
     if (UPDATE_CHECK_DISABLED) {
         res.json({ currentVersion, hasUpdate: false, severity: 'none', disabled: true, deploymentType, canSelfUpdate: false });
         return;
