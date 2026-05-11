@@ -1595,4 +1595,6 @@ export const languageChineseTraditional = {
     "togglePresetExported": (name: string) => `預設「${name}」已匯出。`,
     "togglePresetRenamed": (oldName: string, newName: string) => `已將「${oldName}」重新命名為「${newName}」。`,
     "togglePresetSaved": (name: string) => `預設「${name}」已儲存。`,
+
+    "selectBotHint": "選擇一個機器人開始聊天",
 } satisfies DeepPartial<typeof import('./en').languageEnglish>

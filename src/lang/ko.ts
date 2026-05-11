@@ -1776,4 +1776,6 @@ export const languageKorean = {
     relatedArcaLive: "아카라이브 채널",
     relatedArcaLiveDesc: "AI 채팅 채널에서 다른 사용자와 이야기를 나눠보세요.",
 
+    selectBotHint: "채팅을 시작할 봇을 선택하세요",
+
 } satisfies DeepPartial<typeof import('./en').languageEnglish>

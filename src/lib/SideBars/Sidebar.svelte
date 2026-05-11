@@ -34,7 +34,11 @@
     User2Icon,
     ChevronsLeft,
     ArrowRight,
+    MailIcon,
+    SendIcon,
+    UsersIcon,
   } from "@lucide/svelte";
+  import GithubIcon from "../UI/GithubIcon.svelte";
     import {
   addCharacter,
     changeChar,
@@ -47,7 +51,7 @@
     import BaseRoundedButton from "../UI/BaseRoundedButton.svelte";
     import { getCharacterIndexObject, selectSingleFile } from "src/ts/util";
     import { v4 } from "uuid";
-    import { checkCharOrder, getFileSrc, saveAsset } from "src/ts/globalApi.svelte";
+    import { checkCharOrder, getFileSrc, openURL, saveAsset } from "src/ts/globalApi.svelte";
     import { alertInput, alertSelect } from "src/ts/alert";
     import SideChatList from "./SideChatList.svelte";
 
@@ -1035,9 +1039,60 @@
   {/if}
   {#if sideBarMode === 0}
     {#if $selectedCharID < 0 || $settingsOpen}
-      <div>
-        <h1 class="text-xl">Welcome to RisuAI!</h1>
-        <span class="text-xs text-textcolor2">Select a bot to start chatting</span>
+      <span class="block text-sm text-textcolor2 mt-2">{language.selectBotHint}</span>
+      <div class="flex flex-col gap-1.5 mt-2">
+        <button
+          type="button"
+          class="group flex items-center gap-2.5 rounded-md border border-borderc/10 bg-darkbg p-2 text-left transition-colors hover:border-borderc/30 hover:bg-selected/50"
+          onclick={() => openURL("https://github.com/PocketRisu/PocketRisu")}
+        >
+          <div class="shrink-0 flex items-center justify-center w-8 h-8 rounded-md bg-selected/40 text-textcolor">
+            <GithubIcon size={18} />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-textcolor leading-tight truncate">{language.relatedGithub}</div>
+            <div class="text-xs text-textcolor2 leading-tight truncate">{language.relatedGithubDesc}</div>
+          </div>
+        </button>
+        <button
+          type="button"
+          class="group flex items-center gap-2.5 rounded-md border border-borderc/10 bg-darkbg p-2 text-left transition-colors hover:border-borderc/30 hover:bg-selected/50"
+          onclick={() => openURL("https://forms.gle/5ms5XntMrfaxmHTSA")}
+        >
+          <div class="shrink-0 flex items-center justify-center w-8 h-8 rounded-md bg-selected/40 text-textcolor">
+            <SendIcon size={16} strokeWidth={1.5} />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-textcolor leading-tight truncate">{language.relatedFeedbackForm}</div>
+            <div class="text-xs text-textcolor2 leading-tight truncate">{language.relatedFeedbackFormDesc}</div>
+          </div>
+        </button>
+        <button
+          type="button"
+          class="group flex items-center gap-2.5 rounded-md border border-borderc/10 bg-darkbg p-2 text-left transition-colors hover:border-borderc/30 hover:bg-selected/50"
+          onclick={() => openURL("mailto:contact@pocketrisu.com")}
+        >
+          <div class="shrink-0 flex items-center justify-center w-8 h-8 rounded-md bg-selected/40 text-textcolor">
+            <MailIcon size={16} strokeWidth={1.5} />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-textcolor leading-tight truncate">{language.relatedContactEmail}</div>
+            <div class="text-xs text-textcolor2 leading-tight truncate">{language.relatedContactEmailDesc}</div>
+          </div>
+        </button>
+        <button
+          type="button"
+          class="group flex items-center gap-2.5 rounded-md border border-borderc/10 bg-darkbg p-2 text-left transition-colors hover:border-borderc/30 hover:bg-selected/50"
+          onclick={() => openURL("https://arca.live/b/characterai")}
+        >
+          <div class="shrink-0 flex items-center justify-center w-8 h-8 rounded-md bg-selected/40 text-textcolor">
+            <UsersIcon size={16} strokeWidth={1.5} />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-textcolor leading-tight truncate">{language.relatedArcaLive}</div>
+            <div class="text-xs text-textcolor2 leading-tight truncate">{language.relatedArcaLiveDesc}</div>
+          </div>
+        </button>
       </div>
     {:else if DBState.db.characters[$selectedCharID]?.chaId === '§playground'}
       <SideChatList bind:chara={ DBState.db.characters[$selectedCharID]} />

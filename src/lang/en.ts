@@ -1815,6 +1815,8 @@ export const languageEnglish = {
     relatedArcaLive: "ArcaLive Channel",
     relatedArcaLiveDesc: "Discuss with other users in the AI chat channel.",
 
+    selectBotHint: "Select a bot to start chatting",
+
 } satisfies I18nTranslation;
 
 type I18nTranslationFunction = (...args: any[]) => string;

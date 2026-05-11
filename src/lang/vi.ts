@@ -1327,4 +1327,6 @@ export const languageVietnamese = {
     nanoGPTSelectFromList: "Chọn từ danh sách",
     nanoGPTManualInput: "Nhập thủ công",
     nanoGPTManualModelSelect: "Chọn mô hình thủ công",
+
+    selectBotHint: "Chọn một bot để bắt đầu trò chuyện",
 } satisfies DeepPartial<typeof import('./en').languageEnglish>;
