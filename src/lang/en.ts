@@ -1693,6 +1693,18 @@ export const languageEnglish = {
 
     storageCleanup: "Clean up SQLite overhead",
 
+    storageWalCleanup: "Manual WAL cleanup",
+    storageWalCleanupHeader: (walSize: number) => `Current WAL ${(walSize / 1024 / 1024).toFixed(1)} MB`,
+    storageWalCleanupWhat: "SQLite's WAL file (risuai.db-wal) collects recent changes before merging them into the main database. A background checkpoint runs every 5 minutes, but bursts like backup import or large asset uploads can temporarily inflate it.",
+    storageWalCleanupWhen: "Use this when the WAL file looks large and you want to reclaim disk space immediately. Lightweight (a few milliseconds) and requires no extra free space, unlike Optimize. Data is not modified.",
+    storageWalCleanup_btn: "Clean up WAL",
+    storageWalCleanuping: "Cleaning up WAL...",
+    storageWalCleanupConfirm: "Clean up WAL now? Server saves will pause briefly.",
+    storageWalCleanupDone: (reclaimed: number, ms: number) =>
+        `Reclaimed ${(reclaimed / 1024 / 1024).toFixed(1)} MB in ${ms}ms.`,
+    storageWalCleanupNoop: "WAL is already clean.",
+    storageWalCleanupFailed: "WAL cleanup failed",
+
     storageBackups: "Backups",
     storageBackupsManage: "Manage backups",
     storageBackupsAuto: "Snapshot (DB only)",

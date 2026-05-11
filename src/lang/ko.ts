@@ -1654,6 +1654,18 @@ export const languageKorean = {
 
     storageCleanup: "SQLite 오버헤드 정리",
 
+    storageWalCleanup: "WAL 수동 정리",
+    storageWalCleanupHeader: (walSize: number) => `현재 WAL ${(walSize / 1024 / 1024).toFixed(1)} MB`,
+    storageWalCleanupWhat: "SQLite의 WAL 파일(risuai.db-wal)은 최근 변경분이 본 DB로 합쳐지기 전 임시로 모아두는 영역입니다. 5분 주기로 자동 정리되지만 백업 임포트나 큰 에셋 업로드 직후 일시적으로 부풀 수 있습니다.",
+    storageWalCleanupWhen: "WAL 파일이 커진 상태에서 디스크 공간을 즉시 회수하고 싶을 때 사용합니다. Optimize와 달리 수 밀리초로 끝나고 추가 디스크 공간도 필요하지 않습니다. 데이터는 변경되지 않습니다.",
+    storageWalCleanup_btn: "WAL 정리",
+    storageWalCleanuping: "WAL 정리 중...",
+    storageWalCleanupConfirm: "WAL을 지금 정리할까요? 서버 저장이 잠시 멈춥니다.",
+    storageWalCleanupDone: (reclaimed: number, ms: number) =>
+        `${(reclaimed / 1024 / 1024).toFixed(1)} MB 회수 (${ms}ms).`,
+    storageWalCleanupNoop: "WAL은 이미 깨끗합니다.",
+    storageWalCleanupFailed: "WAL 정리 실패",
+
     storageBackups: "백업",
     storageBackupsManage: "백업 관리",
     storageBackupsAuto: "스냅샷 (DB만)",
