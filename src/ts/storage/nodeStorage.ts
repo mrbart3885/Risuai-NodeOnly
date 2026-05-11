@@ -452,24 +452,63 @@ export class NodeStorage{
             xhr.setRequestHeader('content-type', 'application/x-risu-backup')
             xhr.setRequestHeader('risu-auth', authHeader)
             xhr.setRequestHeader('x-session-id', NodeStorage.sessionId)
+            // Opt into NDJSON streaming so the server keeps the response socket
+            // alive during long post-upload work — prevents reverse-proxy 502s.
+            xhr.setRequestHeader('accept', 'application/x-ndjson')
 
+            let uploadComplete = false
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable) {
                     onProgress?.(event.loaded, event.total)
                 }
             }
+            xhr.upload.onload = () => { uploadComplete = true }
 
+            let parsedIndex = 0
+            let leftover = ''
+            let result: {ok: boolean, assetsRestored: number, coldStorageFailed?: number} | null = null
+            let serverErrorMsg: string | null = null
+
+            const drainNdjson = () => {
+                const text = xhr.responseText
+                if (text.length <= parsedIndex) return
+                leftover += text.slice(parsedIndex)
+                parsedIndex = text.length
+                const lines = leftover.split('\n')
+                leftover = lines.pop() ?? ''
+                for (const line of lines) {
+                    if (!line) continue
+                    let msg: any
+                    try { msg = JSON.parse(line) } catch { continue }
+                    if (msg.type === 'progress' && uploadComplete) {
+                        // After upload finishes, surface server-side processing
+                        // progress through the same callback for UI continuity.
+                        onProgress?.(msg.bytes, msg.totalBytes)
+                    } else if (msg.type === 'done') {
+                        result = msg
+                    } else if (msg.type === 'error') {
+                        serverErrorMsg = typeof msg.message === 'string' ? msg.message : 'backup import failed'
+                    }
+                    // Ignore 'heartbeat' and unknown event types.
+                }
+            }
+
+            xhr.onprogress = drainNdjson
             xhr.onerror = () => reject(new Error('backup import request failed'))
             xhr.onload = () => {
                 if (xhr.status < 200 || xhr.status >= 300) {
-                    reject(new Error(`backup import error: ${xhr.status}`))
+                    let msg = `backup import error: ${xhr.status}`
+                    try {
+                        const body = JSON.parse(xhr.responseText)
+                        if (body?.error) msg = String(body.error)
+                    } catch {}
+                    reject(new Error(msg))
                     return
                 }
-                try {
-                    resolve(JSON.parse(xhr.responseText))
-                } catch (error) {
-                    reject(error)
-                }
+                drainNdjson()
+                if (serverErrorMsg) reject(new Error(serverErrorMsg))
+                else if (result) resolve(result)
+                else reject(new Error('backup import: no result received'))
             }
 
             xhr.send(file)

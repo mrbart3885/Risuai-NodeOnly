@@ -41,7 +41,12 @@ async function getFreePort(): Promise<number> {
   })
 }
 
-export async function spawnServer(): Promise<ServerHandle> {
+export interface SpawnServerOptions {
+  /** Extra env vars to pass to the spawned server process. */
+  env?: Record<string, string>
+}
+
+export async function spawnServer(opts: SpawnServerOptions = {}): Promise<ServerHandle> {
   const tempDir = await mkdtemp(path.join(tmpdir(), 'risu-compat-'))
   await mkdir(path.join(tempDir, 'save'), { recursive: true })
   await mkdir(path.join(tempDir, 'backups'), { recursive: true })
@@ -54,7 +59,7 @@ export async function spawnServer(): Promise<ServerHandle> {
     [SERVER_SCRIPT],
     {
       cwd: tempDir,
-      env: { ...process.env, PORT: String(port), NODE_ENV: 'test' },
+      env: { ...process.env, PORT: String(port), NODE_ENV: 'test', ...opts.env },
       stdio: ['ignore', 'pipe', 'pipe'],
     },
   )
