@@ -213,6 +213,316 @@ describe('content-type compatibility', () => {
   })
 })
 
+// ─── NDJSON streaming response ──────────────────────────────────────────────
+//
+// The NDJSON import path was added to keep the response socket alive during
+// long post-upload work (WAL checkpoint, cold-storage migration, etc.) so a
+// reverse proxy in front of the Node server doesn't time out and bounce a 502
+// back to the client. Backup import is one of the most destructive operations
+// in the app — a silent failure or partial import would wipe user data — so
+// these tests guard the contract end-to-end:
+//
+//   T1  database content survives the NDJSON path identically
+//   T2  asset bytes survive the NDJSON path identically
+//   T3  cold-storage migration (runs in the silent post-upload phase) succeeds
+//   T4  a malformed backup ends in an `error` event with prior data intact
+//       (the worst case here is `done.ok=true` arriving on a botched import)
+//   T5  `progress` events fire with monotonically increasing bytes
+//   T6  heartbeats actually fire during processing (proves the keepalive
+//       mechanism — without it the fix degrades to a silent 502 again)
+
+type NdjsonEvent =
+  | { type: 'progress'; bytes: number; totalBytes: number }
+  | { type: 'heartbeat' }
+  | { type: 'done'; ok: boolean; assetsRestored?: number; coldStorageFailed?: number }
+  | { type: 'error'; message: string }
+
+interface NdjsonImportResult {
+  response: Response
+  events: NdjsonEvent[]
+  done?: Extract<NdjsonEvent, { type: 'done' }>
+  errors: Array<Extract<NdjsonEvent, { type: 'error' }>>
+  progresses: Array<Extract<NdjsonEvent, { type: 'progress' }>>
+  heartbeats: Array<Extract<NdjsonEvent, { type: 'heartbeat' }>>
+}
+
+async function importViaNdjson(
+  client: { fetch: (path: string, init?: RequestInit) => Promise<Response> },
+  seed: Buffer,
+): Promise<NdjsonImportResult> {
+  const prepRes = await client.fetch('/api/backup/import/prepare', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ size: seed.byteLength }),
+  })
+  if (!prepRes.ok) throw new Error(`prepare failed: ${prepRes.status} ${await prepRes.text()}`)
+
+  const response = await client.fetch('/api/backup/import', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-risu-backup',
+      'accept': 'application/x-ndjson',
+    },
+    body: new Uint8Array(seed),
+  })
+  const text = await response.text()
+  const events: NdjsonEvent[] = text
+    .split('\n')
+    .filter(line => line.length > 0)
+    .map(line => JSON.parse(line) as NdjsonEvent)
+
+  return {
+    response,
+    events,
+    done: events.find((e): e is Extract<NdjsonEvent, { type: 'done' }> => e.type === 'done'),
+    errors: events.filter((e): e is Extract<NdjsonEvent, { type: 'error' }> => e.type === 'error'),
+    progresses: events.filter((e): e is Extract<NdjsonEvent, { type: 'progress' }> => e.type === 'progress'),
+    heartbeats: events.filter((e): e is Extract<NdjsonEvent, { type: 'heartbeat' }> => e.type === 'heartbeat'),
+  }
+}
+
+describe('ndjson streaming import', () => {
+  // T1 — DB content must come through unchanged via the NDJSON path. A
+  // regression that bypassed importBackupFromSource (or short-circuited it)
+  // would be the worst-case silent corruption; we compare normalized output
+  // to a baseline produced by the existing non-NDJSON path on a peer server.
+  test('T1: round-trip database matches non-NDJSON path byte-for-byte (normalized)', async () => {
+    const seed = createSeedBackup({ characterCount: 3, chatsPerCharacter: 2, messagesPerChat: 4 })
+
+    const srvBaseline = await spawnServer()
+    servers.push(srvBaseline)
+    const clientBaseline = await createClient(srvBaseline.port, srvBaseline.password)
+    await clientBaseline.importBackup(seed)
+    const baselineExport = await clientBaseline.exportBackup()
+
+    const srvNdjson = await spawnServer()
+    servers.push(srvNdjson)
+    const clientNdjson = await createClient(srvNdjson.port, srvNdjson.password)
+    const ndjson = await importViaNdjson(clientNdjson, seed)
+    expect(ndjson.response.ok).toBe(true)
+    expect(ndjson.done?.ok).toBe(true)
+    const ndjsonExport = await clientNdjson.exportBackup()
+
+    const baseline = normalizeBackup(baselineExport)
+    const fromNdjson = normalizeBackup(ndjsonExport)
+    expect(fromNdjson.normalized.characterCount).toBe(baseline.normalized.characterCount)
+    expect(fromNdjson.normalized.characters).toEqual(baseline.normalized.characters)
+    expect(fromNdjson.normalized.personaCount).toBe(baseline.normalized.personaCount)
+  })
+
+  // T2 — asset bytes are written via a different code path than the DB
+  // (kv writes vs sqlite restore). Fingerprint compare guards against any
+  // off-by-one truncation or accidental skipping when streaming the body.
+  test('T2: assets survive the NDJSON path with identical fingerprints', async () => {
+    const seed = createSeedBackup({ characterCount: 2, includeAssets: true })
+    const seedFingerprints = fingerprintAssets(seed)
+    expect(seedFingerprints.length).toBe(2)
+
+    const srv = await spawnServer()
+    servers.push(srv)
+    const client = await createClient(srv.port, srv.password)
+
+    const ndjson = await importViaNdjson(client, seed)
+    expect(ndjson.done?.ok).toBe(true)
+    expect(ndjson.errors).toEqual([])
+
+    const exported = await client.exportBackup()
+    expect(fingerprintAssets(exported)).toEqual(seedFingerprints)
+  })
+
+  // T3 — cold-storage migration runs *after* the body finishes streaming,
+  // which is exactly the silent phase the heartbeat is meant to cover. We
+  // assert both that the migration succeeded (coldStorageFailed=0) and that
+  // the restored character is present in the re-export.
+  test('T3: cold-storage character is restored when imported via NDJSON', async () => {
+    const fullCharData = {
+      character: {
+        name: 'NdjsonColdChar',
+        chaId: 'cold-char-ndjson-key',
+        image: '', type: 'character',
+        desc: 'Imported via NDJSON',
+        firstMessage: 'Hello from NDJSON path!',
+        chats: [{
+          message: [{ role: 'char', data: 'Hello from NDJSON path!' }],
+          note: '', name: 'Chat 1', localLore: [],
+        }],
+        chatPage: 0, firstMsgIndex: -1,
+        notes: '', emotionImages: [], bias: [], globalLore: [],
+        viewScreen: 'none', sdData: [], utilityBot: false,
+        customscript: [], triggerscript: [],
+        exampleMessage: '', creatorNotes: '', systemPrompt: '',
+        postHistoryInstructions: '', alternateGreetings: [],
+        tags: [], creator: '', characterVersion: '',
+        personality: '', scenario: '', replaceGlobalNote: '',
+        additionalText: '', chatFolders: [],
+      },
+    }
+
+    const seed = createSeedBackup({
+      characterCount: 1,
+      coldStorageCharacters: [
+        { name: 'NdjsonColdChar', coldKey: 'ndjson-key', fullData: fullCharData },
+      ],
+    })
+
+    const srv = await spawnServer()
+    servers.push(srv)
+    const client = await createClient(srv.port, srv.password)
+
+    const ndjson = await importViaNdjson(client, seed)
+    expect(ndjson.done?.ok).toBe(true)
+    expect(ndjson.done?.coldStorageFailed ?? 0).toBe(0)
+
+    const { normalized } = normalizeBackup(await client.exportBackup())
+    const restored = normalized.characters.find(c => c.chaId === 'cold-char-ndjson-key')
+    expect(restored).toBeDefined()
+    expect(restored!.name).toBe('NdjsonColdChar')
+    expect(restored!.firstMessages[0]).toBe('Hello from NDJSON path!')
+  })
+
+  // T4 — silent failure is the worst-case bug. If a malformed backup got
+  // anywhere near a `done.ok=true` event the UI would tell the user that
+  // their import succeeded while their existing data was actually wiped.
+  // The NDJSON path must surface an `error` event AND leave prior data intact.
+  test('T4: malformed backup emits error event, no done, prior data intact', async () => {
+    const srv = await spawnServer()
+    servers.push(srv)
+    const client = await createClient(srv.port, srv.password)
+
+    const goodSeed = createSeedBackup({ characterCount: 1 })
+    await client.importBackup(goodSeed)
+    const beforeExport = await client.exportBackup()
+    const before = normalizeBackup(beforeExport)
+
+    const badBackup = encodeBackup([
+      { name: 'some-random-asset.png', data: Buffer.from('not-a-real-png') },
+    ])
+
+    const ndjson = await importViaNdjson(client, badBackup)
+    expect(ndjson.errors.length).toBeGreaterThanOrEqual(1)
+    expect(ndjson.done).toBeUndefined()
+
+    const afterExport = await client.exportBackup()
+    const after = normalizeBackup(afterExport)
+    expect(after.normalized.characterCount).toBe(before.normalized.characterCount)
+    expect(after.normalized.characters).toEqual(before.normalized.characters)
+  })
+
+  // T5 — progress events are the contract the UI relies on to drive its
+  // upload progress bar. If a refactor accidentally drops the onProgress
+  // callback or rewires it to fire only once, the UI silently regresses.
+  test('T5: emits at least one progress event with monotonically increasing bytes', async () => {
+    const seed = createSeedBackup({ characterCount: 5, chatsPerCharacter: 3, messagesPerChat: 6, includeAssets: true })
+
+    const srv = await spawnServer()
+    servers.push(srv)
+    const client = await createClient(srv.port, srv.password)
+
+    const ndjson = await importViaNdjson(client, seed)
+    expect(ndjson.done?.ok).toBe(true)
+    expect(ndjson.progresses.length).toBeGreaterThanOrEqual(1)
+
+    let last = -1
+    for (const p of ndjson.progresses) {
+      expect(p.bytes).toBeGreaterThanOrEqual(last)
+      expect(p.totalBytes).toBe(seed.byteLength)
+      last = p.bytes
+    }
+    expect(last).toBeLessThanOrEqual(seed.byteLength)
+  })
+
+  // T6 — this is *the* reason the patch exists. If a future change drops
+  // the setInterval call, every data test above keeps passing (small fixtures
+  // finish before one heartbeat tick) but the production 502 would come back.
+  //
+  // Two things have to line up to observe a heartbeat at all:
+  //   1. The heartbeat interval has to be short. We pin it to the floor
+  //      (100 ms) via env override.
+  //   2. The server has to spend more than one interval on the request, AND
+  //      yield to the event loop while doing so (setInterval can't fire while
+  //      JS is in a sync block). With a single-chunk Uint8Array body the
+  //      whole import collapses into one for-await tick. So we stream the
+  //      body in pieces with deliberate 60 ms gaps to force several yields.
+  test('T6: heartbeats fire during processing when interval is tight', async () => {
+    const srv = await spawnServer({ env: { BACKUP_NDJSON_HEARTBEAT_MS: '100' } })
+    servers.push(srv)
+    const client = await createClient(srv.port, srv.password)
+
+    const seed = createSeedBackup({ characterCount: 2, includeAssets: true })
+
+    const prepRes = await client.fetch('/api/backup/import/prepare', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ size: seed.byteLength }),
+    })
+    expect(prepRes.ok).toBe(true)
+
+    const chunkSize = Math.max(1, Math.ceil(seed.byteLength / 5))
+    let offset = 0
+    const body = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        if (offset >= seed.byteLength) { controller.close(); return }
+        const end = Math.min(offset + chunkSize, seed.byteLength)
+        const chunk = new Uint8Array(seed.subarray(offset, end))
+        offset = end
+        if (offset < seed.byteLength) await new Promise(r => setTimeout(r, 60))
+        controller.enqueue(chunk)
+      },
+    })
+
+    const response = await client.fetch('/api/backup/import', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-risu-backup',
+        'accept': 'application/x-ndjson',
+        'content-length': String(seed.byteLength),
+      },
+      body: body as unknown as BodyInit,
+      // Node's fetch requires this flag for streaming request bodies.
+      duplex: 'half',
+    } as RequestInit & { duplex: 'half' })
+
+    const text = await response.text()
+    const events: NdjsonEvent[] = text
+      .split('\n')
+      .filter(line => line.length > 0)
+      .map(line => JSON.parse(line) as NdjsonEvent)
+    const done = events.find((e): e is Extract<NdjsonEvent, { type: 'done' }> => e.type === 'done')
+    const heartbeats = events.filter(e => e.type === 'heartbeat')
+
+    expect(done?.ok).toBe(true)
+    expect(heartbeats.length).toBeGreaterThanOrEqual(1)
+  })
+
+  // Backwards-compat sanity: a client that doesn't advertise NDJSON must
+  // still get the legacy JSON response. The non-NDJSON branch is what every
+  // integration helper in this file already exercises, but an explicit
+  // negative test makes the contract surface visible.
+  test('legacy clients without Accept header receive JSON, not NDJSON', async () => {
+    const srv = await spawnServer()
+    servers.push(srv)
+    const client = await createClient(srv.port, srv.password)
+
+    const seed = createSeedBackup({ characterCount: 1 })
+
+    const prepRes = await client.fetch('/api/backup/import/prepare', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ size: seed.byteLength }),
+    })
+    expect(prepRes.ok).toBe(true)
+
+    const impRes = await client.fetch('/api/backup/import', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-risu-backup' },
+      body: new Uint8Array(seed),
+    })
+    expect(impRes.headers.get('content-type')).toContain('application/json')
+    const body = await impRes.json() as { ok: boolean }
+    expect(body.ok).toBe(true)
+  })
+})
+
 // ─── Malformed import safety ────────────────────────────────────────────────
 
 describe('malformed import safety', () => {

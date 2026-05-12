@@ -700,6 +700,17 @@ function shouldCompress(req, res) {
     if (contentType.includes('text/event-stream')) {
         return false;
     }
+    // NDJSON endpoints (backup import/restore, inlay bulk compression) emit
+    // small per-line events and rely on real-time flushes — keepalive
+    // heartbeats in particular must reach reverse proxies before their
+    // response timeout fires. gzip would buffer those lines until enough
+    // bytes accumulated for an efficient compression block, defeating the
+    // 502-avoidance the streaming endpoints were built for. compressible's
+    // mime-db happens not to list application/x-ndjson today (so this is
+    // a no-op in practice) but a future dep upgrade could flip it on.
+    if (contentType.includes('application/x-ndjson')) {
+        return false;
+    }
     // Already-compressed media formats: gzip adds CPU cost with ~0% size gain
     if (contentType.startsWith('image/') || contentType.startsWith('video/') || contentType.startsWith('audio/')) {
         return false;
@@ -799,6 +810,14 @@ const BACKUP_IMPORT_MAX_BYTES = Number(process.env.RISU_BACKUP_IMPORT_MAX_BYTES 
 const BACKUP_ENTRY_NAME_MAX_BYTES = 1024;
 // Minimum free disk space headroom multiplier: require 2× the backup size to be free
 const BACKUP_DISK_HEADROOM = 2;
+// Heartbeat interval for NDJSON import progress stream. 5 s by default —
+// shorter than every common reverse-proxy response timeout (nginx 60 s, Cloudflare
+// 100 s). Operators behind more aggressive proxies can tighten this. Clamped to
+// 100 ms so a misconfiguration can't spam the socket.
+const BACKUP_NDJSON_HEARTBEAT_MS = Math.max(
+    100,
+    Number(process.env.BACKUP_NDJSON_HEARTBEAT_MS ?? '5000') || 5000,
+);
 
 let importInProgress = false;
 
@@ -3823,6 +3842,13 @@ app.post('/api/backup/import', async (req, res, next) => {
     req.socket.setKeepAlive(true);
     if (req.socket.server) req.socket.server.requestTimeout = 0;
 
+    // NDJSON streaming keeps the response socket alive during long
+    // post-upload work (WAL checkpoint, cold-storage migration). Without it
+    // a reverse proxy in front of the server can hit its response timeout
+    // and bounce the request back to the client as 502 Bad Gateway.
+    const wantsNdjson = String(req.headers['accept'] ?? '').includes('application/x-ndjson');
+    let heartbeatTimer = null;
+
     try {
         const contentType = String(req.headers['content-type'] ?? '');
         if (contentType && !contentType.includes('application/x-risu-backup') && !contentType.includes('application/octet-stream')) {
@@ -3836,15 +3862,57 @@ app.post('/api/backup/import', async (req, res, next) => {
             return;
         }
 
-        const result = await importBackupFromSource(req, { maxBytes: BACKUP_IMPORT_MAX_BYTES });
-        res.json({
-            ok: true,
-            assetsRestored: result.assetsRestored,
-            coldStorageFailed: result.coldStorageFailed,
-        });
+        if (wantsNdjson) {
+            res.setHeader('content-type', 'application/x-ndjson');
+            res.setHeader('cache-control', 'no-cache, no-transform');
+            // Disable nginx response buffering so progress events flush immediately.
+            res.setHeader('x-accel-buffering', 'no');
+            res.flushHeaders();
+
+            // Periodic keepalive — covers the post-stream phase (commit,
+            // inlay dir swap, cold storage migration) where onProgress is silent.
+            heartbeatTimer = setInterval(() => {
+                if (!res.writableEnded) res.write('{"type":"heartbeat"}\n');
+            }, BACKUP_NDJSON_HEARTBEAT_MS);
+
+            let lastProgressWrite = 0;
+            const totalBytes = Number.isFinite(contentLength) ? contentLength : 0;
+            const result = await importBackupFromSource(req, {
+                maxBytes: BACKUP_IMPORT_MAX_BYTES,
+                totalBytes,
+                onProgress: (received, total) => {
+                    const now = Date.now();
+                    if (now - lastProgressWrite < 200) return;
+                    lastProgressWrite = now;
+                    res.write(JSON.stringify({ type: 'progress', bytes: received, totalBytes: total }) + '\n');
+                },
+            });
+            res.write(JSON.stringify({
+                type: 'done',
+                ok: true,
+                assetsRestored: result.assetsRestored,
+                coldStorageFailed: result.coldStorageFailed,
+            }) + '\n');
+            res.end();
+        } else {
+            const result = await importBackupFromSource(req, { maxBytes: BACKUP_IMPORT_MAX_BYTES });
+            res.json({
+                ok: true,
+                assetsRestored: result.assetsRestored,
+                coldStorageFailed: result.coldStorageFailed,
+            });
+        }
     } catch (error) {
-        next(error);
+        if (wantsNdjson && res.headersSent) {
+            try {
+                res.write(JSON.stringify({ type: 'error', message: error?.message || 'backup import failed' }) + '\n');
+                res.end();
+            } catch (_) {}
+        } else {
+            next(error);
+        }
     } finally {
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
         importInProgress = false;
         if (req.socket.server && prevRequestTimeout !== undefined) {
             req.socket.server.requestTimeout = prevRequestTimeout;
