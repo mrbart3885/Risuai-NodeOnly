@@ -40,7 +40,7 @@ PocketRisu es una plataforma de chat de roleplay con IA autoalojada que se ejecu
 
 - [Guía de instalación](docs/es/install.md)
 - [Guía de migración desde RisuAI](docs/es/migration.md)
-- [Acceso móvil](docs/en/mobile.md)
+- [Acceso remoto](docs/es/remote.md)
 
 
 ## Compatibilidad con RisuAI

@@ -38,7 +38,7 @@ PocketRisu is a self-hosted AI roleplay chat platform you run on your PC or pers
 
 - [Installation guide](docs/en/install.md)
 - [RisuAI migration guide](docs/en/migration.md)
-- [Mobile access guide](docs/en/mobile.md)
+- [Remote access guide](docs/en/remote.md)
 
 
 ## RisuAI Compatibility
