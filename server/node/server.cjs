@@ -12,7 +12,17 @@ const nodeCrypto = require('crypto')
 const zlib = require('zlib')
 const rateLimit = require('express-rate-limit')
 const { WebSocketServer } = require('ws')
-const sharp = require('sharp')
+const Vips = require('wasm-vips')
+let _vipsPromise = null
+const getVips = () => {
+    if (!_vipsPromise) {
+        _vipsPromise = Vips().catch(err => {
+            _vipsPromise = null
+            throw err
+        })
+    }
+    return _vipsPromise
+}
 const { kvGet, kvSet, kvDel, kvList,
         kvDelPrefix, kvListWithSizes, kvSize, kvGetUpdatedAt, kvCopyValue, clearEntities, checkpointWal,
         db: sqliteDb } = require('./db.cjs');
@@ -2997,10 +3007,17 @@ const THUMB_QUALITY = 75;
 const THUMB_IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp']);
 
 async function generateThumbnail(buffer) {
-    return sharp(buffer)
-        .resize(THUMB_MAX_SIDE, THUMB_MAX_SIDE, { fit: 'inside', withoutEnlargement: true })
-        .webp({ quality: THUMB_QUALITY })
-        .toBuffer();
+    const vips = await getVips()
+    const img = vips.Image.thumbnailBuffer(buffer, THUMB_MAX_SIDE, {
+        height: THUMB_MAX_SIDE,
+        size: 'down',
+    })
+    try {
+        const out = img.writeToBuffer('.webp', { Q: THUMB_QUALITY })
+        return Buffer.from(out);
+    } finally {
+        img.delete()
+    }
 }
 
 app.get('/api/asset/:hexKey', sessionAuthMiddleware, async (req, res) => {
@@ -5403,11 +5420,20 @@ app.post('/api/inlays/compress', sessionAuthMiddleware, async (req, res) => {
         let skipped = 0;
         let totalSaved = 0;
 
+        const vips = await getVips()
+
         for (let i = 0; i < imageFiles.length; i++) {
             const entry = imageFiles[i];
             try {
                 const original = await fs.readFile(entry.filePath);
-                const webpBuf = await sharp(original).webp({ quality }).toBuffer();
+                const img = vips.Image.newFromBuffer(original)
+                let webpBuf
+                try {
+                    const out = img.writeToBuffer('.webp', { Q: quality })
+                    webpBuf = Buffer.from(out);
+                } finally {
+                    img.delete()
+                }
 
                 if (webpBuf.length < original.length) {
                     const sidecar = await readInlaySidecar(entry.id);
