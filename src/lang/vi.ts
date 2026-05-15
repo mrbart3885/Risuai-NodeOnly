@@ -1331,6 +1331,8 @@ export const languageVietnamese = {
     nanoGPTManualInput: "Nhập thủ công",
     nanoGPTManualModelSelect: "Chọn mô hình thủ công",
 
+    remoteAccessTermuxWarning: "Cloudflare Quick Tunnel không hoạt động trên Termux. Hãy sử dụng Tailscale hoặc công cụ truy cập từ xa khác.",
+
     httpInsecureWarningTitle: "Đang kết nối qua HTTP",
     httpInsecureWarningBody: "Một số tính năng như plugin có thể không hoạt động. Hãy dùng tính năng Truy cập từ xa để có kết nối HTTPS.",
     httpInsecureOpenRemoteAccess: "Mở cài đặt",

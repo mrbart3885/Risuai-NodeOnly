@@ -1587,6 +1587,7 @@ export const languageEnglish = {
     remoteAccessQrHint: "Scan QR code to connect",
     remoteAccessWarning: "Never share the QR code or link with others. Anyone with the link can freely access your server. If accidentally shared, close the connection and create a new one.",
     remoteAccessInfo: "The link expires when you close remote access or restart the server. A new link is generated each time. The connection stays active even if you close this page or browser.",
+    remoteAccessTermuxWarning: "Cloudflare Quick Tunnel does not work on Termux. Use Tailscale or another remote access tool instead.",
 
     // Insecure (HTTP) connection warning
     httpInsecureWarningTitle: "Connected over HTTP",

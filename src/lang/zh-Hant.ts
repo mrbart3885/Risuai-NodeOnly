@@ -1540,6 +1540,7 @@ export const languageChineseTraditional = {
     "remoteAccessQrHint": "掃描 QR 碼以連線",
     "remoteAccessWarning": "**切勿將 QR 碼或連結分享給他人。**持有連結者將能自由存取您的伺服器。若不慎外洩，請立即關閉連線並重新生成新的連結。",
     "remoteAccessInfo": "關閉遠端存取或重新啟動伺服器時，連結將立即失效並於下次生成新連結。關閉此頁面或瀏覽器不會影響目前的連線。",
+    "remoteAccessTermuxWarning": "Cloudflare Quick Tunnel 在 Termux 上無法使用。請改用 Tailscale 或其他遠端存取工具。",
     "characterInfo": "角色資訊",
     "characterName": "角色名稱",
     "chatWidthFull": "無限制",

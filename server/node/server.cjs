@@ -5857,7 +5857,13 @@ async function restoreBackup(backupDir, rootDir) {
 
 app.get('/api/tunnel/status', async (req, res) => {
     if (!await checkAuth(req, res)) return;
-    res.json({ disabled: TUNNEL_DISABLED, status: tunnelStatus, url: tunnelUrl, error: tunnelError });
+    res.json({
+        disabled: TUNNEL_DISABLED,
+        status: tunnelStatus,
+        url: tunnelUrl,
+        error: tunnelError,
+        platform: process.platform,
+    });
 });
 
 app.post('/api/tunnel/start', async (req, res) => {
