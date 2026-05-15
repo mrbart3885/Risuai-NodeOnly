@@ -35,6 +35,6 @@ cat <<'EOF'
 Build OK. Start the server with:
   node server/node/server.cjs
 
-Then from your desktop browser:
-  http://<termux_tailscale_ip>:6001
+Then open this address in the phone's own browser:
+  http://localhost:6001
 EOF
