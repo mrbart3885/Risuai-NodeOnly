@@ -18,6 +18,12 @@ corepack install --global pnpm@10
 echo "[3/5] Termux wake lock (best effort)..."
 termux-wake-lock 2>/dev/null || true
 
+# Workaround for Termux nodejs-lts: its gyp config references android_ndk_path
+# without defining it, so native module builds (better-sqlite3 etc.) fail with
+# "Undefined variable android_ndk_path". Defining it as empty is harmless
+# because we are not cross-compiling against the Android NDK.
+export GYP_DEFINES="android_ndk_path=''"
+
 echo "[4/5] Installing dependencies..."
 pnpm install --frozen-lockfile
 
