@@ -118,9 +118,8 @@
             {#snippet icon()}<TriangleAlertIcon />{/snippet}
             {language.remoteAccessTermuxWarning}
         </ShAlert>
-    {/if}
 
-    {#if status === 'loading'}
+    {:else if status === 'loading'}
         <div class="flex items-center justify-center py-8 text-textcolor2">
             <LoaderCircleIcon class="animate-spin" size={28} />
         </div>
