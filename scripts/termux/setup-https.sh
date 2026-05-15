@@ -40,7 +40,14 @@ sed -i '/^IP\.[2-9] = /d' server.conf
 sed -i "/^IP\.1 = 127\.0\.0\.1$/a IP.2 = $TS_IP" server.conf
 
 if ! command -v openssl >/dev/null 2>&1; then
-    pkg install -y openssl
+    # On Termux, the openssl CLI ships in the separate `openssl-tool` package;
+    # the `openssl` package alone only provides the libraries.
+    pkg install -y openssl-tool 2>/dev/null || pkg install -y openssl
+fi
+
+if ! command -v openssl >/dev/null 2>&1; then
+    echo "Error: openssl CLI not available. Try manually: pkg install openssl-tool"
+    exit 1
 fi
 
 bash "Generate Certificate.sh"
