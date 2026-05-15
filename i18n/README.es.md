@@ -43,6 +43,7 @@ PocketRisu es una plataforma de chat de roleplay con IA autoalojada que se ejecu
 - [Guía de instalación](../docs/es/install.md)
 - [Guía de migración desde RisuAI](../docs/es/migration.md)
 - [Acceso remoto](../docs/es/remote.md)
+- [Guía de instalación de Termux (Android)](../docs/es/termux.md)
 
 
 ## Compatibilidad con RisuAI

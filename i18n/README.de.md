@@ -43,6 +43,7 @@ PocketRisu ist eine selbstgehostete KI-Rollenspiel-Chat-Plattform, die Sie auf I
 - [Installationsanleitung](../docs/de/install.md)
 - [RisuAI-Migrationsleitfaden](../docs/de/migration.md)
 - [Fernzugriff](../docs/de/remote.md)
+- [Termux-Installationsanleitung (Android)](../docs/de/termux.md)
 
 
 ## RisuAI-Kompatibilität
