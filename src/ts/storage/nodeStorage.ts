@@ -20,6 +20,15 @@ export class ConflictError extends Error {
     }
 }
 
+export class HttpError extends Error {
+    status: number
+    constructor(status: number, message: string) {
+        super(message)
+        this.name = 'HttpError'
+        this.status = status
+    }
+}
+
 // Warning the server attaches to /api/patch responses when the most recent
 // debounced persist failed (Stage 1 visibility — see issues.md).
 export interface PersistWarning {
@@ -50,6 +59,27 @@ export class NodeStorage{
     private static sessionInitialized = false
     private static sessionPending: Promise<void> | null = null
     private refreshPending: Promise<string> | null = null
+
+    private async getResponseErrorMessage(response: Response, fallbackMessage: string): Promise<string> {
+        let message = fallbackMessage
+        try {
+            const data = await response.clone().json()
+            if (data?.error) {
+                return String(data.error)
+            }
+        } catch {
+            // Ignore JSON parse errors and continue to text fallback.
+        }
+        try {
+            const text = await response.text()
+            if (text) {
+                message = text
+            }
+        } catch {
+            // Ignore body parse errors and keep fallback message.
+        }
+        return message
+    }
 
     async createAuth(){
         const now = Date.now()
@@ -202,7 +232,8 @@ export class NodeStorage{
             throw new ConflictError(data.error, data.currentEtag)
         }
         if(da.status < 200 || da.status >= 300){
-            throw "setItem Error"
+            const message = await this.getResponseErrorMessage(da, `setItem Error (${da.status})`)
+            throw new HttpError(da.status, message)
         }
         const data = await da.json()
         if(data.error){
@@ -220,7 +251,7 @@ export class NodeStorage{
 
         const da = await this.authFetch('/api/read', { method: "GET", headers })
         if(da.status < 200 || da.status >= 300){
-            throw "getItem Error"
+            throw new HttpError(da.status, await this.getResponseErrorMessage(da, `getItem Error (${da.status})`))
         }
 
         // Capture ETag for database.bin
@@ -247,7 +278,7 @@ export class NodeStorage{
             headers
         })
         if(da.status < 200 || da.status >= 300){
-            throw "listItem Error"
+            throw new HttpError(da.status, await this.getResponseErrorMessage(da, `listItem Error (${da.status})`))
         }
         const data = await da.json()
         if(data.error){
@@ -263,7 +294,7 @@ export class NodeStorage{
             }
         })
         if(da.status < 200 || da.status >= 300){
-            throw "removeItem Error"
+            throw new HttpError(da.status, await this.getResponseErrorMessage(da, `removeItem Error (${da.status})`))
         }
         const data = await da.json()
         if(data.error){

@@ -11,10 +11,69 @@ const CHUNK_SIZE_BYTES = 1024 * 1024; // 1MB
 
 // Queue management constants
 const MAX_CONCURRENT_ASSET_SAVES = 10;
+const ASSET_SAVE_MAX_ATTEMPTS = 3;
+const ASSET_SAVE_BASE_RETRY_DELAY_MS = 250;
 
 // HTTP status code ranges
 const HTTP_STATUS_OK_MIN = 200;
 const HTTP_STATUS_OK_MAX = 300;
+
+const TRANSIENT_HTTP_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524]);
+
+function getErrorStatus(error: unknown): number | null {
+    if (!error || typeof error !== 'object' || !('status' in error)) {
+        return null
+    }
+    const status = (error as { status?: unknown }).status
+    return typeof status === 'number' ? status : null
+}
+
+export function isTransientError(error: unknown): boolean {
+    if (error instanceof TypeError) {
+        return true
+    }
+    if (error instanceof Error && error.name === 'AbortError') {
+        return true
+    }
+    const status = getErrorStatus(error)
+    if (status !== null) {
+        return TRANSIENT_HTTP_STATUSES.has(status)
+    }
+    if (typeof error === 'string') {
+        const lower = error.toLowerCase()
+        return lower.includes('timeout') || lower.includes('network') || lower.includes('temporary')
+    }
+    if (error instanceof Error) {
+        const lower = error.message.toLowerCase()
+        return lower.includes('timeout') || lower.includes('network') || lower.includes('failed to fetch') || lower.includes('temporary')
+    }
+    return false
+}
+
+export async function retryWithBackoff<T>(
+    operation: () => Promise<T>,
+    options?: {
+        maxAttempts?: number
+        baseDelayMs?: number
+        sleepFn?: (ms: number) => Promise<void>
+    }
+): Promise<T> {
+    const maxAttempts = Math.max(1, options?.maxAttempts ?? ASSET_SAVE_MAX_ATTEMPTS)
+    const baseDelayMs = Math.max(0, options?.baseDelayMs ?? ASSET_SAVE_BASE_RETRY_DELAY_MS)
+    const sleepFn = options?.sleepFn ?? sleep
+
+    for (let attempt = 1; ; attempt += 1) {
+        try {
+            return await operation()
+        } catch (error) {
+            if (attempt >= maxAttempts || !isTransientError(error)) {
+                throw error
+            }
+            const delayMs = baseDelayMs * (2 ** (attempt - 1))
+            await sleepFn(delayMs)
+        }
+    }
+}
 
 export async function processZip(dataArray: Uint8Array): Promise<string> {
     const unzipped = await new Promise<fflate.Unzipped>((resolve, reject) => {
@@ -260,7 +319,7 @@ export class CharXImporter{
         this.unzip.push(data, final)
 
         if(final){
-            await this.#finalize()
+            await this.finalize()
         }
     }
 
@@ -396,7 +455,10 @@ export class CharXImporter{
             acquired = true
             const assetSaveId = this.skipSaving
                 ? `assets/${await hasher(asset.data)}.png`
-                : await saveAsset(asset.data)
+                : await retryWithBackoff(() => saveAsset(asset.data), {
+                    maxAttempts: ASSET_SAVE_MAX_ATTEMPTS,
+                    baseDelayMs: ASSET_SAVE_BASE_RETRY_DELAY_MS
+                })
 
             this.assets[asset.id] = assetSaveId
         } catch (error) {
@@ -415,10 +477,20 @@ export class CharXImporter{
      * Finalizes processing when all ZIP data has been pushed.
      * Saves hash signal if needed and marks the queue as complete.
      */
-    async #finalize(){
+    private async finalize(){
         // Save hash signal for server sync if needed
         if(this.hashSignal){
-            await saveAsset(new TextEncoder().encode(this.hashSignal))
+            try {
+                await retryWithBackoff(
+                    () => saveAsset(new TextEncoder().encode(this.hashSignal)),
+                    {
+                        maxAttempts: ASSET_SAVE_MAX_ATTEMPTS,
+                        baseDelayMs: ASSET_SAVE_BASE_RETRY_DELAY_MS
+                    }
+                )
+            } catch (error) {
+                this.errors.push(error instanceof Error ? error : new Error(String(error)))
+            }
         }
 
         this.isFinalized = true
